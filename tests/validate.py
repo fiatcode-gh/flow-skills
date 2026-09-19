@@ -18,6 +18,7 @@ def frontmatter(p):
     except Exception as e:
         err(f'{p.relative_to(ROOT)}: invalid frontmatter: {e}'); return {}, text
 
+MODEL_LEAK=re.compile(r'(?:openai-codex|ollama-cloud|anthropic)/|gpt-5|claude-(?:haiku|sonnet|opus|fable)|deepseek|glm-|kimi')
 skills=list((ROOT/'agent/skills').glob('*/SKILL.md'))
 agents=list((ROOT/'agent/agents').glob('*.md'))
 rules=list((ROOT/'agent/rules').glob('*.md'))
@@ -35,6 +36,8 @@ for p in skills:
     names.add(name)
     if 'flow-using-skills' in body: err(f'{p}: legacy bootstrap reference')
     if re.search(r'pass (?:the )?model explicitly|explicit model per|model: openai-codex/', body, re.I): err(f'{p}: concrete/per-dispatch model routing leaked into skill')
+    for asset in p.parent.rglob('*'):
+        if asset.is_file() and asset.suffix in {'.md','.json','.py','.sh',''} and MODEL_LEAK.search(asset.read_text(errors='replace')): err(f'{asset.relative_to(ROOT)}: concrete model/provider identifier leaked into skill content')
 
 expected={
 'flow-design','flow-planning','flow-execution','flow-tdd','flow-debugging','flow-review','flow-integrating','flow-ldd','flow-external-session','ui-design','blog-post','weft-worklog','weft-memory','weft-maintenance'}
@@ -48,8 +51,11 @@ for p in agents:
     agent_names.add(name)
     model=fm.get('model')
     if model and model not in allowed_roles: err(f'{p}: unexpected agent role {model}')
-    if re.search(r'openai-codex/|gpt-5', p.read_text()): err(f'{p}: concrete model leaked into agent')
+    if MODEL_LEAK.search(p.read_text()): err(f'{p}: concrete model leaked into agent')
+    if 'spawns' in fm and not isinstance(fm.get('spawns'), list): err(f'{p.relative_to(ROOT)}: spawns must be a YAML list')
 
+expected_agents={'flow-acceptance-reviewer','flow-audit-code-health','flow-audit-docs','flow-audit-tests','flow-craft-reviewer','flow-evidence-verifier','flow-implementer','flow-plan-executor','flow-planner','flow-ttc-reviewer'}
+if agent_names!=expected_agents: err(f'agent set mismatch: {sorted(agent_names^expected_agents)}')
 for p in rules:
     fm,body=frontmatter(p)
     if fm.get('alwaysApply') is not True: err(f'{p}: rule must alwaysApply')
@@ -299,6 +305,33 @@ for required in ['maintain the **forward pointer**', 'next workflow action', 'ge
 if 'for ordinary work, the main session may code' in agents_md:
     err('AGENTS: blanket Main coding permission survived')
 
+
+# The Weft reference copies are deliberately duplicated per skill; they must stay byte-identical.
+weft_master=ROOT/'agent/skills/weft-worklog/references'
+for other,names in [('weft-memory',['conventions.md','voice.md']),('weft-maintenance',['conventions.md','voice.md','page-archetypes.md'])]:
+    for name in names:
+        a=weft_master/name; b=ROOT/'agent/skills'/other/'references'/name
+        if not b.exists(): err(f'missing Weft reference copy: {b.relative_to(ROOT)}'); continue
+        if a.read_bytes()!=b.read_bytes(): err(f'Weft reference copies differ: {a.relative_to(ROOT)} vs {b.relative_to(ROOT)}')
+
+# Asset references inside references/*.md must resolve from the reference directory or the skill directory.
+ref_asset_re=re.compile(r'`((?:\.\./)?(?:references|scripts)/[^`\s<>]+)`|\]\(([^)\s]+\.md)\)')
+for ref in (ROOT/'agent/skills').glob('*/references/*.md'):
+    text=ref.read_text()
+    for m in ref_asset_re.finditer(text):
+        rel=m.group(1) or m.group(2)
+        if rel.startswith('http'): continue
+        if not ((ref.parent/rel).exists() or (ref.parent.parent/rel).exists()): err(f'{ref.relative_to(ROOT)}: missing referenced asset {rel}')
+
+# Every authored text file ends with a newline.
+import subprocess
+tracked=subprocess.run(['git','ls-files','-z'],cwd=ROOT,capture_output=True,text=True,check=True).stdout.split('\0')
+for rel in tracked:
+    if not rel or rel.startswith('tests/fixtures/'): continue
+    f=ROOT/rel
+    if f.suffix in {'.md','.ts','.mjs','.py','.sh','.yml','.json'} or rel.startswith('scripts/') or rel.endswith('/mailbox'):
+        data=f.read_bytes()
+        if data and not data.endswith(b'\n'): err(f'{rel}: missing final newline')
 
 # Relative skill asset references must resolve from each skill directory.
 asset_re = re.compile(r'`((?:references|scripts)/[^`]+)`')

@@ -3,7 +3,7 @@ name: flow-audit-docs
 description: Read-only whole-codebase audit specialist for documentation accuracy, comments, structure, boundaries and architectural drift.
 tools: read, grep, glob, bash, lsp
 model: "@review_aux"
-spawns: scout
+spawns: [scout]
 ---
 
 Audit Docs and Structure (DST) for the assigned repository/scope at rest. Never edit files or mutate git state.

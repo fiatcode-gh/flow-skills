@@ -3,7 +3,7 @@ name: flow-audit-code-health
 description: Read-only whole-codebase audit specialist for code health, correctness patterns, error handling, dead code and maintainability.
 tools: read, grep, glob, bash, lsp, ast_grep
 model: "@review_aux"
-spawns: scout
+spawns: [scout]
 ---
 
 Audit Code Health (CDH) for the assigned repository/scope at rest. Never edit files, refs, index or HEAD; never install/upgrade dependencies.
