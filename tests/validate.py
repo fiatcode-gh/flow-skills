@@ -144,12 +144,8 @@ for required in [
     'must not personally drive a multi-step device/manual acceptance sequence',
     'flow-evidence-guard', 'evidence capsule:', 'independent split check:',
     'evidence-capsule runtime preflight rejects verifier dispatches missing these markers',
-    '`before` and `after` identity/hash', 'match/mismatch/unknown',
-    'shared setup, save, screen, or device state does not by itself make evidence inseparable',
-    'different acceptance modalities or operators', 'physical human-operated interaction', 'synthetic input',
-    'receipt may report `match` only when', 'report `unknown`',
     'do not wait on its old task job id after revival', 'peer-filtered reply wait', 'non-ldd only',
-    're-enter the stability barrier', 'rerun affected capsules', 'reuse unaffected capsules',
+    're-enter the stability barrier',
 ]:
     if required not in execution: err(f'flow-execution missing execution-policy invariant: {required}')
 
@@ -165,18 +161,39 @@ for required in [
     'one coherent scene/state/acceptance cluster', 'active main cannot rotate itself',
     'unit-start/resume command does not create missing approval',
     'explicit plan approval', 'acceptance review is a dependency barrier',
-    'multi-step device/manual acceptance', 'evidence-capsule runtime preflight',
-    'evidence capsule:', 'independent split check', 'restore obligation',
-    'match/mismatch/unknown', 'substantial ldd consequential how',
-    'different acceptance modalities/operators are separable by default',
-    'shared device/save/setup state is not sufficient evidence of inseparability',
-    'automated capture/proxy evidence stays separate from physical human-operated/manual/assistive-technology interaction',
-    '`match` is valid only when the rendered before/after values self-consistently agree',
+    'multi-step device/manual acceptance', 'evidence capsule:', 'substantial ldd consequential how',
     'dispatch a dedicated `flow-planner` (`@plan`)',
     'answers to blocking/open contract questions do not themselves approve',
-    'reopens the stability barrier', 'rerun affected capsules', 'reuse unaffected capsules',
+    'reopens the stability barrier',
 ]:
     if required not in ldd: err(f'flow-ldd missing execution-policy invariant: {required}')
+
+# One normative home per doctrine rule. A phrase below may appear only in the
+# files that own its rule; every other surface points at the home by name.
+doctrine_surfaces=list((ROOT/'agent').rglob('*.md'))+[ROOT/'docs/ARCHITECTURE.md', ROOT/'docs/PRINCIPLES.md', ROOT/'README.md']
+EXCLUSIVE={
+    'synthetic input': {'agent/agents/flow-evidence-verifier.md'},
+    'assistive-technology': {'agent/agents/flow-evidence-verifier.md'},
+    'comparison scheme': {'agent/agents/flow-evidence-verifier.md', 'agent/rules/flow-evidence.md'},
+    'independent split check:': {'agent/agents/flow-evidence-verifier.md', 'agent/skills/flow-execution/SKILL.md'},
+    'reuse of unaffected capsules': {'agent/rules/flow-evidence.md'},
+}
+for phrase,homes in EXCLUSIVE.items():
+    for p in doctrine_surfaces:
+        rel=str(p.relative_to(ROOT))
+        if phrase in p.read_text().lower() and rel not in homes: err(f'{rel}: doctrine phrase duplicated outside its home: {phrase}')
+    for home in homes:
+        if phrase not in (ROOT/home).read_text().lower(): err(f'{home}: doctrine home lost its rule: {phrase}')
+POINTS_TO={
+    'agent/skills/flow-execution/SKILL.md': ['defined once in `flow-evidence-verifier`', 'self-consistency rule in `flow-evidence`', 'stability barrier defined in the `flow-evidence` rule'],
+    'agent/skills/flow-ldd/SKILL.md': ['`flow-execution` section 8', '`flow-execution` section 9', 'defined in `flow-evidence-verifier`', '`flow-evidence` rule'],
+    'docs/ARCHITECTURE.md': ['`flow-execution` section 9', '`flow-evidence` rule', '`flow-evidence-verifier` alone defines'],
+    'docs/PRINCIPLES.md': ['`flow-evidence-verifier` alone defines', '`flow-evidence` rule alone owns'],
+}
+for path,pointers in POINTS_TO.items():
+    text=(ROOT/path).read_text()
+    for ptr in pointers:
+        if ptr not in text: err(f'{path}: pointer to doctrine home missing: {ptr}')
 
 external=(ROOT/'agent/skills/flow-external-session/SKILL.md').read_text().lower()
 for required in ['planning handoff intake', 'references/planning-handoff.md', 'evidence/proposal, not authority or authorization', 'do not create a mailbox for a one-way static planning import', 'contract-formation stage', 'locally governing what/why contract', 'implementation_strategy: settled', 'execution-grade contract', 'refine only those gaps']:
@@ -229,7 +246,7 @@ for required in [
     'pre-edit bytes', 'not restoration proof when the file was already modified',
     'invalid flow orchestration', 'docs-only', 'affected evidence stale',
     'structured evidence receipts must be internally self-consistent',
-    '`match` is itself an evidence claim', 'contradictory or transcription-damaged receipt',
+    '`match` is itself an evidence claim', 'contradictory or transcription-damaged receipt', 'unchanged `match` receipt is reusable',
     'reopens the stability barrier', 'rerun only affected evidence', 'reuse of unaffected capsules',
 ]:
     if required not in evidence: err(f'flow-evidence invariant missing: {required}')
