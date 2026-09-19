@@ -23,7 +23,7 @@ plan-tasks/
   ...
 ```
 
-For non-LDD work, prefer `.flow/plans/<slug>/PLAN.md` plus `plan-tasks/` when the plan must survive compaction/session changes. A compact one-file plan is fine when it stays readable and no worker needs a sliced brief.
+For non-LDD work, write `.flow/plans/<slug>/PLAN.md` plus `plan-tasks/`; the `flow-artifacts` rule owns the exclude guard and lifecycle. A compact one-file `PLAN.md` is fine when it stays readable and no worker needs a sliced brief.
 
 For substantial planning — LDD or non-LDD — Main/controller must dispatch `flow-planner` (`@plan`) to own consequential HOW recon/writing unless a current validated external plan already satisfies this skill's execution-grade contract. Dispatch only after the completed governing contract/WHAT boundary has explicit user approval. Answers to clarification questions do not themselves approve the completed or materially amended contract. Main owns the governing contract, validates the planner receipt, and owns plan acceptance, but it does not author substantial consequential HOW itself.
 

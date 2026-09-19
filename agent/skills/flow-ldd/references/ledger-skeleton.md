@@ -1,13 +1,13 @@
 # LDD ledger skeleton
 
-Default home: `.flow/ldd/<epic>/`.
+Home: `.flow/ldd/<epic>/` in both modes; the `flow-artifacts` rule owns the exclude guard.
 
 At bootstrap the user chooses:
 
-- **local** — personal architect state; normally gitignored;
-- **shared** — team-visible state; tracked, with architect updates kept single-writer and small.
+- **local** — personal architect state; hidden by the `.flow/` exclude guard and never tracked;
+- **shared** — team-visible state; each new ledger file is added once with `git add -f` and then tracked normally, with architect updates kept single-writer and small.
 
-Do not silently change `.gitignore`; if repository state conflicts with the chosen mode, surface it as a decision.
+Never edit `.gitignore` for the ledger. If repository state conflicts with the chosen mode (a tracked ledger in local mode, or hidden ledger files in shared mode), surface it as a decision.
 
 Suggested layout:
 

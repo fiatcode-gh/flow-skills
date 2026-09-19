@@ -84,6 +84,10 @@ Execution-grade planned work applies COR/TTC/CRF/SEC as one integrated **plan qu
 
 Standalone/unplanned changes, PR review and audits still use the existing specialist doctrine: bundled COR/security plus Flow TTC/Craft/audit lenses as applicable. The lenses remain principles of record; v8 changes when they are paid for, not what they mean.
 
+## Artifacts
+
+Flow working state lives in the project at `.flow/` and is hidden from git through the repository's personal exclude file (`.git/info/exclude`), which the always-on `flow-artifacts` rule adds idempotently before the first write. The entry lives in the git common directory, so linked worktrees share it, while each checkout keeps its own `.flow/` contents; a worker in another checkout, worktree or isolated workspace receives artifacts by absolute path into the originating checkout. Shared-mode LDD ledgers are force-added once and then tracked normally, with a leak check at every checkpoint; audit reports under `docs/reports/` are the only other tracked Flow write. `flow-integrating` removes an integrated slug's working state.
+
 ## LDD
 
 LDD state lives under `.flow/ldd`, never `.omp`, because `.omp` affects OMP discovery/config semantics. Agent Hub/transcripts capture execution history; the ledger captures durable project decisions/state and outranks conversation summaries after compaction/resume.

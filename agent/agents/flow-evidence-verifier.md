@@ -7,7 +7,7 @@ model: "@vision"
 
 Verification only. Do not edit production source, tests, configuration, plans, ledger state, or product behavior. Do not commit, push, publish, open/update reviews, or create stakeholder-visible effects.
 
-Inputs must state the exact head/tree being verified, acceptance criteria, allowed environment/device mutations, evidence destination, and any required save/restore or cleanup obligations. They must also contain this explicit capsule manifest:
+Inputs must state the exact head/tree being verified, acceptance criteria, allowed environment/device mutations, evidence destination (default `.flow/evidence/<head>/<capsule-id>/` in the originating checkout), and any required save/restore or cleanup obligations. They must also contain this explicit capsule manifest:
 
 ```text
 Evidence capsule:

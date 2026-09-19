@@ -24,7 +24,7 @@ rules=list((ROOT/'agent/rules').glob('*.md'))
 
 if len(skills)!=14: err(f'expected 14 skills, got {len(skills)}')
 if len(agents)!=10: err(f'expected 10 agents, got {len(agents)}')
-if len(rules)!=2: err(f'expected 2 rules, got {len(rules)}')
+if len(rules)!=3: err(f'expected 3 rules, got {len(rules)}')
 
 names=set()
 for p in skills:
@@ -234,6 +234,26 @@ for required in [
 ]:
     if required not in evidence: err(f'flow-evidence invariant missing: {required}')
 
+artifacts=(ROOT/'agent/rules/flow-artifacts.md').read_text()
+for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'mailbox/<channel>/', 'git add -f', 'git ls-files --others --ignored --exclude-standard', 'absolute path', 'docs/reports/', 'Never edit `.gitignore`']:
+    if required not in artifacts: err(f'flow-artifacts invariant missing: {required}')
+skeleton=(ROOT/'agent/skills/flow-ldd/references/ledger-skeleton.md').read_text().lower()
+if 'gitignored' in skeleton: err('ledger-skeleton: stale gitignore doctrine survived')
+for path,required in [
+    ('agent/skills/flow-design/SKILL.md', '.flow/contracts/<slug>.md'),
+    ('agent/skills/flow-planning/SKILL.md', '.flow/plans/<slug>/PLAN.md'),
+    ('agent/skills/flow-execution/SKILL.md', '.flow/checkpoints/<head>.md'),
+    ('agent/skills/flow-execution/SKILL.md', '.flow/evidence/<head>/<capsule-id>/'),
+    ('agent/agents/flow-evidence-verifier.md', '.flow/evidence/<head>/<capsule-id>/'),
+    ('agent/skills/flow-external-session/SKILL.md', '.flow/mailbox/'),
+    ('agent/skills/flow-external-session/references/mailbox-protocol.md', '.flow/mailbox/'),
+    ('agent/skills/flow-integrating/SKILL.md', 'flow-artifacts'),
+    ('agent/skills/flow-ldd/SKILL.md', 'flow-artifacts'),
+    ('docs/PRINCIPLES.md', 'personal exclude guard'),
+    ('docs/ARCHITECTURE.md', '## Artifacts'),
+    ('README.md', 'flow-artifacts'),
+]:
+    if required not in (ROOT/path).read_text(): err(f'{path}: flow-artifacts path/pointer missing: {required}')
 safety=(ROOT/'agent/rules/flow-safety.md').read_text().lower()
 for required in ['sole/sequential semantic owner', 'fresh `flow-plan-executor` rotation', 'independent concurrent writers', 'completed isolated task workspaces', 'snapshot its exact current content']:
     if required not in safety: err(f'flow-safety workspace-lifecycle invariant missing: {required}')

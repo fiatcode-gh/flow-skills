@@ -31,7 +31,7 @@ A validated external planning/LDD handoff may contain user-approved design decis
 ## Durability
 
 - Tiny/mechanical work that legitimately skips this stage may keep its explicit scope in the conversation/request.
-- For substantial non-LDD work, write the governing contract to `.flow/contracts/<slug>.md` unless the project already has a more authoritative specification location.
+- For substantial non-LDD work, write the governing contract to `.flow/contracts/<slug>.md` after running the `flow-artifacts` exclude guard, and record the head it was written against.
 - Under `flow-ldd`, write/update the unit contract in the epic's `.flow/ldd/<epic>/` authority instead of creating a parallel contract system.
 
 ## Rules

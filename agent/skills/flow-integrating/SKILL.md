@@ -35,3 +35,5 @@ Do not end a locally-complete integration checkpoint with only a status summary.
 ## 4. After integration
 
 Re-check actual remote/local result before claiming integration succeeded. Delete a local feature branch only when it is genuinely integrated and safe. For a user-owned external worktree, report it as removable; do not remove it yourself unless explicitly instructed.
+
+After confirmed integration, remove the integrated slug's `.flow/contracts`, `.flow/plans`, `.flow/checkpoints` and `.flow/evidence` entries per the `flow-artifacts` lifecycle and report what was removed. Never touch a tracked shared-LDD ledger.
