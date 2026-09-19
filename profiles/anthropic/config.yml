@@ -1,5 +1,6 @@
 # omp-stack managed baseline for: omp --profile anthropic
-# scripts/omp-stack copies this file only when the profile has no config.yml.
+# scripts/omp-stack symlinks the profile's config.yml to this file; edit
+# settings here and review the result with git diff like any other change.
 # Authenticate this profile through OMP's Anthropic/Claude OAuth flow; never
 # store Team credentials in this repository.
 providers:

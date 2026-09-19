@@ -65,6 +65,6 @@ Anthropic:
 - `default` / `plan` / `slow`: Claude Opus 5 high;
 - `critical`: Claude Fable 5.1 high (explicitly not max).
 
-All three v8 baseline configs add explicit OMP approval prompts for normal push/PR/review/comment/release commands through direct Bash/forge patterns. The former blanket `tools.approval.eval: prompt` backstop is intentionally removed because it interrupts ordinary eval usage too broadly; do not wrap publication commands in eval to bypass the direct-command prompts. **Existing installed profile configs are not overwritten by `omp-stack install`**, so merge the applicable `modelRoles.execute`, controller routing, and `bash.patterns` blocks manually before the field trial.
+All three v8 baseline configs add explicit OMP approval prompts for normal push/PR/review/comment/release commands through direct Bash patterns; `gh api` prompts only when a method or body flag is present. Blanket `tools.approval.eval: prompt` is intentionally unset because it interrupts ordinary eval usage too broadly; do not wrap publication commands in eval to bypass the direct-command prompts. **A divergent installed profile config is never overwritten by `omp-stack install`**: the installer warns and exits non-zero. Merge the wanted settings into `profiles/<name>/config.yml`, delete the profile copy, and rerun `install` so the profile points at the template (step 3 above).
 
 See `docs/MODEL-ROUTING.md` for the reasoning.

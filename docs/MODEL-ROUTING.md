@@ -31,7 +31,7 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 
 ## Provider profiles
 
-`profiles/openai-codex/config.yml`, `profiles/ollama-cloud/config.yml`, and `profiles/anthropic/config.yml` are first-install baselines, not runtime overlays. `scripts/omp-stack install` copies a baseline only when the corresponding native profile has no `config.yml`; later installs leave profile-owned config untouched.
+`profiles/openai-codex/config.yml`, `profiles/ollama-cloud/config.yml`, and `profiles/anthropic/config.yml` are the single source of truth for each profile's settings, not runtime overlays. `scripts/omp-stack install` symlinks each profile's `config.yml` to its template; a real file is replaced only when it is byte-identical, otherwise the installer warns, leaves it alone, and exits non-zero. Merge a divergent copy into the template, delete the copy, and rerun `install`.
 
 OMP named profiles isolate the full OMP-native user root, not merely model selection. The installer therefore links the same `AGENTS.md`, agents, rules, skills, extensions and support library into every managed profile root. MCP remains profile-owned and opt-in. Sessions, blobs, `agent.db` and provider authentication remain genuinely separate by design.
 
@@ -61,7 +61,7 @@ Use the strongest model for **unresolved judgment**, not for routine plan transc
 
 ## External-effect approval backstop
 
-All three v8 baseline profiles add OMP-native `bash.patterns` prompts for normal GitHub publication commands and `tools.approval.eval: prompt`. These are a runtime backstop for Flow's user-authorization rule, not sandbox containment: another already-approved program can still perform network effects through its own APIs. The user-facing Flow gate remains authoritative. Existing installed profile configs must merge these settings manually because `omp-stack install` never overwrites profile-owned config.
+All three v8 baseline profiles add OMP-native `bash.patterns` prompts for normal GitHub publication commands: `git push`, the `gh pr`/`gh issue`/`gh release` write subcommands, and `gh api` calls that carry a request-method or body flag as its own token. Plain `gh api` reads do not prompt. Blanket `tools.approval.eval` prompting is deliberately unset because it interrupts ordinary eval use; publication commands must stay on the direct Bash surface rather than being wrapped in eval. These prompts are a runtime backstop for Flow's user-authorization rule, not sandbox containment: another already-approved program can still perform network effects through its own APIs. The user-facing Flow gate remains authoritative. Because the profile `config.yml` is a symlink to the template, the patterns reach every managed profile with the next `install`; `tests/bash-patterns.test.mjs` proves the list against OMP's matcher.
 
 ## Concurrency
 

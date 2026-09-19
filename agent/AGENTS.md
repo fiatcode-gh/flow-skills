@@ -31,7 +31,7 @@ Before committing, run the repository's declared formatter/linter on changed fil
 
 A local commit is not permission to push, open/update a pull request, publish a review, merge, release, or otherwise affect a remote system.
 
-Use the direct Bash/forge command surface for stakeholder-visible publication actions so configured approval patterns remain effective. Never route push/PR/review/comment/release actions through OMP `eval` or another wrapper to bypass those approval patterns.
+Use the direct Bash/gh command surface for stakeholder-visible publication actions so configured approval patterns remain effective. Never route push/PR/review/comment/release actions through OMP `eval` or another wrapper to bypass those approval patterns.
 
 ## Communication
 

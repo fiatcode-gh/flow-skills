@@ -419,8 +419,18 @@ for required in [
 if 'unresolved semantic/debugging/integration judgment → main/`@task`' in principles:
     err('docs/PRINCIPLES.md: ambiguous Main semantic-writer routing survived')
 
+routing_doc=(ROOT/'docs/MODEL-ROUTING.md').read_text()
+for stale in ['copies a baseline only', 'never overwrites profile-owned', 'and `tools.approval.eval: prompt`', 'Bash/forge']:
+    if stale in routing_doc: err(f'docs/MODEL-ROUTING.md stale installer/approval doctrine survived: {stale}')
+for profile,path in profile_cfgs.items():
+    header=path.read_text().splitlines()[1]
+    if 'copies this file' in header: err(f'{path.relative_to(ROOT)}: stale copy-once header comment')
+    if 'symlinks' not in header: err(f'{path.relative_to(ROOT)}: header must describe the symlinked template')
+compat_text=(ROOT/'docs/OMP-COMPATIBILITY.md').read_text()
+for required in ['78b7531', 'tests/bash-patterns.test.mjs', 'GH_TOKEN=x gh api']:
+    if required not in compat_text: err(f'OMP compatibility matcher note missing: {required}')
 migration=(ROOT/'docs/MIGRATION.md').read_text().lower()
-for stale in ['deepseek v4 flash low', '`default` / `plan` / `slow` / `review_aux`: deepseek v4 pro high']:
+for stale in ['deepseek v4 flash low', '`default` / `plan` / `slow` / `review_aux`: deepseek v4 pro high', 'are not overwritten by `omp-stack install`**, so merge', 'bash/forge']:
     if stale in migration: err(f'docs/MIGRATION.md stale Ollama routing survived: {stale}')
 for required in ['deepseek v4.1 flash low', '`execute` / `task` / `vision` / `review_aux`: glm-5.3-flash high']:
     if required not in migration: err(f'docs/MIGRATION.md current Ollama routing missing: {required}')
