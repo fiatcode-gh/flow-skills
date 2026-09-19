@@ -68,7 +68,7 @@ Then replace `ctx7sk-REPLACE-WITH-YOUR-KEY` in each copy with the real Context7 
 
 ## Flow shape
 
-The old 24-skill surface is reduced to 15 skills in the v8 trial:
+The old 24-skill surface is reduced to 14 skills in the v8 trial:
 
 * `flow-design` — material product/architecture decisions only.
 * `flow-planning` — execution-grade HOW planning; front-loads interfaces/tests/ownership and lens concerns so implementation can be constrained.
@@ -79,7 +79,7 @@ The old 24-skill surface is reduced to 15 skills in the v8 trial:
 * `flow-integrating` — final evidence and user-owned integration decision.
 * `flow-ldd` — durable architect/worker protocol for epics; architect never codes.
 * `flow-external-session` — external worktrees, static planning/worker handoffs and filesystem mailbox when genuinely needed.
-* `forgejo`, `ui-design`, `blog-post` — domain capabilities.
+* `ui-design`, `blog-post` — domain capabilities.
 * `weft-worklog`, `weft-memory`, `weft-maintenance` — grouped Weft operations.
 
 The old bootstrap (`flow-using-skills`), normal workspace ceremony and standalone verification skill remain gone. v8 deliberately restores **Flow planning doctrine** on top of native OMP Plan/model mechanics: substantial work becomes contract → execution-grade plan → constrained `@execute` implementation → one strong `@slow` acceptance review. `@task` remains the semantic/debugging fallback and `@smol` the mechanical lane. Review lenses are not deleted: they move left into the plan quality gate for planned work and remain specialist reviewers for unplanned/PR/audit paths. Writers still own focused proof, Main owns integration/final evidence, and LDD resumes from small durable pointers instead of replaying the whole epic.

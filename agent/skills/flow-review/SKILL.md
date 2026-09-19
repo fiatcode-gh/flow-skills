@@ -1,13 +1,13 @@
 ---
 name: flow-review
-description: Use for reviewing a local change or existing GitHub/Forgejo pull request, handling feedback on the user's own PR, or auditing a codebase/area; selects independent evidence-backed review lenses and protects forge publication with explicit approval.
+description: Use for reviewing a local change or existing GitHub pull request, handling feedback on the user's own PR, or auditing a codebase/area; selects independent evidence-backed review lenses and protects GitHub publication with explicit approval.
 ---
 
 # Flow review
 
 One review doctrine, four modes. Determine the mode first and load its reference when needed:
 
-- **Local/change review** — inspect current/explicit diff; no forge publication.
+- **Local/change review** — inspect current/explicit diff; no GitHub publication.
 - **PR reviewer** — existing PR; read-only contributor branch; `references/pr-review.md`.
 - **Author feedback** — feedback on the user's own PR; re-anchor/triage/fix/reply; `references/author-feedback.md`.
 - **Codebase audit** — repository/area at rest; `references/audit.md`.
@@ -39,4 +39,4 @@ At a user-facing review checkpoint, state the review outcome and the next action
 
 ## Publication gate
 
-Any forge write — review verdict/comment, reply, resolve action, reviewer request — requires the user's approval of the **exact** draft/action set. Re-query remote head immediately before publishing; if it moved, post nothing until the draft is rebuilt against the new head.
+Any GitHub write — review verdict/comment, reply, resolve action, reviewer request — requires the user's approval of the **exact** draft/action set. Re-query remote head immediately before publishing; if it moved, post nothing until the draft is rebuilt against the new head.

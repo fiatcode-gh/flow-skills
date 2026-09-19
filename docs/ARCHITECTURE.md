@@ -35,7 +35,7 @@ Native surfaces:
 | retrofit | weft-maintenance |
 | frontend-design | ui-design |
 | blog-post | blog-post |
-| forgejo | forgejo |
+| forgejo | deleted; the stack is GitHub-only and `flow-review` carries the `gh` mechanics |
 
 ## Execution hierarchy
 

@@ -22,7 +22,7 @@ skills=list((ROOT/'agent/skills').glob('*/SKILL.md'))
 agents=list((ROOT/'agent/agents').glob('*.md'))
 rules=list((ROOT/'agent/rules').glob('*.md'))
 
-if len(skills)!=15: err(f'expected 15 skills, got {len(skills)}')
+if len(skills)!=14: err(f'expected 14 skills, got {len(skills)}')
 if len(agents)!=10: err(f'expected 10 agents, got {len(agents)}')
 if len(rules)!=2: err(f'expected 2 rules, got {len(rules)}')
 
@@ -37,7 +37,7 @@ for p in skills:
     if re.search(r'pass (?:the )?model explicitly|explicit model per|model: openai-codex/', body, re.I): err(f'{p}: concrete/per-dispatch model routing leaked into skill')
 
 expected={
-'flow-design','flow-planning','flow-execution','flow-tdd','flow-debugging','flow-review','flow-integrating','flow-ldd','flow-external-session','forgejo','ui-design','blog-post','weft-worklog','weft-memory','weft-maintenance'}
+'flow-design','flow-planning','flow-execution','flow-tdd','flow-debugging','flow-review','flow-integrating','flow-ldd','flow-external-session','ui-design','blog-post','weft-worklog','weft-memory','weft-maintenance'}
 if names!=expected: err(f'skill set mismatch: {sorted(names^expected)}')
 
 agent_names=set()
@@ -347,28 +347,40 @@ if anthropic != expected_anthropic:
     err('profiles/anthropic/config.yml: role mapping drifted from documented routing')
 
 # Every v8 provider baseline carries the external-effect approval backstop.
-trial_profiles=set(profile_cfgs)
+# The profiles are the single source of truth for the pattern list; the three
+# copies must be identical and tests/bash-patterns.test.mjs proves the list
+# against a port of OMP's matcher.
+pattern_lists={}
 for profile,path in profile_cfgs.items():
     cfg=yaml.safe_load(path.read_text()) or {}
-    if profile not in trial_profiles: continue
     approval=((cfg.get('tools') or {}).get('approval') or {})
     if 'eval' in approval: err(f'{path.relative_to(ROOT)}: blanket tools.approval.eval must remain unset')
     patterns=(cfg.get('bash') or {}).get('patterns') or []
-    pattern_map={p.get('match'):p.get('approval') for p in patterns if isinstance(p,dict)}
+    pattern_lists[profile]=[(p.get('match'),p.get('approval')) for p in patterns if isinstance(p,dict)]
+    pattern_map=dict(pattern_lists[profile])
     for command in [
         'git push*',
         'gh pr create*',
         'gh pr merge*',
         'gh pr review*',
         'gh pr comment*',
+        'gh pr edit*',
+        'gh pr close*',
         'gh issue comment*',
         'gh release create*',
-        'gh api*',
-        'tea pr create*',
-        'tea pr merge*',
-        'tea comment*',
+        'gh api -X*', 'gh api * -X*',
+        'gh api --method*', 'gh api * --method*',
+        'gh api -f*', 'gh api * -f*',
+        'gh api -F*', 'gh api * -F*',
+        'gh api --field*', 'gh api * --field*',
+        'gh api --raw-field*', 'gh api * --raw-field*',
+        'gh api --input*', 'gh api * --input*',
     ]:
         if pattern_map.get(command) != 'prompt': err(f'{path.relative_to(ROOT)}: publication prompt missing for {command}')
+    if 'gh api*' in pattern_map: err(f'{path.relative_to(ROOT)}: broad gh api* prompt must stay narrowed to method/body flags')
+    for match,_ in pattern_lists[profile]:
+        if match.startswith('tea '): err(f'{path.relative_to(ROOT)}: Forgejo pattern survived: {match}')
+if len({tuple(v) for v in pattern_lists.values()})!=1: err('profiles: bash.patterns lists differ between profiles')
 
 # Every role-backed Flow agent must resolve in every managed provider profile.
 for p in agents:

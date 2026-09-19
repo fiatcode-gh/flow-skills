@@ -8,6 +8,6 @@ Reviewer comments are claims, not verdicts.
 4. Every finding gets exactly one disposition: `fix`, `disproved`, `deferred` with destination, `needs clarification`, `already addressed`, or `obsolete`.
 5. Show triage/evidence before making fixes unless those fixes are already explicitly authorized. Route authorized fixes through normal `flow-execution`: return semantic corrections to an existing unit owner when available, use `sonic` only for an exact diagnosed mechanical correction with proof, and keep executable behavior under `flow-tdd`.
 6. Draft short factual replies. Resolve only terminal threads; never resolve `needs clarification`/`deferred`. Show exact reply/resolve/re-request set and wait for approval.
-7. Re-query head immediately before forge writes. A moved head makes the draft stale.
+7. Re-query head immediately before GitHub writes. A moved head makes the draft stale.
 
-For forge-specific packet/reply commands, read `forge-auth.md` and `author-operations.md`.
+For packet/reply commands, read `github-operations.md` and `author-operations.md`.

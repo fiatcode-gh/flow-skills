@@ -27,7 +27,7 @@ This file records what the `ai-stack` skill sweep kept, improved, merged or deli
 | `retrofit` | historical rewrites are dangerous; dry-run/proposal; preserve history/voice | `weft-maintenance` |
 | `frontend-design` | intentional aesthetics and production craft | `ui-design`; existing product/accessibility/platform conventions now outrank novelty |
 | `blog-post` | live corpus outranks static voice rules; concrete first-person thesis; user owns publishing | `blog-post` |
-| `forgejo` | mechanics distinct from judgment; `tea` first; token safety; no silent stakeholder writes | `forgejo` |
+| `forgejo` | mechanics distinct from judgment; token safety; no silent stakeholder writes | deleted with Forgejo support; the principle survives in `flow-review` GitHub mechanics and the `flow-safety` publication rule |
 
 ## Non-negotiable invariants
 

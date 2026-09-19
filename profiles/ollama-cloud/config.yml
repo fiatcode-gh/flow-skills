@@ -30,7 +30,9 @@ modelRoles:
   critical: ollama-cloud/kimi-k3:high
 
 # Native backstop for Flow's external-effect gate. Keep publication commands
-# on the direct Bash/forge surface so these explicit prompt policies apply.
+# on the direct Bash/gh surface so these explicit prompt policies apply.
+# `gh api` prompts only when a method/body flag is present as its own token;
+# tests/bash-patterns.test.mjs proves this list against OMP's matcher.
 bash:
   patterns:
     - match: "git push*"
@@ -43,17 +45,41 @@ bash:
       approval: prompt
     - match: "gh pr comment*"
       approval: prompt
+    - match: "gh pr edit*"
+      approval: prompt
+    - match: "gh pr close*"
+      approval: prompt
     - match: "gh issue comment*"
       approval: prompt
     - match: "gh release create*"
       approval: prompt
-    - match: "gh api*"
+    - match: "gh api -X*"
       approval: prompt
-    - match: "tea pr create*"
+    - match: "gh api * -X*"
       approval: prompt
-    - match: "tea pr merge*"
+    - match: "gh api --method*"
       approval: prompt
-    - match: "tea comment*"
+    - match: "gh api * --method*"
+      approval: prompt
+    - match: "gh api -f*"
+      approval: prompt
+    - match: "gh api * -f*"
+      approval: prompt
+    - match: "gh api -F*"
+      approval: prompt
+    - match: "gh api * -F*"
+      approval: prompt
+    - match: "gh api --field*"
+      approval: prompt
+    - match: "gh api * --field*"
+      approval: prompt
+    - match: "gh api --raw-field*"
+      approval: prompt
+    - match: "gh api * --raw-field*"
+      approval: prompt
+    - match: "gh api --input*"
+      approval: prompt
+    - match: "gh api * --input*"
       approval: prompt
 
 # Keep per-dispatch effort disabled so an orchestrator cannot silently turn a

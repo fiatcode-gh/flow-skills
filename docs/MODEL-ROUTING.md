@@ -61,7 +61,7 @@ Use the strongest model for **unresolved judgment**, not for routine plan transc
 
 ## External-effect approval backstop
 
-All three v8 baseline profiles add OMP-native `bash.patterns` prompts for normal GitHub/Forgejo publication commands and `tools.approval.eval: prompt`. These are a runtime backstop for Flow's user-authorization rule, not sandbox containment: another already-approved program can still perform network effects through its own APIs. The user-facing Flow gate remains authoritative. Existing installed profile configs must merge these settings manually because `omp-stack install` never overwrites profile-owned config.
+All three v8 baseline profiles add OMP-native `bash.patterns` prompts for normal GitHub publication commands and `tools.approval.eval: prompt`. These are a runtime backstop for Flow's user-authorization rule, not sandbox containment: another already-approved program can still perform network effects through its own APIs. The user-facing Flow gate remains authoritative. Existing installed profile configs must merge these settings manually because `omp-stack install` never overwrites profile-owned config.
 
 ## Concurrency
 
