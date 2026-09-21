@@ -64,6 +64,31 @@ Child completion can self-deliver, and Main stays interactive whether it yields 
 
 Substantial planned work has two explicit human authorization gates: approve the completed WHAT/contract before dispatching the planner, then approve the completed execution-grade HOW/plan before the first production-writing worker. Answers to clarification questions do not themselves approve the completed or materially amended contract unless the user explicitly says so. A generic start/resume command cannot create a missing approval. Recorded approvals survive resume while their approved artifact/scope is materially unchanged; material changes reopen the corresponding gate. Under LDD these artifacts live in unit authority; non-LDD uses the normal contract/plan surfaces. Plan approval authorizes local implementation within that envelope, not publication.
 
+## Asset production
+
+`flow-assets` is a generic domain capability for repository visual assets, not a separate execution role or a game-only pipeline. It starts only when an actual consumer is concrete enough to derive a production requirement. The skill classifies work as GENERATE, EDIT or CONFORM, derives an asset contract from consuming code/config plus governing visual sources and approved references, and stages the portable bundle under `.flow/assets/<asset-id>/`.
+
+```text
+real consumer + visual rules + approved references
+                    ↓
+               flow-assets
+                    ↓
+       .flow/assets/<asset-id>/
+        ASSET.md + context + references
+                    ↓
+      replaceable generation/edit backend
+                    ↓
+              staged candidate
+                    ↓
+ optional deterministic ImageMagick conformance
+                    ↓
+             production asset
+                    ↓
+       real-consumer contextual evidence
+```
+
+Generation/editing remains backend-agnostic. ImageMagick is used only for deterministic technical conformance after visual content is acceptable; creative mismatches route back to generation/editing. A generated file is not accepted merely because its standalone image looks plausible: when a real render/use context exists, acceptance requires evidence from that consumer, using `flow-evidence-verifier` for multi-step visual/device gates under the normal evidence-capsule doctrine.
+
 ## Evidence hierarchy
 
 Evidence broadens with ownership rather than repeating the same full gate everywhere:
@@ -86,7 +111,7 @@ Standalone/unplanned changes, PR review and audits still use the existing specia
 
 ## Artifacts
 
-Flow working state lives in the project at `.flow/` and is hidden from git through the repository's personal exclude file (`.git/info/exclude`), which the always-on `flow-artifacts` rule adds idempotently before the first write. The entry lives in the git common directory, so linked worktrees share it, while each checkout keeps its own `.flow/` contents; a worker in another checkout, worktree or isolated workspace receives artifacts by absolute path into the originating checkout. Shared-mode LDD ledgers are force-added once and then tracked normally, with a leak check at every checkpoint; audit reports under `docs/reports/` are the only other tracked Flow write. `flow-integrating` removes an integrated slug's working state.
+Flow working state lives in the project at `.flow/` and is hidden from git through the repository's personal exclude file (`.git/info/exclude`), which the always-on `flow-artifacts` rule adds idempotently before the first write. The entry lives in the git common directory, so linked worktrees share it, while each checkout keeps its own `.flow/` contents; a worker in another checkout, worktree or isolated workspace receives artifacts by absolute path into the originating checkout. Shared-mode LDD ledgers are force-added once and then tracked normally, with a leak check at every checkpoint; local asset-production bundles live under `.flow/assets/<asset-id>/`; audit reports under `docs/reports/` are the only other tracked Flow write. `flow-integrating` removes an integrated slug's working state.
 
 ## LDD
 

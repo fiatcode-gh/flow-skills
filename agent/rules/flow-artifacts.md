@@ -17,6 +17,7 @@ Flow working state lives inside the project at `.flow/`, hidden from git through
   ldd/<epic>/                         flow-ldd ledger, resume and units (local or shared mode)
   checkpoints/<head>.md               recovery checkpoint before device/manual/external acceptance
   evidence/<head>/<capsule-id>/       flow-evidence-verifier artifacts
+  assets/<asset-id>/                  flow-assets contracts, context, references and staged candidates
   mailbox/<channel>/                  flow-external-session mailbox channels
 ```
 
@@ -52,4 +53,4 @@ A worker in another checkout, worktree or isolated workspace does not see this c
 
 ## Lifecycle
 
-`flow-integrating` removes the integrated slug's contract, plan, checkpoints and evidence after integration is confirmed and reports what it removed. It never touches a tracked ledger. Content under `.flow/` is Flow working state, not the user-owned working-tree state that `flow-safety` protects; still, delete only what the lifecycle names.
+`flow-integrating` removes the integrated slug's contract, plan, checkpoints, evidence and completed local asset bundles after integration is confirmed and reports what it removed. It never touches a tracked ledger. Content under `.flow/` is Flow working state, not the user-owned working-tree state that `flow-safety` protects; still, delete only what the lifecycle names.

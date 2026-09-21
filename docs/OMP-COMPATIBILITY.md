@@ -21,6 +21,12 @@ The design relies on these native behaviors:
 - the first-party Anthropic provider exposes `claude-sonnet-5`, `claude-opus-5`, and `claude-fable-5-1` with adaptive effort including `high`; Haiku 4.5 is kept without an explicit effort suffix in the baseline;
 - Anthropic OAuth credentials are profile-local under named profiles; the repository never stores Team credentials.
 
+## Asset-production boundary
+
+`flow-assets` v0.1 depends only on normal user-skill discovery, repository/filesystem access, and the existing Flow artifact/evidence boundaries. It deliberately does **not** require OMP's native image-generation tool or a specific model/provider, so the generation/editing backend can change without rewriting Flow doctrine.
+
+The optional `flow-assets` `scripts/conform-image` helper is outside the OMP runtime contract. It shells out to ImageMagick for deterministic technical conformance and fails clearly when ImageMagick is unavailable; no OMP compatibility assumption should paper over that external dependency.
+
 ## Upgrade smoke test
 
 After upgrading OMP:

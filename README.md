@@ -9,6 +9,7 @@ This repository intentionally does **not** emulate the old cross-harness `ai-sta
 - `omp` — the harness itself.
 - [`codebase-memory-mcp`](https://github.com/DeusData/codebase-memory-mcp) — the codebase graph that `agent/AGENTS.md` routes structural lookups to. Without it, `Codebase graph lookup` has nothing to query and agents fall back to `grep`/`glob`.
 - `@upstash/context7-mcp` via `npx` — library documentation lookup, also named in `agent/AGENTS.md`.
+- ImageMagick — optional; used only by `flow-assets` deterministic conformance when an asset needs resize/canvas/format/alpha shaping after its visual content is accepted.
 
 Both MCP servers are configured per profile; see [MCP servers](#mcp-servers).
 
@@ -68,7 +69,7 @@ Then replace `ctx7sk-REPLACE-WITH-YOUR-KEY` in each copy with the real Context7 
 
 ## Flow shape
 
-The old 24-skill surface is reduced to 14 skills in the v8 trial:
+The old 24-skill surface is reduced to 15 skills in the v8 trial:
 
 * `flow-design` — material product/architecture decisions only.
 * `flow-planning` — execution-grade HOW planning; front-loads interfaces/tests/ownership and lens concerns so implementation can be constrained.
@@ -79,10 +80,11 @@ The old 24-skill surface is reduced to 14 skills in the v8 trial:
 * `flow-integrating` — final evidence and user-owned integration decision.
 * `flow-ldd` — durable architect/worker protocol for epics; architect never codes.
 * `flow-external-session` — external worktrees, static planning/worker handoffs and filesystem mailbox when genuinely needed.
+* `flow-assets` — repository-aware GENERATE/EDIT/CONFORM asset workflow with portable staging bundles, optional ImageMagick conformance and contextual acceptance.
 * `ui-design`, `blog-post` — domain capabilities.
 * `weft-worklog`, `weft-memory`, `weft-maintenance` — grouped Weft operations.
 
-Flow working state (contracts, plans, checkpoints, evidence, LDD ledgers, mailboxes) lives in the project's `.flow/` directory, hidden from git through `.git/info/exclude` by the always-on `flow-artifacts` rule; only shared-mode LDD ledgers and requested audit reports are tracked.
+Flow working state (contracts, plans, checkpoints, evidence, asset bundles, LDD ledgers, mailboxes) lives in the project's `.flow/` directory, hidden from git through `.git/info/exclude` by the always-on `flow-artifacts` rule; only shared-mode LDD ledgers and requested audit reports are tracked.
 
 The old bootstrap (`flow-using-skills`), normal workspace ceremony and standalone verification skill remain gone. v8 deliberately restores **Flow planning doctrine** on top of native OMP Plan/model mechanics: substantial work becomes contract → execution-grade plan → constrained `@execute` implementation → one strong `@slow` acceptance review. `@task` remains the semantic/debugging fallback and `@smol` the mechanical lane. Review lenses are not deleted: they move left into the plan quality gate for planned work and remain specialist reviewers for unplanned/PR/audit paths. Writers still own focused proof, Main owns integration/final evidence, and LDD resumes from small durable pointers instead of replaying the whole epic.
 

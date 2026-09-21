@@ -1,0 +1,230 @@
+#!/usr/bin/env python3
+# Deterministic ImageMagick wrapper for flow-assets.
+# This helper performs technical conformance only. It deliberately does not
+# attempt semantic/creative fixes such as background removal, recoloring, or
+# content reconstruction.
+
+from __future__ import annotations
+
+import argparse
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+GRAVITIES = {
+    "center": "Center",
+    "north": "North",
+    "south": "South",
+    "east": "East",
+    "west": "West",
+    "north-east": "NorthEast",
+    "north-west": "NorthWest",
+    "south-east": "SouthEast",
+    "south-west": "SouthWest",
+}
+
+
+class ConformError(RuntimeError):
+    pass
+
+
+def find_imagemagick() -> tuple[list[str], list[str]]:
+    magick = shutil.which("magick")
+    if magick:
+        return [magick], [magick, "identify"]
+
+    convert = shutil.which("convert")
+    identify_bin = shutil.which("identify")
+    if convert and identify_bin:
+        return [convert], [identify_bin]
+
+    raise ConformError(
+        "ImageMagick is required for conformance. Install ImageMagick so "
+        "`magick` (preferred) or both `convert` and `identify` are on PATH."
+    )
+
+
+def run(cmd: list[str], *, capture: bool = False) -> str:
+    try:
+        proc = subprocess.run(
+            cmd,
+            check=True,
+            text=True,
+            capture_output=capture,
+        )
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or "").strip()
+        raise ConformError(
+            f"command failed ({exc.returncode}): {' '.join(cmd)}"
+            + (f"\n{detail}" if detail else "")
+        ) from exc
+    return proc.stdout.strip() if capture else ""
+
+
+def identify(identify_cmd: list[str], path: Path, fmt: str) -> str:
+    return run([*identify_cmd, "-format", fmt, str(path)], capture=True)
+
+
+def has_alpha(identify_cmd: list[str], path: Path) -> bool:
+    channels = identify(identify_cmd, path, "%[channels]").lower()
+    return "a" in channels
+
+
+def dimensions(identify_cmd: list[str], path: Path) -> tuple[int, int]:
+    raw = identify(identify_cmd, path, "%w %h")
+    try:
+        w, h = (int(part) for part in raw.split())
+    except Exception as exc:
+        raise ConformError(f"could not parse dimensions for {path}: {raw!r}") from exc
+    return w, h
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description="Conform already-accepted visual content with deterministic ImageMagick operations."
+    )
+    p.add_argument("--input", required=True, type=Path)
+    p.add_argument("--output", required=True, type=Path)
+    p.add_argument("--format", choices=("png", "webp", "jpg", "jpeg"))
+    p.add_argument("--width", type=int)
+    p.add_argument("--height", type=int)
+    p.add_argument(
+        "--fit",
+        choices=("contain", "cover", "stretch"),
+        default="contain",
+        help="How content fits inside the requested canvas after padding.",
+    )
+    p.add_argument("--gravity", choices=tuple(GRAVITIES), default="center")
+    p.add_argument("--padding", type=int, default=0)
+    p.add_argument(
+        "--trim",
+        action="store_true",
+        help="Trim uniform transparent/background edge pixels before fitting.",
+    )
+    p.add_argument(
+        "--require-alpha",
+        action="store_true",
+        help="Fail unless the input and final output both have an alpha channel.",
+    )
+    p.add_argument(
+        "--keep-metadata",
+        action="store_true",
+        help="Keep image metadata. Default behavior strips metadata.",
+    )
+    p.add_argument("--force", action="store_true", help="Allow overwriting --output.")
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate arguments and print the ImageMagick command without writing output.",
+    )
+    return p.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+
+    if not args.input.is_file():
+        raise ConformError(f"input does not exist or is not a file: {args.input}")
+    if args.output.exists() and not args.force:
+        raise ConformError(f"output already exists; pass --force to replace it: {args.output}")
+    if (args.width is None) != (args.height is None):
+        raise ConformError("--width and --height must be supplied together")
+    if args.width is not None and (args.width <= 0 or args.height <= 0):
+        raise ConformError("--width and --height must be positive")
+    if args.padding < 0:
+        raise ConformError("--padding cannot be negative")
+
+    convert_cmd, identify_cmd = find_imagemagick()
+
+    if args.require_alpha and not has_alpha(identify_cmd, args.input):
+        raise ConformError("input has no alpha channel but --require-alpha was requested")
+
+    if args.format:
+        suffix = args.output.suffix.lower().lstrip(".")
+        normalized = "jpg" if args.format == "jpeg" else args.format
+        normalized_suffix = "jpg" if suffix == "jpeg" else suffix
+        if normalized_suffix and normalized_suffix != normalized:
+            raise ConformError(
+                f"--format {args.format!r} conflicts with output suffix {args.output.suffix!r}"
+            )
+
+    cmd = [*convert_cmd, str(args.input)]
+
+    if args.trim:
+        cmd += ["-trim", "+repage"]
+
+    if args.width is not None:
+        inner_w = args.width - 2 * args.padding
+        inner_h = args.height - 2 * args.padding
+        if inner_w <= 0 or inner_h <= 0:
+            raise ConformError("padding leaves no positive inner canvas")
+
+        box = f"{inner_w}x{inner_h}"
+        if args.fit == "contain":
+            cmd += ["-resize", f"{box}>"]
+        elif args.fit == "cover":
+            cmd += ["-resize", f"{box}^"]
+        else:
+            cmd += ["-resize", f"{box}!"]
+
+        cmd += [
+            "-gravity",
+            GRAVITIES[args.gravity],
+            "-background",
+            "none",
+            "-extent",
+            box,
+        ]
+
+        if args.padding:
+            cmd += [
+                "-bordercolor",
+                "none",
+                "-border",
+                f"{args.padding}x{args.padding}",
+            ]
+    elif args.padding:
+        cmd += [
+            "-bordercolor",
+            "none",
+            "-border",
+            f"{args.padding}x{args.padding}",
+        ]
+
+    if not args.keep_metadata:
+        cmd += ["-strip"]
+
+    output_spec = str(args.output)
+    if args.format:
+        fmt = "jpg" if args.format == "jpeg" else args.format
+        output_spec = f"{fmt}:{args.output}"
+    cmd.append(output_spec)
+
+    if args.dry_run:
+        print(" ".join(cmd))
+        return 0
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    run(cmd)
+
+    if args.width is not None:
+        actual = dimensions(identify_cmd, args.output)
+        expected = (args.width, args.height)
+        if actual != expected:
+            raise ConformError(f"final dimensions are {actual}, expected {expected}")
+
+    if args.require_alpha and not has_alpha(identify_cmd, args.output):
+        raise ConformError("final output lost its alpha channel")
+
+    print(f"ok: {args.output}")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except ConformError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2)

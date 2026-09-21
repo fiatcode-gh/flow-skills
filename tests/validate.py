@@ -23,7 +23,7 @@ skills=list((ROOT/'agent/skills').glob('*/SKILL.md'))
 agents=list((ROOT/'agent/agents').glob('*.md'))
 rules=list((ROOT/'agent/rules').glob('*.md'))
 
-if len(skills)!=14: err(f'expected 14 skills, got {len(skills)}')
+if len(skills)!=15: err(f'expected 15 skills, got {len(skills)}')
 if len(agents)!=10: err(f'expected 10 agents, got {len(agents)}')
 if len(rules)!=3: err(f'expected 3 rules, got {len(rules)}')
 
@@ -40,7 +40,7 @@ for p in skills:
         if asset.is_file() and asset.suffix in {'.md','.json','.py','.sh',''} and MODEL_LEAK.search(asset.read_text(errors='replace')): err(f'{asset.relative_to(ROOT)}: concrete model/provider identifier leaked into skill content')
 
 expected={
-'flow-design','flow-planning','flow-execution','flow-tdd','flow-debugging','flow-review','flow-integrating','flow-ldd','flow-external-session','ui-design','blog-post','weft-worklog','weft-memory','weft-maintenance'}
+'flow-design','flow-planning','flow-execution','flow-tdd','flow-debugging','flow-review','flow-integrating','flow-ldd','flow-external-session','flow-assets','ui-design','blog-post','weft-worklog','weft-memory','weft-maintenance'}
 if names!=expected: err(f'skill set mismatch: {sorted(names^expected)}')
 
 agent_names=set()
@@ -258,7 +258,7 @@ for required in [
     if required not in evidence: err(f'flow-evidence invariant missing: {required}')
 
 artifacts=(ROOT/'agent/rules/flow-artifacts.md').read_text()
-for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'mailbox/<channel>/', 'git add -f', 'git ls-files --others --ignored --exclude-standard', 'absolute path', 'docs/reports/', 'Never edit `.gitignore`']:
+for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'assets/<asset-id>/', 'mailbox/<channel>/', 'git add -f', 'git ls-files --others --ignored --exclude-standard', 'absolute path', 'docs/reports/', 'Never edit `.gitignore`']:
     if required not in artifacts: err(f'flow-artifacts invariant missing: {required}')
 skeleton=(ROOT/'agent/skills/flow-ldd/references/ledger-skeleton.md').read_text().lower()
 if 'gitignored' in skeleton: err('ledger-skeleton: stale gitignore doctrine survived')
@@ -341,6 +341,64 @@ for p in skills:
         # Strip punctuation accidentally captured inside code spans only when it is obvious.
         target=p.parent/rel
         if not target.exists(): err(f'{p.relative_to(ROOT)}: missing referenced asset {rel}')
+
+
+flow_assets_path=ROOT/'agent/skills/flow-assets/SKILL.md'
+if not flow_assets_path.exists():
+    err('flow-assets skill missing')
+else:
+    flow_assets=flow_assets_path.read_text().lower()
+    for required in [
+        'generate late',
+        '**generate**',
+        '**edit**',
+        '**conform**',
+        '.flow/assets/<asset-id>/',
+        'references/asset-contract.md',
+        'scripts/conform-image',
+        'imagemagick',
+        'accept in context',
+        'standalone image is not sufficient acceptance evidence',
+        'one targeted correction',
+        'one final bounded correction',
+    ]:
+        if required not in flow_assets:
+            err(f'flow-assets invariant missing: {required}')
+
+asset_contract=ROOT/'agent/skills/flow-assets/references/asset-contract.md'
+if not asset_contract.exists():
+    err('flow-assets asset contract template missing')
+else:
+    asset_contract_text=asset_contract.read_text().lower()
+    for required in [
+        'operation: generate | edit | conform',
+        'final output path:',
+        'actual rendered/display size:',
+        'must preserve:',
+        'must avoid:',
+        'deterministic post-processing policy',
+        'contextual:',
+    ]:
+        if required not in asset_contract_text:
+            err(f'flow-assets asset contract invariant missing: {required}')
+
+conform_image=ROOT/'agent/skills/flow-assets/scripts/conform-image'
+if not conform_image.exists():
+    err('flow-assets conform-image helper missing')
+else:
+    conform_text=conform_image.read_text().lower()
+    for required in [
+        'imagemagick',
+        '--require-alpha',
+        '--width',
+        '--height',
+        '--padding',
+        '--gravity',
+        '--dry-run',
+        'output already exists',
+    ]:
+        if required not in conform_text:
+            err(f'flow-assets conform-image invariant missing: {required}')
 
 # Every native provider profile must expose the same complete role vocabulary.
 required_roles={'default','smol','tiny','vision','execute','task','plan','slow','review_aux','critical','commit'}
