@@ -4,6 +4,12 @@
 providers:
   webSearchOrder: []
 
+# Do not probe unused local inference endpoints at startup.
+disabledProviders:
+  - ollama
+  - llama.cpp
+  - lm-studio
+
 defaultThinkingLevel: auto
 
 modelRoles:
