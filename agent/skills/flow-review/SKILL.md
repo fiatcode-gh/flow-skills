@@ -18,7 +18,7 @@ One review doctrine, four modes. Determine the mode first and load its reference
 
 Specialist reports are claims. Verify every Critical/Important finding by reading cited/surrounding code and using targeted diagnostics/tests when they add proof. Cheaply verify Minor findings; label or omit unverified leftovers. Merge duplicate root causes and investigate conflicts instead of voting.
 
-Never expose secret values. Review/audit specialists are read-only.
+Never expose secret values. Review/audit specialists are read-only. In PR reviewer mode, read-only includes the pinned review checkout; apply the mutation-safe verification rules in `references/pr-review.md` before running diagnostics/tests that may rewrite tracked files.
 
 ## Change-lens selection
 

@@ -292,6 +292,22 @@ if 'explicit disposition for all four change lenses' not in review:
     err('flow-review explicit lens-disposition invariant missing')
 if 'next action' not in review:
     err('flow-review forward-pointer invariant missing')
+if 'mutation-safe verification rules in `references/pr-review.md`' not in review:
+    err('flow-review mutation-safe PR-review pointer missing')
+
+pr_review=(ROOT/'agent/skills/flow-review/references/pr-review.md').read_text().lower()
+for required in [
+    'treat verification commands as writes',
+    'mutation-prone proof',
+    'pinned review checkout',
+    'disposable/isolation workspace',
+    'snapshot the exact pre-command bytes',
+    'path-existence state',
+    'verify byte-for-byte restoration',
+    'mark that evidence unavailable',
+]:
+    if required not in pr_review:
+        err(f'flow-review PR-review mutation-safety invariant missing: {required}')
 
 integrating=(ROOT/'agent/skills/flow-integrating/SKILL.md').read_text().lower()
 if 'do not rerun an expensive final command merely because control moved into this skill' not in integrating:
