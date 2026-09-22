@@ -17,6 +17,23 @@ remote_url=$(git remote get-url origin)
 
 `gh` uses stored credentials. Never read, print, or copy a token into a command.
 
+## Temporary workspace
+
+When Flow itself needs review scratch state that spans commands, create one unique root and reuse the exact returned path for the whole review round:
+
+```bash
+review_tmp=$(mktemp -d "${TMPDIR:-/tmp}/flow-review.XXXXXX")
+printf '%s\n' "$review_tmp"
+```
+
+Put Flow-created packets, payloads, generated context and disposable worktrees beneath that root, for example `"$review_tmp/packet"`, `"$review_tmp/review.json"` and `"$review_tmp/worktree"`. Never invent fixed paths such as `/tmp/pr620`, `/tmp/review-pr`, or another predictable top-level `/tmp/<name>` directory. A native OMP/GitHub operation may own its own managed checkout path; do not relocate or delete tool-owned state merely to fit this convention.
+
+If a registered Git worktree lives under `review_tmp`, remove it with `git worktree remove` before deleting the root. At round completion or safe abort, delete only the exact Flow-created root after its owned worktrees are gone:
+
+```bash
+rm -rf -- "${review_tmp:?review_tmp not set}"
+```
+
 ## Reads on OMP
 
 Prefer OMP-native reads:

@@ -14,6 +14,8 @@ One review doctrine, four modes. Determine the mode first and load its reference
 
 `references/review-lenses.md` is the standard of record for change reviews. `references/audit-lenses.md` defines whole-tree audit lenses.
 
+All Flow-created temporary review state follows the shared `review_tmp` convention in `references/github-operations.md`; do not invent fixed `/tmp` paths for packets, payloads, disposable worktrees or other review scratch state.
+
 ## Shared evidence contract
 
 Specialist reports are claims. Verify every Critical/Important finding by reading cited/surrounding code and using targeted diagnostics/tests when they add proof. Cheaply verify Minor findings; label or omit unverified leftovers. Merge duplicate root causes and investigate conflicts instead of voting.

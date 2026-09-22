@@ -294,6 +294,8 @@ if 'next action' not in review:
     err('flow-review forward-pointer invariant missing')
 if 'mutation-safe verification rules in `references/pr-review.md`' not in review:
     err('flow-review mutation-safe PR-review pointer missing')
+if 'shared `review_tmp` convention in `references/github-operations.md`' not in review:
+    err('flow-review shared temporary-workspace pointer missing')
 
 pr_review=(ROOT/'agent/skills/flow-review/references/pr-review.md').read_text().lower()
 for required in [
@@ -301,13 +303,37 @@ for required in [
     'mutation-prone proof',
     'pinned review checkout',
     'disposable/isolation workspace',
+    'shared `review_tmp` root',
     'snapshot the exact pre-command bytes',
     'path-existence state',
     'verify byte-for-byte restoration',
     'mark that evidence unavailable',
+    'never create/pull/promote `todo` / `later` work from findings in someone else',
 ]:
     if required not in pr_review:
-        err(f'flow-review PR-review mutation-safety invariant missing: {required}')
+        err(f'flow-review PR-review invariant missing: {required}')
+
+github_ops=(ROOT/'agent/skills/flow-review/references/github-operations.md').read_text()
+for required in [
+    'review_tmp=$(mktemp -d "${TMPDIR:-/tmp}/flow-review.XXXXXX")',
+    '"$review_tmp/packet"',
+    '"$review_tmp/worktree"',
+    'Never invent fixed paths such as `/tmp/pr620`',
+    'git worktree remove',
+    'rm -rf -- "${review_tmp:?review_tmp not set}"',
+]:
+    if required not in github_ops:
+        err(f'flow-review temporary-workspace invariant missing: {required}')
+author_ops=(ROOT/'agent/skills/flow-review/references/author-operations.md').read_text()
+for required in [
+    'packet_dir="$review_tmp/feedback"',
+    'mkdir -p "$packet_dir"',
+    'shared root using the exact `review_tmp` cleanup',
+]:
+    if required not in author_ops:
+        err(f'flow-review author-feedback temporary-workspace invariant missing: {required}')
+if 'flow-pr-feedback.XXXXXX' in author_ops:
+    err('flow-review author-feedback retained a separate temp-root convention')
 
 integrating=(ROOT/'agent/skills/flow-integrating/SKILL.md').read_text().lower()
 if 'do not rerun an expensive final command merely because control moved into this skill' not in integrating:
@@ -320,6 +346,28 @@ for required in ['maintain the **forward pointer**', 'next workflow action', 'ge
     if required not in agents_md: err(f'AGENTS communication invariant missing: {required}')
 if 'for ordinary work, the main session may code' in agents_md:
     err('AGENTS: blanket Main coding permission survived')
+for required in [
+    'substantive flow work uses `weft-worklog` as a lifecycle hook',
+    'automatically log completed work',
+    'mark it `doing` when action begins',
+    'findings from that pr must not create, pull, or promote `todo` / `later` items',
+]:
+    if required not in agents_md:
+        err(f'AGENTS Weft/Flow lifecycle invariant missing: {required}')
+
+weft_worklog=(ROOT/'agent/skills/weft-worklog/SKILL.md').read_text().lower()
+for required in [
+    '## mode c — flow lifecycle',
+    'substantive flow work invokes this mode automatically',
+    'query scoped `todo` / `later` / stray `doing`',
+    'flip that exact item to `doing`',
+    're-query the same project/topic scope',
+    'completed substantive flow work is logged automatically',
+    'pr reviewer ownership exception',
+    'must not create, pull into today, or promote `todo` / `later` items from review findings',
+]:
+    if required not in weft_worklog:
+        err(f'weft-worklog Flow lifecycle invariant missing: {required}')
 
 
 # The Weft reference copies are deliberately duplicated per skill; they must stay byte-identical.
@@ -549,6 +597,9 @@ for name in sorted(old):
 
 principles=ledger.lower()
 for required in [
+    'field-trial clean-pass marks are **skill-scoped, not session-scoped**',
+    'substantive flow work uses `weft-worklog` before and after the work',
+    'flow-created review scratch state uses one unique `${tmpdir:-/tmp}/flow-review.xxxxxx` root',
     'native `hub wait` is a legitimate dependency primitive',
     'does not override native agent hub wait semantics',
     'answers to clarification questions do not themselves approve',
@@ -562,6 +613,26 @@ for required in [
     if required not in principles: err(f'docs/PRINCIPLES.md invariant missing: {required}')
 if 'unresolved semantic/debugging/integration judgment → main/`@task`' in principles:
     err('docs/PRINCIPLES.md: ambiguous Main semantic-writer routing survived')
+
+field_trials_path=ROOT/'docs/FIELD-TRIALS.md'
+if not field_trials_path.exists():
+    err('docs/FIELD-TRIALS.md: skill-scoped field-trial ledger missing')
+else:
+    field_trials=field_trials_path.read_text()
+    flow_skill_names=sorted(name for name in expected if name.startswith('flow-'))
+    for name in flow_skill_names:
+        if f'| `{name}` |' not in field_trials:
+            err(f'docs/FIELD-TRIALS.md: missing Flow skill row: {name}')
+    marks=re.findall(r'^\| `flow-[^`]+` \| ([012]/2) \|', field_trials, re.M)
+    if len(marks) != len(flow_skill_names):
+        err('docs/FIELD-TRIALS.md: every Flow skill row must carry one 0/2, 1/2 or 2/2 mark')
+    for required in [
+        'marks belong to flow skills, not to sessions',
+        'historical clean evidence',
+        '`flow-review` reached **1/2** on the previous baseline',
+    ]:
+        if required.lower() not in field_trials.lower():
+            err(f'docs/FIELD-TRIALS.md: field-trial policy/evidence missing: {required}')
 
 routing_doc=(ROOT/'docs/MODEL-ROUTING.md').read_text()
 for stale in ['copies a baseline only', 'never overwrites profile-owned', 'and `tools.approval.eval: prompt`', 'Bash/forge']:

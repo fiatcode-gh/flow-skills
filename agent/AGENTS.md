@@ -63,8 +63,10 @@ Write tool commands in POSIX `sh`. When Bash-only syntax is necessary, invoke Ba
 `${WEFT_GRAPH}` is the durable human/project knowledge graph.
 
 - Before substantive work in a project, read the matching project page when available for constraints and gotchas.
+- When `${WEFT_GRAPH}` exists, substantive Flow work uses `weft-worklog` as a lifecycle hook: before the work, query project/topic-scoped `TODO` / `LATER` / stray `DOING`; after the work, re-query that scope, update only items this session actually owned, and automatically log completed work to today's journal. This standing authorization applies to those local Weft worklog/status writes; never mutate unrelated search matches.
+- When an existing `TODO` / `LATER` is the exact work item the session takes ownership of, mark it `DOING` when action begins; mark it `DONE` with result context when completed. If work stops incomplete, leave `DOING` only when it is genuinely still active/owned; otherwise restore the prior open marker.
 - Durable project state, backlog and conventions belong in Weft rather than harness-native memory files or ad-hoc repository backlogs.
-- When this session completes a **known** Weft TODO it was working from, close it to `DONE` and attach the result in the same session. Do not mutate arbitrary TODO search results without instruction.
+- PR reviewer mode is a hard ownership exception: reviewing someone else's PR may be logged and an existing user-owned "review this PR" work item may be advanced/closed, but findings from that PR must not create, pull, or promote `TODO` / `LATER` items in the user's Weft backlog. The code belongs to the PR author.
 - Personal collection projects use a `*-stack` repository name and matching `[[X Stack]]` canonical page where applicable.
 
 ## Documentation lookup

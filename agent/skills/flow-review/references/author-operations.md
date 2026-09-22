@@ -5,11 +5,12 @@ repository. Read [`github-operations.md`](github-operations.md) first for remote
 and authentication.
 
 Set `pr` to the user-supplied pull request URL or number. Set `number` from the
-resolved metadata, never by parsing free text. Keep collected metadata under one
-temporary packet directory:
+resolved metadata, never by parsing free text. Create/reuse the shared `review_tmp`
+root from `github-operations.md`, then keep collected feedback metadata under it:
 
 ```bash
-packet_dir=$(mktemp -d "${TMPDIR:-/tmp}/flow-pr-feedback.XXXXXX")
+packet_dir="$review_tmp/feedback"
+mkdir -p "$packet_dir"
 ```
 
 ## Confirm authorship and branch state
@@ -115,11 +116,9 @@ head from GitHub and compare it with `head_oid`. A mismatch posts nothing and
 rebuilds the packet at the new head.
 
 If any write partially succeeds, report exactly what was posted, stop, and never
-retry blindly. Remove the packet directory once the round is reported:
-
-```bash
-rm -rf -- "${packet_dir:?packet directory not set}"
-```
+retry blindly. After the round is reported and any owned Git worktrees are removed,
+clean up the shared root using the exact `review_tmp` cleanup from
+`github-operations.md`; do not delete an arbitrary parent `/tmp` path.
 
 Verified against GitHub CLI 2.92.0 with live GraphQL schema introspection on
 2026-08-22.
