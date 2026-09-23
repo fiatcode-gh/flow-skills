@@ -3,6 +3,7 @@
 # settings here and review the result with git diff like any other change.
 providers:
   webSearchOrder: []
+  autoThinkingMaxEffort: xhigh
 
 # Do not probe unused local inference endpoints at startup.
 disabledProviders:
@@ -13,7 +14,7 @@ disabledProviders:
 defaultThinkingLevel: auto
 
 modelRoles:
-  default: openai-codex/gpt-6-sol
+  default: openai-codex/gpt-6-luna:auto
   smol: openai-codex/gpt-6-luna
   tiny: openai-codex/gpt-6-luna:low
   vision: openai-codex/gpt-6-luna
@@ -84,6 +85,7 @@ task:
   maxConcurrency: 3
   maxRecursionDepth: 2
   enableEffort: false
+  maxEffort: xhigh
   isolation:
     enabled: true
 
