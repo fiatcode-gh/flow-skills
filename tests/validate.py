@@ -524,15 +524,15 @@ if openai != expected_openai:
     err('profiles/openai-codex/config.yml: role mapping drifted from documented routing')
 
 expected_ollama={
-    'default':'ollama-cloud/deepseek-v4-pro:high',
+    'default':'ollama-cloud/glm-5.3:high',
     'smol':'ollama-cloud/deepseek-v4.1-flash:low',
     'tiny':'ollama-cloud/deepseek-v4.1-flash:low',
-    'vision':'ollama-cloud/glm-5.3-flash:high',
-    'execute':'ollama-cloud/glm-5.3-flash:high',
-    'task':'ollama-cloud/glm-5.3-flash:high',
-    'plan':'ollama-cloud/deepseek-v4-pro:high',
-    'slow':'ollama-cloud/deepseek-v4-pro:high',
-    'review_aux':'ollama-cloud/glm-5.3-flash:high',
+    'vision':'ollama-cloud/deepseek-v4.1-flash:high',
+    'execute':'ollama-cloud/deepseek-v4.1-flash:high',
+    'task':'ollama-cloud/deepseek-v4.1-flash:high',
+    'plan':'ollama-cloud/glm-5.3:high',
+    'slow':'ollama-cloud/glm-5.3:high',
+    'review_aux':'ollama-cloud/deepseek-v4.1-flash:high',
     'critical':'ollama-cloud/kimi-k3:high',
     'commit':'ollama-cloud/deepseek-v4.1-flash:low',
 }

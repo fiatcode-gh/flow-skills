@@ -20,17 +20,17 @@ modelRoles:
 
   # Controller + deliberate judgment. Unit 2 showed GLM was capable at coding
   # but less reliable at orchestration, so v8 keeps DeepSeek V4 Pro as Main.
-  default: ollama-cloud/deepseek-v4-pro:high
-  plan: ollama-cloud/deepseek-v4-pro:high
-  slow: ollama-cloud/deepseek-v4-pro:high
+  default: ollama-cloud/glm-5.3:high
+  plan: ollama-cloud/glm-5.3:high
+  slow: ollama-cloud/glm-5.3:high
 
   # Keep auxiliary review on a separate model family from the controller.
-  review_aux: ollama-cloud/glm-5.3-flash:high
+  review_aux: ollama-cloud/deepseek-v4.1-flash:high
 
   # Constrained plan execution / semantic fallback / multimodal work.
-  execute: ollama-cloud/glm-5.3-flash:high
-  task: ollama-cloud/glm-5.3-flash:high
-  vision: ollama-cloud/glm-5.3-flash:high
+  execute: ollama-cloud/deepseek-v4.1-flash:high
+  task: ollama-cloud/deepseek-v4.1-flash:high
+  vision: ollama-cloud/deepseek-v4.1-flash:high
 
   # Explicit frontier escalation only. Kimi K3 uses OMP's generic Ollama Cloud
   # effort ladder, where high is the strongest advertised effort.
