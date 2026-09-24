@@ -18,7 +18,7 @@ def frontmatter(p):
     except Exception as e:
         err(f'{p.relative_to(ROOT)}: invalid frontmatter: {e}'); return {}, text
 
-MODEL_LEAK=re.compile(r'(?:openai-codex|ollama-cloud|anthropic)/|gpt-5|claude-(?:haiku|sonnet|opus|fable)|deepseek|glm-|kimi')
+MODEL_LEAK=re.compile(r'(?:openai-codex|ollama-cloud|anthropic)/|gpt-5|gpt-6|claude-(?:haiku|sonnet|opus|fable)|deepseek|glm-|kimi')
 skills=list((ROOT/'agent/skills').glob('*/SKILL.md'))
 agents=list((ROOT/'agent/agents').glob('*.md'))
 rules=list((ROOT/'agent/rules').glob('*.md'))
@@ -507,17 +507,17 @@ for profile,path in profile_cfgs.items():
             err(f'{path.relative_to(ROOT)}: modelRoles.{role} must use {prefix}*, got {model!r}')
 
 expected_openai={
-    'default':'openai-codex/gpt-5.6-terra',
-    'smol':'openai-codex/gpt-5.6-luna',
-    'tiny':'openai-codex/gpt-5.6-luna:low',
-    'vision':'openai-codex/gpt-5.6-luna',
-    'execute':'openai-codex/gpt-5.6-luna',
-    'task':'openai-codex/gpt-5.6-terra',
-    'plan':'openai-codex/gpt-5.6-sol:high',
-    'slow':'openai-codex/gpt-5.6-sol:high',
-    'review_aux':'openai-codex/gpt-5.6-terra:high',
-    'critical':'openai-codex/gpt-5.6-sol:xhigh',
-    'commit':'openai-codex/gpt-5.6-luna:low',
+    'default':'openai-codex/gpt-6-luna:auto',
+    'smol':'openai-codex/gpt-6-luna',
+    'tiny':'openai-codex/gpt-6-luna:low',
+    'vision':'openai-codex/gpt-6-luna',
+    'execute':'openai-codex/gpt-6-luna',
+    'task':'openai-codex/gpt-6-sol',
+    'plan':'openai-codex/gpt-6-sol:high',
+    'slow':'openai-codex/gpt-6-sol:high',
+    'review_aux':'openai-codex/gpt-6-sol:high',
+    'critical':'openai-codex/gpt-6-sol:xhigh',
+    'commit':'openai-codex/gpt-6-luna:low',
 }
 openai=yaml.safe_load(profile_cfgs['openai-codex'].read_text()).get('modelRoles',{})
 if openai != expected_openai:
@@ -541,14 +541,14 @@ if ollama != expected_ollama:
     err('profiles/ollama-cloud/config.yml: role mapping drifted from documented routing')
 
 expected_anthropic={
-    'default':'anthropic/claude-opus-5:high',
+    'default':'anthropic/claude-opus-5-5:medium',
     'smol':'anthropic/claude-haiku-4-5-20251001',
     'tiny':'anthropic/claude-haiku-4-5-20251001',
     'vision':'anthropic/claude-sonnet-5:high',
     'execute':'anthropic/claude-sonnet-5:high',
     'task':'anthropic/claude-sonnet-5:high',
-    'plan':'anthropic/claude-opus-5:high',
-    'slow':'anthropic/claude-opus-5:high',
+    'plan':'anthropic/claude-opus-5-5:medium',
+    'slow':'anthropic/claude-opus-5-5:medium',
     'review_aux':'anthropic/claude-sonnet-5:high',
     'critical':'anthropic/claude-fable-5-1:high',
     'commit':'anthropic/claude-haiku-4-5-20251001',
