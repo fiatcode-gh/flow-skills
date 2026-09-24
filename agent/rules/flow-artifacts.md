@@ -19,9 +19,10 @@ Flow working state lives inside the project at `.flow/`, hidden from git through
   evidence/<head>/<capsule-id>/       flow-evidence-verifier artifacts
   assets/<asset-id>/                  flow-assets contracts, context, references and staged candidates
   mailbox/<channel>/                  flow-external-session mailbox channels
+  runtime/gates.json                  flow-governance approval/acceptance bindings
 ```
 
-Every artifact names the head it was derived from, so freshness is checked rather than remembered.
+Durable artifacts record the head they were derived from where applicable; runtime gate state records exact artifact digests and accepted repository identity, so freshness is checked rather than remembered.
 
 ## Exclude guard
 
@@ -53,4 +54,4 @@ A worker in another checkout, worktree or isolated workspace does not see this c
 
 ## Lifecycle
 
-`flow-integrating` removes the integrated slug's contract, plan, checkpoints, evidence and completed local asset bundles after integration is confirmed and reports what it removed. It never touches a tracked ledger. Content under `.flow/` is Flow working state, not the user-owned working-tree state that `flow-safety` protects; still, delete only what the lifecycle names.
+`flow-integrating` clears the integrated scope's runtime gate state, then removes the integrated slug's contract, plan, checkpoints, evidence and completed local asset bundles after integration is confirmed and reports what it removed. It never touches a tracked ledger. Content under `.flow/` is Flow working state, not the user-owned working-tree state that `flow-safety` protects; still, delete only what the lifecycle names.

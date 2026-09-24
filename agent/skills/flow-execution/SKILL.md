@@ -19,6 +19,17 @@ Classify the execution lane before dispatch:
 
 Do not treat a strategy document as execution-grade merely because it is detailed. The plan must lock consequential decisions, concrete proof and escalation boundaries. Conversely, do not rerun planning when a validated current external plan already meets that contract.
 
+For governed durable work, every `flow-plan-executor` / `flow-implementer` production-writing task carries the runtime authorization manifest. The guard recomputes both artifact digests immediately before spawn and fails closed when an approval is missing or stale:
+
+```text
+Flow gate:
+- Scope: <contract slug or epic/unit>
+- Contract: <approved contract path>
+- Plan: <approved PLAN.md path>
+```
+
+A tiny/obvious LDD unit that legitimately skips a separate plan uses `Plan: NONE`; after contract approval, present `kind=implementation` against that contract with the direct-implementation summary and obtain the native `flow_gate approve` confirmation before dispatch.
+
 Classify units:
 
 - independent against the same base → may run concurrently;
@@ -132,7 +143,7 @@ When verification/review finds a problem:
 
 After a correction, rerun the proof affected by that edit plus any integration/final gates made stale. Do not restart the entire workflow by ritual. Planned acceptance gets at most one scoped closure review by default; a further review generation requires a concrete unresolved acceptance risk.
 
-If a production-, asset-, or build-affecting correction happens after the coherent result already crossed acceptance — including a defect discovered during device/manual/external evidence — re-enter the stability barrier defined in the `flow-evidence` rule before integration: scoped independent closure on the changed final tree, rerun of the evidence whose dependency surface changed, an explicit rationale for any reused evidence, and an additional scoped closure when that downstream failure is itself an unresolved acceptance risk.
+If a production-, asset-, or build-affecting correction happens after the coherent result already crossed acceptance — including a defect discovered during device/manual/external evidence — re-enter the stability barrier defined in the `flow-evidence` rule before integration: scoped independent closure on the changed final tree, rerun of the evidence whose dependency surface changed, an explicit rationale for any reused evidence, and an additional scoped closure when that downstream failure is itself an unresolved acceptance risk. The old `flow_gate` acceptance binding is mechanically stale after repository mutation; record acceptance again only after Main has consumed and accepted the required closure/freshness basis for the new state.
 
 ## 8. Review proportionally
 
@@ -140,7 +151,8 @@ If a production-, asset-, or build-affecting correction happens after the cohere
 
 The plan quality gate already moved COR/TTC/CRF/SEC reasoning left. Do **not** automatically pay for the same specialist fan-out again after implementation. After the coherent planned change and focused/integration proof, dispatch one `flow-acceptance-reviewer` (`@slow`) with the governing contract, execution-grade plan/task paths, exact diff/base and evidence. It independently checks contract satisfaction, plan conformance, correctness, tests/contracts, craft and applicable security; it must challenge bad plans rather than advocate for them.
 
-Treat any required acceptance/closure review or correction capable of changing the evidence surface as a **stability barrier** before expensive downstream acceptance. While that dependency is unresolved, Main remains interactive and may do read-only preparation that cannot create or stale acceptance evidence, but it **must not begin device/emulator/manual/external evidence capture** whose validity depends on the reviewed tree. Consume the completion event, verify/deduplicate findings, complete required corrections and refresh affected automated proof before starting that gate. Non-blocking orchestration means foreground interactivity, not speculative execution past unresolved dependency boundaries.
+Treat any required acceptance/closure review or correction capable of changing the evidence surface as a **stability barrier** before expensive downstream acceptance. While that dependency is unresolved, Main remains interactive and may do read-only preparation that cannot create or stale acceptance evidence, but it **must not begin device/emulator/manual/external evidence capture** whose validity depends on the reviewed tree. Consume the completion event, verify/deduplicate findings, complete required corrections and refresh affected automated proof before starting that gate. After Main accepts the independent acceptance/closure receipt, record that exact repository state with `flow_gate action=accept`, the stable scope and a concise receipt/source identifier. `flow-evidence-verifier` dispatch must carry `Flow gate:
+- Scope: <scope>`; the runtime guard blocks it if the repository state no longer matches the recorded acceptance/closure. Non-blocking orchestration means foreground interactivity, not speculative execution past unresolved dependency boundaries.
 
 Verify Critical/Important findings, deduplicate them, send one batched correction round, then use one scoped acceptance closure review when independent confirmation is still needed. Minor non-load-bearing findings may be parked rather than forcing another expensive loop. Specialist review is added only when a concrete residual risk warrants it (for example a meaningful security boundary or hard concurrency/data-integrity issue).
 

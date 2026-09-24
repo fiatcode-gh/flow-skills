@@ -13,7 +13,7 @@ Ensure the appropriate final test/build/lint/format/static gates cover the **cur
 
 Do not rerun an expensive final command merely because control moved into this skill: a just-completed Main-owned result remains fresh if no relevant file/head/environment changed and its scope is sufficient. Any material edit after that proof makes the affected evidence stale and requires the corresponding gate again.
 
-Reconcile the result against the governing request/spec/approved plan. Name omissions/deviations rather than silently redefining done.
+Reconcile the result against the governing request/spec/approved plan. Name omissions/deviations rather than silently redefining done. For governed durable work, run `flow_gate action=status` for the scope before presenting integration choices; a stale contract/plan approval or acceptance binding is a blocker, not an integration-ready state.
 
 ## 2. Assess cohesion/reviewability
 
@@ -36,4 +36,4 @@ Do not end a locally-complete integration checkpoint with only a status summary.
 
 Re-check actual remote/local result before claiming integration succeeded. Delete a local feature branch only when it is genuinely integrated and safe. For a user-owned external worktree, report it as removable; do not remove it yourself unless explicitly instructed.
 
-After confirmed integration, remove the integrated slug's `.flow/contracts`, `.flow/plans`, `.flow/checkpoints` and `.flow/evidence` entries per the `flow-artifacts` lifecycle and report what was removed. Never touch a tracked shared-LDD ledger.
+After confirmed integration, call `flow_gate action=clear` for the integrated scope, then remove the integrated slug's `.flow/contracts`, `.flow/plans`, `.flow/checkpoints` and `.flow/evidence` entries per the `flow-artifacts` lifecycle and report what was removed. Never touch a tracked shared-LDD ledger.

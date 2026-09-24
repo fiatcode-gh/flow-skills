@@ -117,17 +117,32 @@ else:
     for forbidden in ['event.toolname === "hub"', 'input.op === "wait"', 'ctx.hasui', 'peerwait', 'jobids']:
         if forbidden in guard: err(f'flow runtime guard must not intercept native hub wait semantics: {forbidden}')
 
+governance_guard_path=ROOT/'agent/extensions/flow-governance-guard.ts'
+if not governance_guard_path.exists(): err('flow governance runtime guard missing')
+else:
+    governance=governance_guard_path.read_text().lower()
+    for required in [
+        'registertool', 'name: "flow_gate"', 'loadmode: "essential"',
+        'policy: "prompt"', 'policy: "deny"', 'formatapprovaldetails',
+        'runtime/gates.json', 'flow-planner', 'flow-plan-executor',
+        'flow-implementer', 'flow-evidence-verifier', 'artifact changed after approval',
+        'repository state changed after acceptance/closure', 'flow gate:',
+    ]:
+        if required not in governance: err(f'flow governance runtime guard invariant missing: {required}')
+    for forbidden in ['event.toolname === "hub"', 'input.op === "wait"']:
+        if forbidden in governance: err(f'flow governance guard must not intercept native Hub waits: {forbidden}')
+
 legacy_guard_path=ROOT/'agent/extensions/flow-orchestration-guard.ts'
 if legacy_guard_path.exists(): err('legacy flow-orchestration-guard.ts must be removed; native Hub wait semantics belong to OMP')
 legacy_guard_test=ROOT/'tests/flow-orchestration-guard.test.mjs'
 if legacy_guard_test.exists(): err('legacy flow-orchestration-guard.test.mjs must be removed')
 
 design=(ROOT/'agent/skills/flow-design/SKILL.md').read_text().lower()
-for required in ['before substantial planning','governing contract','clarify the intention with the user','completed governing contract','explicit user approval','main owns the contract','internal brainstorm','external handoff']:
+for required in ['before substantial planning','governing contract','clarify the intention with the user','completed governing contract','explicit user approval','main owns the contract','internal brainstorm','external handoff','flow_gate','native user confirmation','artifact digest']:
     if required not in design: err(f'flow-design contract-formation invariant missing: {required}')
 
 planning=(ROOT/'agent/skills/flow-planning/SKILL.md').read_text().lower()
-for required in ['execution-grade plan','locked decisions','executor discretion','plan quality gate','cor','ttc','crf','sec','decision completeness','fresh-executor capsule','one fresh `flow-plan-executor` session','independently provable behavioral slice','valid intermediate handoff exists','receipt-first','plan receipt validation does not itself authorize implementation','explicit user plan approval','for substantial planned work','approved governing contract','for substantial planning','ldd or non-ldd','must dispatch `flow-planner` (`@plan`)','answers to clarification questions do not themselves approve']:
+for required in ['execution-grade plan','locked decisions','executor discretion','plan quality gate','cor','ttc','crf','sec','decision completeness','fresh-executor capsule','one fresh `flow-plan-executor` session','independently provable behavioral slice','valid intermediate handoff exists','receipt-first','plan receipt validation does not itself authorize implementation','explicit user plan approval','for substantial planned work','approved governing contract','for substantial planning','ldd or non-ldd','must dispatch `flow-planner` (`@plan`)','answers to clarification questions do not themselves approve','flow-governance-guard','flow gate:','flow_gate','changes its digest']:
     if required not in planning: err(f'flow-planning invariant missing: {required}')
 
 execution=(ROOT/'agent/skills/flow-execution/SKILL.md').read_text().lower()
@@ -151,7 +166,8 @@ for required in [
     'flow-evidence-guard', 'evidence capsule:', 'independent split check:',
     'evidence-capsule runtime preflight rejects verifier dispatches missing these markers',
     'do not wait on its old task job id after revival', 'peer-filtered reply wait', 'non-ldd only',
-    're-enter the stability barrier',
+    're-enter the stability barrier', 'flow gate:', 'flow_gate action=accept',
+    'old `flow_gate` acceptance binding is mechanically stale',
 ]:
     if required not in execution: err(f'flow-execution missing execution-policy invariant: {required}')
 
@@ -170,7 +186,8 @@ for required in [
     'multi-step device/manual acceptance', 'evidence capsule:', 'substantial ldd consequential how',
     'dispatch a dedicated `flow-planner` (`@plan`)',
     'answers to blocking/open contract questions do not themselves approve',
-    'reopens the stability barrier',
+    'reopens the stability barrier', 'flow_gate present', 'flow_gate action=accept',
+    'flow gate', 'plan: none',
 ]:
     if required not in ldd: err(f'flow-ldd missing execution-policy invariant: {required}')
 
@@ -228,7 +245,7 @@ for required in ['flow-planning', 'never authorization', 'synchronization discip
     if required not in interop: err(f'gpt interop doctrine missing: {required}')
 
 compat=(ROOT/'docs/OMP-COMPATIBILITY.md').read_text().lower()
-for required in ['interruptible by user steering', 'without preventing the user from prompting', 'ordinary task results may also self-deliver', 'leaves native wait/steering semantics intact', 'targeted peer-reply waits']:
+for required in ['interruptible by user steering', 'without preventing the user from prompting', 'ordinary task results may also self-deliver', 'leaves native wait/steering semantics intact', 'targeted peer-reply waits', 'omp 18.2.10', 'policy: prompt', 'formatapprovaldetails', 'flow_gate', 'fail-closed']:
     if required not in compat: err(f'OMP compatibility doctrine missing: {required}')
 for stale in ['long bounded waits', 'keeps interactive main out of bare/job waits']:
     if stale in compat: err(f'OMP compatibility stale wait doctrine survived: {stale}')
@@ -253,12 +270,12 @@ for required in [
     'invalid flow orchestration', 'docs-only', 'affected evidence stale',
     'structured evidence receipts must be internally self-consistent',
     '`match` is itself an evidence claim', 'contradictory or transcription-damaged receipt', 'unchanged `match` receipt is reusable',
-    'reopens the stability barrier', 'rerun only affected evidence', 'reuse of unaffected capsules',
+    'reopens the stability barrier', 'rerun only affected evidence', 'reuse of unaffected capsules', 'flow_gate', 'mechanical backstop',
 ]:
     if required not in evidence: err(f'flow-evidence invariant missing: {required}')
 
 artifacts=(ROOT/'agent/rules/flow-artifacts.md').read_text()
-for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'assets/<asset-id>/', 'mailbox/<channel>/', 'git add -f', 'git ls-files --others --ignored --exclude-standard', 'absolute path', 'docs/reports/', 'Never edit `.gitignore`']:
+for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'assets/<asset-id>/', 'mailbox/<channel>/', 'runtime/gates.json', 'git add -f', 'git ls-files --others --ignored --exclude-standard', 'absolute path', 'docs/reports/', 'Never edit `.gitignore`']:
     if required not in artifacts: err(f'flow-artifacts invariant missing: {required}')
 skeleton=(ROOT/'agent/skills/flow-ldd/references/ledger-skeleton.md').read_text().lower()
 if 'gitignored' in skeleton: err('ledger-skeleton: stale gitignore doctrine survived')
@@ -340,9 +357,11 @@ if 'do not rerun an expensive final command merely because control moved into th
     err('flow-integrating fresh-evidence reuse invariant missing')
 if 'do not end a locally-complete integration checkpoint with only a status summary' not in integrating:
     err('flow-integrating mandatory integration handoff missing')
+for required in ['flow_gate action=status', 'flow_gate action=clear', 'stale contract/plan approval or acceptance binding is a blocker']:
+    if required not in integrating: err(f'flow-integrating governance-gate invariant missing: {required}')
 
 agents_md=(ROOT/'agent/AGENTS.md').read_text().lower()
-for required in ['maintain the **forward pointer**', 'next workflow action', 'genuine decision/approval gate', 'production-writing worker', 'sole/sequential semantic owner', 'fresh `flow-plan-executor`', 'before substantial work enters planning', 'governing what/why contract', 'for substantial work, require explicit user approval of the completed governing contract', 'answers to clarification questions do not themselves approve', 'outside `flow-ldd`, main may code only in the main-direct lane defined by `flow-execution`', 'never route push/pr/review/comment/release actions through omp `eval`']:
+for required in ['maintain the **forward pointer**', 'next workflow action', 'genuine decision/approval gate', 'production-writing worker', 'sole/sequential semantic owner', 'fresh `flow-plan-executor`', 'before substantial work enters planning', 'governing what/why contract', 'for substantial work, require explicit user approval of the completed governing contract', 'answers to clarification questions do not themselves approve', 'outside `flow-ldd`, main may code only in the main-direct lane defined by `flow-execution`', 'never route push/pr/review/comment/release actions through omp `eval`', 'essential `flow_gate` runtime tool', 'bound artifact digest', 'record the current repository state with `flow_gate`']:
     if required not in agents_md: err(f'AGENTS communication invariant missing: {required}')
 if 'for ordinary work, the main session may code' in agents_md:
     err('AGENTS: blanket Main coding permission survived')
@@ -609,6 +628,7 @@ for required in [
     'main coordinating/escalating rather than becoming the production writer',
     'later production-, asset-, or build-affecting mutation reopens',
     'rerun only evidence whose owned dependency surface changed',
+    'flow_gate', 'exact artifact digest', 'verifier dispatch fails closed',
 ]:
     if required not in principles: err(f'docs/PRINCIPLES.md invariant missing: {required}')
 if 'unresolved semantic/debugging/integration judgment → main/`@task`' in principles:

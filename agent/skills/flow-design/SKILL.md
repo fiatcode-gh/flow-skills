@@ -21,8 +21,8 @@ A typo, dependency bump, obvious one-file bug after root cause, or another tiny/
 4. Offer alternatives only when genuinely viable alternatives exist. Name your recommendation and trade-offs.
 5. Converge on the smallest design that satisfies the requirement. Cover only relevant surfaces: components/boundaries, data/control flow, errors, compatibility and test strategy.
 6. Consolidate the settled result into the completed governing contract. It must state, as applicable: intended outcome; in-scope/out-of-scope behavior; material boundaries/interfaces; constraints and invariants; acceptance criteria/proof expectations; settled decisions; and any intentionally deferred non-goals. Keep consequential implementation HOW out of the contract.
-7. Present the completed contract and obtain explicit user approval of that WHAT/WHY boundary before substantial planning begins. Answers to clarification questions do not themselves approve the resulting completed or materially amended contract.
-8. After approval, maintain the forward pointer to `flow-planning`; Main does not author the substantial HOW plan itself. A material WHAT/boundary/acceptance change later reopens contract approval.
+7. Present the completed contract and obtain explicit user approval of that WHAT/WHY boundary before substantial planning begins. Answers to clarification questions do not themselves approve the resulting completed or materially amended contract. For durable substantial work, bind that approval to the exact artifact revision with the native `flow_gate` runtime tool: call `present` for `kind=contract` with the stable Flow scope, contract path and the user-facing behavior/boundary/acceptance summary, then call `approve`. The `approve` action forces OMP's native user confirmation even under yolo and records the approved artifact digest.
+8. After approval, maintain the forward pointer to `flow-planning`; Main does not author the substantial HOW plan itself. A material WHAT/boundary/acceptance change later reopens contract approval. Because planner dispatch recomputes the contract digest, editing the approved contract automatically makes the old runtime approval stale; present and approve the amended revision before planning resumes.
 
 ## Imported design context
 
@@ -31,8 +31,8 @@ A validated external planning/LDD handoff may contain user-approved design decis
 ## Durability
 
 - Tiny/mechanical work that legitimately skips this stage may keep its explicit scope in the conversation/request.
-- For substantial non-LDD work, write the governing contract to `.flow/contracts/<slug>.md` after running the `flow-artifacts` exclude guard, and record the head it was written against.
-- Under `flow-ldd`, write/update the unit contract in the epic's `.flow/ldd/<epic>/` authority instead of creating a parallel contract system.
+- For substantial non-LDD work, write the governing contract to `.flow/contracts/<slug>.md` after running the `flow-artifacts` exclude guard, record the head it was written against, and use `<slug>` as the stable `flow_gate` scope.
+- Under `flow-ldd`, write/update the unit contract in the epic's `.flow/ldd/<epic>/` authority instead of creating a parallel contract system; use `<epic>/<unit>` as the stable gate scope.
 
 ## Rules
 

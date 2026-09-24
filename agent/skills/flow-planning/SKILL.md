@@ -25,7 +25,13 @@ plan-tasks/
 
 For non-LDD work, write `.flow/plans/<slug>/PLAN.md` plus `plan-tasks/`; the `flow-artifacts` rule owns the exclude guard and lifecycle. A compact one-file `PLAN.md` is fine when it stays readable and no worker needs a sliced brief.
 
-For substantial planning — LDD or non-LDD — Main/controller must dispatch `flow-planner` (`@plan`) to own consequential HOW recon/writing unless a current validated external plan already satisfies this skill's execution-grade contract. Dispatch only after the completed governing contract/WHAT boundary has explicit user approval. Answers to clarification questions do not themselves approve the completed or materially amended contract. Main owns the governing contract, validates the planner receipt, and owns plan acceptance, but it does not author substantial consequential HOW itself.
+For substantial planning — LDD or non-LDD — Main/controller must dispatch `flow-planner` (`@plan`) to own consequential HOW recon/writing unless a current validated external plan already satisfies this skill's execution-grade contract. Dispatch only after the completed governing contract/WHAT boundary has explicit user approval. Answers to clarification questions do not themselves approve the completed or materially amended contract. For durable Flow work, the planner task brief must carry the runtime authorization manifest below; `flow-governance-guard` rejects dispatch when the contract approval is absent or its digest no longer matches the current artifact. Main owns the governing contract, validates the planner receipt, and owns plan acceptance, but it does not author substantial consequential HOW itself.
+
+```text
+Flow gate:
+- Scope: <contract slug or epic/unit>
+- Contract: <path to the approved contract>
+```
 
 Record the source revision/dirty-state assumptions the plan was derived from. A revision change triggers targeted revalidation, not ritual replanning.
 
@@ -99,7 +105,7 @@ If these do not hold, keep the artifact as strategy/draft and route unresolved j
 
 ## 6. Execution handoff
 
-Main/controller validates the plan receipt and obtains/retains the normal implementation authorization boundary. For substantial planned work, plan receipt validation does not itself authorize implementation: Main presents the completed execution-grade plan and obtains **explicit user plan approval** before the first production-writing worker. A generic start/resume command does not create missing approval; a recorded prior approval remains valid while the approved plan envelope is materially unchanged. Under `flow-ldd`, this is the second gate after contract approval; non-LDD substantial work uses the same plan-approval boundary without LDD ledger mechanics. Then `flow-execution` chooses:
+Main/controller validates the plan receipt and obtains/retains the normal implementation authorization boundary. For substantial planned work, plan receipt validation does not itself authorize implementation: Main presents the completed execution-grade plan and obtains **explicit user plan approval** before the first production-writing worker. Bind that approval with `flow_gate`: call `present` for `kind=plan` using the same Flow scope, the exact `PLAN.md` path and the user-facing dependency/locked-decision/proof summary, then call `approve`. A generic start/resume command does not create missing approval; a recorded prior approval remains valid while the approved plan artifact is materially unchanged. Editing the plan changes its digest and mechanically blocks production-writer dispatch until the amended plan is presented and approved again. Under `flow-ldd`, this is the second gate after contract approval; non-LDD substantial work uses the same plan-approval boundary without LDD ledger mechanics. Then `flow-execution` chooses:
 
 - current execution-grade plan → `flow-plan-executor` (`@execute`) for the constrained implementation lane;
 - task/plan contradiction or deliberately unresolved semantic judgment → `flow-implementer` (`@task`) or return to planning/design;

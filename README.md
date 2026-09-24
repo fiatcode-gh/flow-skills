@@ -84,7 +84,7 @@ The old 24-skill surface is reduced to 15 skills in the v8 trial:
 * `ui-design`, `blog-post` — domain capabilities.
 * `weft-worklog`, `weft-memory`, `weft-maintenance` — grouped Weft operations.
 
-Flow working state (contracts, plans, checkpoints, evidence, asset bundles, LDD ledgers, mailboxes) lives in the project's `.flow/` directory, hidden from git through `.git/info/exclude` by the always-on `flow-artifacts` rule; only shared-mode LDD ledgers and requested audit reports are tracked.
+Flow working state (contracts, plans, checkpoints, evidence, asset bundles, LDD ledgers, mailboxes, runtime approval/acceptance bindings) lives in the project's `.flow/` directory, hidden from git through `.git/info/exclude` by the always-on `flow-artifacts` rule; only shared-mode LDD ledgers and requested audit reports are tracked.
 
 The old bootstrap (`flow-using-skills`), normal workspace ceremony and standalone verification skill remain gone. v8 deliberately restores **Flow planning doctrine** on top of native OMP Plan/model mechanics: substantial work becomes contract → execution-grade plan → constrained `@execute` implementation → one strong `@slow` acceptance review. `@task` remains the semantic/debugging fallback and `@smol` the mechanical lane. Review lenses are not deleted: they move left into the plan quality gate for planned work and remain specialist reviewers for unplanned/PR/audit paths. Writers still own focused proof, Main owns integration/final evidence, and LDD resumes from small durable pointers instead of replaying the whole epic.
 

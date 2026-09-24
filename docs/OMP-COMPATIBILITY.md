@@ -1,6 +1,6 @@
 # OMP compatibility assumptions
 
-This stack's v8 trial assumptions were revalidated against the public `can1357/oh-my-pi` main branch at commit `9b2a43514bfcfc0b9607ac9ac160115aec897f06` (2026-09-14). Anthropic profile selectors and adaptive-effort support were additionally re-checked against `a2501722aa05670eeab327ea1325e3fde55e51a9` / OMP 18.1.21 (2026-09-14). Agent Hub wait behavior was re-checked against OMP 18.1.22 (`23a5b9a`, 2026-09-14), whose unified waits use an adaptive window while remaining interruptible through the normal tool-abort/steering path. OMP moves quickly; re-check these assumptions when upgrading across substantial releases.
+This stack's v8 trial assumptions were revalidated against the public `can1357/oh-my-pi` main branch at commit `9b2a43514bfcfc0b9607ac9ac160115aec897f06` (2026-09-14). Anthropic profile selectors and adaptive-effort support were additionally re-checked against `a2501722aa05670eeab327ea1325e3fde55e51a9` / OMP 18.1.21 (2026-09-14). Agent Hub wait behavior was re-checked against OMP 18.1.22 (`23a5b9a`, 2026-09-14), whose unified waits use an adaptive window while remaining interruptible through the normal tool-abort/steering path. Extension tool approval policy (`policy: prompt` / `deny` under yolo), `formatApprovalDetails`, essential custom tools, and fail-closed `tool_call` interception were re-checked against OMP 18.2.10 (`da58b16`, 2026-09-22). OMP moves quickly; re-check these assumptions when upgrading across substantial releases.
 
 The design relies on these native behaviors:
 
@@ -9,6 +9,8 @@ The design relies on these native behaviors:
 - user task agents are discovered from `agents/*.md` and may bind arbitrary custom `modelRoles` aliases plus `autoloadSkills`; v8 uses `@execute` in addition to OMP's conventional roles;
 - user rules are discovered from `rules/*.{md,mdc}`, including `alwaysApply`;
 - user TypeScript/JavaScript extensions are auto-discovered from `extensions/`;
+- custom extension tools can declare explicit `policy: prompt` / `deny` approval decisions that remain authoritative under yolo, can add `formatApprovalDetails`, and can be kept `loadMode: essential`; Flow uses this for the interactive `flow_gate` artifact-approval boundary rather than transcript parsing;
+- extension `tool_call` interception is fail-closed and sees `task` inputs before execution, so Flow can reject stale/missing governance manifests without replacing OMP's task/Hub implementation;
 - Plan mode is read-only and owns plan approval/execution semantics;
 - task batches support per-item agents and optional per-spawn isolation when `task.isolation.enabled` is on;
 - task model selection comes from agent overrides/frontmatter roles rather than a per-call model field;
