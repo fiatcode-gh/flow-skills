@@ -45,7 +45,7 @@ Maintain the **forward pointer** in interactive Flow work. At each meaningful us
 
 ## Skill authoring
 
-When evolving these skills, prefer a light real-world field trial and two or three clean uses over building a large evaluation harness prematurely. Tune descriptions after observing real mis-triggers.
+When evolving these skills, follow the skill design principles in `docs/PRINCIPLES.md`, and prefer a light real-world field trial and two or three clean uses over building a large evaluation harness prematurely. Tune descriptions after observing real mis-triggers.
 
 ## Shell awareness
 

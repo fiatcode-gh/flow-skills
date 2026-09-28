@@ -1,6 +1,33 @@
 # Principle preservation ledger
 
-This file records what the `ai-stack` skill sweep kept, improved, merged or deliberately deleted. It is the guard against accidental simplification during future edits.
+This file records what the `ai-stack` skill sweep kept, improved, merged or deliberately deleted. It guards against two failures: losing a principle by accident, and doctrine that grows longer, denser or harder to follow.
+
+## Skill design principles
+
+Apply these whenever you create or change a skill, agent, rule or `agent/AGENTS.md`. Check each one before you commit.
+
+1. **Cheap to run.** Every line costs tokens each time the file loads. Add a line only when a real session went wrong without it. Delete or replace text before you add more.
+2. **Small.** One skill does one job. Write the steps in the order the agent does them. `tests/doctrine-budget.json` caps the size of every file that loads into a session. When a change would push a file over its cap:
+   1. first delete or shorten other text in that file to make room;
+   2. only if that is not possible, ask the user to raise the cap.
+
+   When a file shrinks, lower its cap to the new size.
+3. **Plain enough for a small model.** The smallest model that runs the text (`@smol`, `@execute`) must follow it correctly the first time:
+   - one rule per bullet, one idea per sentence;
+   - start with the action: "Run …", "Ask the user …", "Stop and report …";
+   - use exact names: file paths, tool names, commands;
+   - put an example next to any rule that can be read two ways;
+   - no chains of "unless … except when …": split the rule or drop the exception;
+   - say each thing once, and point to it by name from anywhere else.
+4. **Keep the workflow.** Short text never means skipped gates. The non-negotiable invariants below stay, however small the files get.
+5. **Coding skills produce craft-quality code.** Code written through a skill must be clean, maintainable and coherent:
+   - TDD: a failing test before new behavior (`flow-tdd`);
+   - DDD: follow the repository's domain model and names when it has one;
+   - craft: clear names, one job per unit, no dead code, no needless abstraction — checked before acceptance.
+
+`docs/FIELD-TRIAL-AUDIT.md` section 6 describes how to check a doctrine change against these principles.
+
+## Skill sweep ledger
 
 | Old skill | Principle preserved/improved | OMP-stack home |
 |---|---|---|

@@ -1,5 +1,5 @@
 from pathlib import Path
-import re, sys, yaml
+import json, re, sys, yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 errors=[]
@@ -617,6 +617,18 @@ for required in ['reuse recent proof by claim dependency', 'later change stales 
     if required not in verification_doctrine: err(f'LDD verification doctrine freshness invariant missing: {required}')
 if 'reuse a recent proof only if the exact tree/head' in verification_doctrine:
     err('LDD verification doctrine stale exact-tree-only freshness rule survived')
+
+# Every file that loads into a session has a byte cap; growth needs a deliberate cap change.
+budget=json.loads((ROOT/'tests/doctrine-budget.json').read_text())
+loaded={str(p.relative_to(ROOT)) for p in skills+agents+rules}|{'agent/AGENTS.md'}
+for rel in sorted(loaded-budget.keys()):
+    err(f'tests/doctrine-budget.json: no size cap for {rel}')
+for rel in sorted(budget.keys()-loaded):
+    err(f'tests/doctrine-budget.json: cap for missing file {rel}')
+for rel in sorted(loaded&budget.keys()):
+    size=(ROOT/rel).stat().st_size
+    if size>budget[rel]:
+        err(f'{rel}: {size} bytes, cap {budget[rel]}; shrink it, or raise the cap in tests/doctrine-budget.json only with user agreement')
 
 if errors:
     print('\n'.join('FAIL: '+e for e in errors)); sys.exit(1)

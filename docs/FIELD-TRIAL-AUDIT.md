@@ -62,8 +62,18 @@ Auditor reports are claims. Main opens the cited transcript lines for every tria
 
 - Update `docs/FIELD-TRIALS.md`: marks, the baseline note, `## Trial-failing breaks`, `## Recorded slips`, and fixed tooling defects.
 - Fix tooling defects that break documented behavior; they do not reset marks (rule 5).
-- Change doctrine only when rule 4 allows it, batch the changes, and take them through `flow-design` / `flow-planning` like any other substantial change. A doctrine change resets the marks it affects.
+- Change doctrine only when rule 4 allows it, batch the changes, and take them through `flow-design` / `flow-planning` like any other substantial change. Check every change with section 6 first. A doctrine change resets the marks it affects.
 - Run `sh tests/run.sh`, commit locally, and log the audit in Weft.
+
+## 6. Check a doctrine change
+
+Do this for every change to a skill, agent, rule or `agent/AGENTS.md`, before you commit it. The principles are in `docs/PRINCIPLES.md` under "Skill design principles".
+
+1. **Size.** Compare bytes before and after for each changed file. If the file grew, name the session failure the new text prevents. No failure named → remove the text.
+2. **Replace, don't stack.** For each added rule, find the old text it overlaps with. Merge them into one rule, or delete the old one.
+3. **Small-model check.** Start one `sonic` task. Give it only the changed file and three questions whose answers the changed rule decides (for example: "The user says 'go ahead' after you show the plan. Can you start a writer now?"). Do not give it the answers or this conversation. If it answers any question wrong, rewrite the rule and ask again.
+4. **Workflow still intact.** Confirm the gates the rule touches still hold: approvals, evidence, publication, user-owned changes.
+5. **Budget.** Run `uv run --with pyyaml python tests/validate.py`. If a file is over its cap in `tests/doctrine-budget.json`, shrink the file. Raise the cap only with the user's agreement. If the file got smaller, lower its cap to the new size.
 
 ## Auditing outside OMP
 
