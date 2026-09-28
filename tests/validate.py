@@ -197,7 +197,7 @@ for phrase,homes in EXCLUSIVE.items():
     for home in homes:
         if phrase not in (ROOT/home).read_text().lower(): err(f'{home}: doctrine home lost its rule: {phrase}')
 POINTS_TO={
-    'agent/skills/flow-execution/SKILL.md': ['defined once in `flow-evidence-verifier`', 'self-consistency rule in `flow-evidence`', 'stability barrier defined in the `flow-evidence` rule'],
+    'agent/skills/flow-execution/SKILL.md': ['defined once in `flow-evidence-verifier`', 'self-consistency rule in `flow-evidence`', 'stability barrier defined in the `flow-evidence` rule', 'change-lens selection in `flow-review`'],
     'agent/skills/flow-ldd/SKILL.md': ['`flow-execution` section 8', '`flow-execution` section 9', 'defined in `flow-evidence-verifier`', '`flow-evidence` rule'],
     'docs/ARCHITECTURE.md': ['`flow-execution` section 9', '`flow-evidence` rule', '`flow-evidence-verifier` alone defines'],
     'docs/PRINCIPLES.md': ['`flow-evidence-verifier` alone defines', '`flow-evidence` rule alone owns'],

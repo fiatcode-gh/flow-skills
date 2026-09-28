@@ -30,7 +30,7 @@ Marks below come from the field-trial audit of 23 sessions run on the stack sinc
 |---|---:|---|
 | `flow-debugging` | 2/2 | 2 clean; 1 non-trigger slip. |
 | `flow-design` | 2/2 | 10 clean; 0 trial-failing. |
-| `flow-execution` | 0/2 | Reset by the widened recovery-checkpoint trigger. |
+| `flow-execution` | 0/2 | Reset by the plain-language rewrite (`docs(flow): rewrite flow-execution in plain language`); before that, by the widened recovery-checkpoint trigger. |
 | `flow-external-session` | 0/2 | Not exercised. |
 | `flow-integrating` | 2/2 | 4 clean. |
 | `flow-ldd` | 2/2 | 4 clean. |
