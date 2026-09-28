@@ -156,6 +156,7 @@ EXECUTION_MARKERS=[
     'Verification ownership:\n- Focused proof: <commands/checks the writer must run>\n- Formatter: <scoped formatter command or concrete safety exception>\n- Focused static/build: <allowed/required checks>\n- Main-owned gates: <broader commands and why they stay with Main>\n',
     'Evidence capsule:\n- ID: <stable short id>\n- Owns: <one coherent scene family/device state/acceptance cluster>\n- Independent split check: none | <why the named evidence is inseparable>\n- Excludes: <other capsules left to fresh verifier sessions>\n- Restore obligation: NONE | <state that must be restored>\n',
     '## 8. Review proportionally', '## 9. Close execution', 'Main-direct lane',
+    'Start each verifier brief with the Flow gate block',
 ]
 for required in EXECUTION_MARKERS:
     if required not in execution_raw: err(f'flow-execution missing machine-read marker or pointer target: {required!r}')
