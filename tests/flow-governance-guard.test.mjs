@@ -36,6 +36,7 @@ assert.equal(flowGate?.name, "flow_gate", "governance guard must register the fl
 assert.equal(flowGate.loadMode, "essential", "flow_gate must stay visible for governed Flow work");
 
 const root = mkdtempSync(join(tmpdir(), "flow-governance-test-"));
+const nonGit = mkdtempSync(join(tmpdir(), "flow-governance-nogit-"));
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
 try {
 	git("init", "-q");
@@ -214,8 +215,44 @@ try {
 
 	const exclude = readFileSync(join(root, ".git/info/exclude"), "utf8");
 	assert.match(exclude, /^\/\.flow\/$/m, "runtime state must enforce the normal .flow personal exclude guard");
+
+	const savedCeiling = process.env.GIT_CEILING_DIRECTORIES;
+	try {
+		process.env.GIT_CEILING_DIRECTORIES = tmpdir();
+		assert.throws(
+			() => execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: nonGit, stdio: "ignore" }),
+			"precondition: nonGit must not resolve to a git repository",
+		);
+
+		const nonGitCtx = { cwd: nonGit, hasUI: true };
+		const callNonGitTask = (input) => toolCall({ toolName: "task", input }, nonGitCtx);
+
+		result = await callNonGitTask({ agent: "scout", task: "Find the entry point." });
+		assert.equal(result, undefined, "ungated agent must pass outside git without touching git");
+
+		result = await callNonGitTask({ tasks: [{ agent: "scout", task: "a" }, { task: "default agent" }] });
+		assert.equal(result, undefined, "batch with only ungated/default agents must pass outside git");
+
+		result = await callNonGitTask({ agent: "flow-planner", task: plannerTask });
+		assert.equal(result?.block, true, "planner dispatch must still fail outside git");
+		assert.match(result.reason, /requires task dispatch from a git repository/);
+
+		result = await callNonGitTask({ agent: "flow-implementer", task: directWriterTask });
+		assert.equal(result?.block, true, "writer dispatch must still fail outside git");
+		assert.match(result.reason, /requires task dispatch from a git repository/);
+
+		result = await callNonGitTask({
+			tasks: [{ agent: "scout", task: "a" }, { agent: "flow-evidence-verifier", task: verifierTask }],
+		});
+		assert.equal(result?.block, true, "batch with any gated role must still fail outside git");
+		assert.match(result.reason, /requires task dispatch from a git repository/);
+	} finally {
+		if (savedCeiling === undefined) delete process.env.GIT_CEILING_DIRECTORIES;
+		else process.env.GIT_CEILING_DIRECTORIES = savedCeiling;
+	}
 } finally {
 	rmSync(root, { recursive: true, force: true });
+	rmSync(nonGit, { recursive: true, force: true });
 }
 
 console.log("ok: flow governance runtime gates");

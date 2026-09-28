@@ -264,6 +264,15 @@ function verifierGateError(root: string, task: unknown): string | undefined {
 	return undefined;
 }
 
+function isGatedAgent(agent: unknown): boolean {
+	return agent === PLANNER || agent === VERIFIER || (typeof agent === "string" && WRITERS.has(agent));
+}
+
+function requestsGatedRole(input: ToolInput): boolean {
+	if (isGatedAgent(input.agent)) return true;
+	return Array.isArray(input.tasks) && input.tasks.some((item) => !!item && typeof item === "object" && isGatedAgent((item as ToolInput).agent));
+}
+
 function taskGateErrors(root: string, input: ToolInput): string[] {
 	const errors: string[] = [];
 	const check = (agent: unknown, task: unknown, label: string) => {
@@ -482,6 +491,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("tool_call", async (event, ctx) => {
 		if (event.toolName !== "task") return;
+		if (!requestsGatedRole(event.input as ToolInput)) return;
 		let root: string;
 		try {
 			root = repoRoot(ctx.cwd);
