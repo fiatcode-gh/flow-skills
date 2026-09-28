@@ -59,6 +59,7 @@ try {
 	let result = await callTask({ agent: "flow-planner", task: plannerTask });
 	assert.equal(result?.block, true, "planner dispatch must fail before contract approval");
 	assert.match(result.reason, /no recorded contract approval/i);
+	assert.doesNotMatch(result.reason, /flow_gate accept must complete/i);
 
 	assert.equal(
 		flowGate.approval({ action: "approve", scope: "demo", kind: "contract" }).policy,
@@ -189,6 +190,8 @@ try {
 	result = await callTask({ agent: "flow-evidence-verifier", task: verifierTask });
 	assert.equal(result?.block, true, "device evidence must fail before acceptance/closure is recorded");
 	assert.match(result.reason, /no acceptance\/closure recorded/i);
+	assert.match(result.reason, /flow_gate accept must complete before the dependent flow-evidence-verifier dispatch/i);
+	assert.match(result.reason, /same parallel tool batch/i);
 
 	await assert.rejects(
 		callGate({ action: "accept", scope: "demo", source: "acceptance-reviewer:ok" }, false),
@@ -204,6 +207,8 @@ try {
 	result = await callTask({ agent: "flow-evidence-verifier", task: verifierTask });
 	assert.equal(result?.block, true, "device evidence must fail after repository mutation stales acceptance");
 	assert.match(result.reason, /repository state changed after acceptance\/closure/i);
+	assert.match(result.reason, /flow_gate accept must complete before the dependent flow-evidence-verifier dispatch/i);
+	assert.match(result.reason, /same parallel tool batch/i);
 
 	const status = await callGate({ action: "status", scope: "demo" });
 	assert.match(status.content[0].text, /acceptance: stale/i, "status must surface stale acceptance");

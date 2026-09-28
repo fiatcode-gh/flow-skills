@@ -60,6 +60,8 @@ const PLANNER = "flow-planner";
 const WRITERS = new Set(["flow-plan-executor", "flow-implementer"]);
 const VERIFIER = "flow-evidence-verifier";
 const GATE_HEADER = "flow gate:";
+const ACCEPT_ORDER_HINT =
+	"flow_gate accept must complete before the dependent flow-evidence-verifier dispatch; do not issue both in the same parallel tool batch";
 
 const sha256 = (data: string | Buffer) => createHash("sha256").update(data).digest("hex");
 
@@ -256,10 +258,10 @@ function verifierGateError(root: string, task: unknown): string | undefined {
 	const manifest = parseManifest(task);
 	if (!manifest.scope) return "flow-evidence-verifier task must include Flow gate with Scope";
 	const acceptance = readState(root).scopes[manifest.scope]?.acceptance;
-	if (!acceptance) return `scope ${manifest.scope}: no acceptance/closure recorded for the current repository state`;
+	if (!acceptance) return `scope ${manifest.scope}: no acceptance/closure recorded for the current repository state; ${ACCEPT_ORDER_HINT}`;
 	const current = worktreeIdentity(root);
 	if (current.fingerprint !== acceptance.fingerprint) {
-		return `scope ${manifest.scope}: repository state changed after acceptance/closure (${acceptance.head} -> ${current.head})`;
+		return `scope ${manifest.scope}: repository state changed after acceptance/closure (${acceptance.head} -> ${current.head}); ${ACCEPT_ORDER_HINT}`;
 	}
 	return undefined;
 }
