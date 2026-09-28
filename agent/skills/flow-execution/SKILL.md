@@ -5,7 +5,7 @@ description: Use when local implementation is authorized; prefer constrained exe
 
 # Flow execution
 
-- OMP owns task spawning, isolation and Agent Hub. This repo's `flow-governance-guard` extension provides `flow_gate` and the spawn guard. This skill decides who does what and when.
+- OMP owns task spawning, isolation and Agent Hub. This repo's `flow-governance-guard` and `flow-evidence-guard` extensions provide `flow_gate` and the spawn checks. This skill decides who does what and when.
 - The same model applies inside and outside `flow-ldd`.
 
 ## 1. Check authorization
@@ -102,7 +102,7 @@ Each layer proves its own scope. Do not rerun full suites as ritual (`flow-evide
 - Stop that work for a plan defect or invalid contract. Return through `flow-planning`, `flow-design` or the user.
 - Rerun only the proof the correction affects, plus gates it made stale.
 - Run one scoped closure review by default. Run another only for a concrete unresolved acceptance risk.
-- For a production, asset or build change after acceptance, re-enter the stability barrier defined in the `flow-evidence` rule (section 8).
+- For a production, asset or build change after acceptance, follow the stability-barrier steps in section 8 of this skill.
 
 ## 8. Review proportionally
 
@@ -110,7 +110,7 @@ Each layer proves its own scope. Do not rerun full suites as ritual (`flow-evide
 - Do not fan out lens reviewers automatically. Add a specialist only for a concrete residual risk (a real security boundary, hard concurrency or data integrity).
 - Treat the acceptance review as a barrier. Start no device, emulator, manual or external evidence until it and its corrections settle. Read-only preparation is fine.
 - Run `flow_gate action=accept` with the scope and the receipt as source, after you accept the review receipt.
-- A later production, asset or build change reopens the stability barrier (`flow-evidence` rule): run a scoped closure review, rerun the affected evidence, then record `flow_gate action=accept` again. Until then the guard blocks verifier dispatch.
+- A later production, asset or build change reopens the stability barrier defined in the `flow-evidence` rule: run a scoped closure review, rerun the affected evidence, then record `flow_gate action=accept` again. Until then the guard blocks verifier dispatch.
 - You may park minor findings that carry no load.
 - Follow the change-lens selection in `flow-review` for unplanned changes.
 
