@@ -145,31 +145,20 @@ planning=(ROOT/'agent/skills/flow-planning/SKILL.md').read_text().lower()
 for required in ['execution-grade plan','locked decisions','executor discretion','plan quality gate','cor','ttc','crf','sec','decision completeness','fresh-executor capsule','one fresh `flow-plan-executor` session','independently provable behavioral slice','valid intermediate handoff exists','receipt-first','plan receipt validation does not itself authorize implementation','explicit user plan approval','for substantial planned work','approved governing contract','for substantial planning','ldd or non-ldd','must dispatch `flow-planner` (`@plan`)','answers to clarification questions do not themselves approve','flow-governance-guard','flow gate:','flow_gate','changes its digest']:
     if required not in planning: err(f'flow-planning invariant missing: {required}')
 
-execution=(ROOT/'agent/skills/flow-execution/SKILL.md').read_text().lower()
-for required in [
-    'route by work type', 'preserve the unit owner', 'clarify live',
-    'never broadly tell a writer', 'route corrections cheaply',
-    'delegation never transfers verification responsibility',
-    'a complete review round is not automatic',
-    'native `hub wait` is valid', 'interruptible by user steering', 'does not prevent the user from prompting',
-    'repeated `hub jobs` snapshots', 'does not intercept agent hub waits', 'receipt-first',
-    'before the **first device/emulator/manual/external acceptance action**',
-    'one verifier session owns one coherent evidence capsule', 'cannot rotate itself',
-    'touched-file formatting', 'explicit disposition for **cor / ttc / crf / sec**',
-    'dispatch preflight', 'verification ownership:', 'do not spawn a writing worker until all four entries are concrete',
-    'formatter-only failure', 'forward pointer',
-    'accepted external planning handoff', 'execution-grade plan', 'flow-plan-executor',
-    'flow-acceptance-reviewer', 'batch the verified set',
-    'for substantial work, a generic start/resume command is not local implementation authorization',
-    'must not begin device/emulator/manual/external evidence capture',
-    'must not personally drive a multi-step device/manual acceptance sequence',
-    'flow-evidence-guard', 'evidence capsule:', 'independent split check:',
-    'evidence-capsule runtime preflight rejects verifier dispatches missing these markers',
-    'do not wait on its old task job id after revival', 'peer-filtered reply wait', 'non-ldd only',
-    're-enter the stability barrier', 'flow gate:', 'flow_gate action=accept',
-    'old `flow_gate` acceptance binding is mechanically stale',
-]:
-    if required not in execution: err(f'flow-execution missing execution-policy invariant: {required}')
+execution_raw=(ROOT/'agent/skills/flow-execution/SKILL.md').read_text()
+execution=execution_raw.lower()
+# Pin only what tools parse or other files name: the brief templates Main copies
+# into task briefs (the guards parse those), the flow_gate strings, and the
+# headings/lane that flow-ldd, docs/ARCHITECTURE.md and agent/AGENTS.md point at.
+EXECUTION_MARKERS=[
+    'Flow gate:\n- Scope: <contract slug or epic/unit>\n- Contract: <approved contract path>\n- Plan: <approved PLAN.md path>\n',
+    'Plan: NONE', 'kind=implementation', 'flow_gate action=accept',
+    'Verification ownership:\n- Focused proof: <commands/checks the writer must run>\n- Formatter: <scoped formatter command or concrete safety exception>\n- Focused static/build: <allowed/required checks>\n- Main-owned gates: <broader commands and why they stay with Main>\n',
+    'Evidence capsule:\n- ID: <stable short id>\n- Owns: <one coherent scene family/device state/acceptance cluster>\n- Independent split check: none | <why the named evidence is inseparable>\n- Excludes: <other capsules left to fresh verifier sessions>\n- Restore obligation: NONE | <state that must be restored>\n',
+    '## 8. Review proportionally', '## 9. Close execution', 'Main-direct lane',
+]
+for required in EXECUTION_MARKERS:
+    if required not in execution_raw: err(f'flow-execution missing machine-read marker or pointer target: {required!r}')
 
 for required in [
     'current flow/omp stack owns **execution mechanics**', 'flow-execution',
