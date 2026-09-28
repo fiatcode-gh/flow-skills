@@ -71,7 +71,10 @@ Do this for every change to a skill, agent, rule or `agent/AGENTS.md`, before yo
 
 1. **Size.** Compare bytes before and after for each changed file. If the file grew, name the session failure the new text prevents. No failure named → remove the text.
 2. **Replace, don't stack.** For each added rule, find the old text it overlaps with. Merge them into one rule, or delete the old one.
-3. **Small-model check.** Start one `sonic` task. Give it only the changed file and three questions whose answers the changed rule decides (for example: "The user says 'go ahead' after you show the plan. Can you start a writer now?"). Do not give it the answers or this conversation. If it answers any question wrong, rewrite the rule and ask again.
+3. **Small-model check.** Start one `sonic` task. Give it only the changed file and three questions whose answers the changed rule decides (for example: "The user says 'go ahead' after you show the plan. Can you start a writer now?"). Do not give it the answers or this conversation.
+   - Write each expected answer as the verdict plus the one point the question asks for. Leave out detail the question does not ask.
+   - Grade that point only. Extra or missing detail the question did not ask for does not make an answer wrong.
+   - If it answers any question wrong, rewrite the rule and ask again.
 4. **Workflow still intact.** Confirm the gates the rule touches still hold: approvals, evidence, publication, user-owned changes.
 5. **Budget.** Run `uv run --with pyyaml python tests/validate.py`. If a file is over its cap in `tests/doctrine-budget.json`, shrink the file. Raise the cap only with the user's agreement. If the file got smaller, lower its cap to the new size.
 
