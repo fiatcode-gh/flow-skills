@@ -266,8 +266,14 @@ function verifierGateError(root: string, task: unknown): string | undefined {
 	return undefined;
 }
 
+// OMP trims the agent name before resolving it, so gate on the same normalized name.
+function agentName(agent: unknown): string | undefined {
+	return typeof agent === "string" ? agent.trim() : undefined;
+}
+
 function isGatedAgent(agent: unknown): boolean {
-	return agent === PLANNER || agent === VERIFIER || (typeof agent === "string" && WRITERS.has(agent));
+	const name = agentName(agent);
+	return name === PLANNER || name === VERIFIER || (name !== undefined && WRITERS.has(name));
 }
 
 function requestsGatedRole(input: ToolInput): boolean {
@@ -277,13 +283,14 @@ function requestsGatedRole(input: ToolInput): boolean {
 
 function taskGateErrors(root: string, input: ToolInput): string[] {
 	const errors: string[] = [];
-	const check = (agent: unknown, task: unknown, label: string) => {
+	const check = (rawAgent: unknown, task: unknown, label: string) => {
+		const agent = agentName(rawAgent);
 		if (agent === PLANNER) {
 			const error = plannerGateError(root, task);
 			if (error) errors.push(`${label}: ${error}`);
 			return;
 		}
-		if (typeof agent === "string" && WRITERS.has(agent)) {
+		if (agent !== undefined && WRITERS.has(agent)) {
 			const error = writerGateError(root, task);
 			if (error) errors.push(`${label}: ${error}`);
 			return;

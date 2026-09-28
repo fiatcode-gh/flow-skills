@@ -163,6 +163,15 @@ try {
 	});
 	assert.equal(batchResult, undefined, "batched governed tasks must pass when every manifest is current");
 
+	for (const agent of [" flow-implementer", "flow-plan-executor\n", "\tflow-planner ", " flow-evidence-verifier"]) {
+		result = await callTask({ agent, task: "No manifest." });
+		assert.equal(result?.block, true, `padded gated agent ${JSON.stringify(agent)} must still be gated`);
+		assert.match(result.reason, /must include Flow gate/);
+	}
+	result = await callTask({ tasks: [{ agent: "scout", task: "a" }, { agent: " flow-implementer ", task: "No manifest." }] });
+	assert.equal(result?.block, true, "padded gated agent inside a batch must still be gated");
+	assert.match(result.reason, /tasks\[1\]: production writer task must include Flow gate/);
+
 	await callGate({
 		action: "present",
 		scope: "demo-direct",
@@ -254,6 +263,10 @@ try {
 
 		result = await callNonGitTask({ agent: "flow-implementer", task: directWriterTask });
 		assert.equal(result?.block, true, "writer dispatch must still fail outside git");
+		assert.match(result.reason, /requires task dispatch from a git repository/);
+
+		result = await callNonGitTask({ agent: " flow-implementer", task: directWriterTask });
+		assert.equal(result?.block, true, "padded writer dispatch must still fail outside git");
 		assert.match(result.reason, /requires task dispatch from a git repository/);
 
 		result = await callNonGitTask({
