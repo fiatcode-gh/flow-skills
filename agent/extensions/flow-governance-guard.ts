@@ -191,6 +191,15 @@ function gateAction(input: ToolInput): GateAction | undefined {
 		: undefined;
 }
 
+function normalizeManifestValue(raw: string): string | undefined {
+	let value = raw.trim();
+	const first = value[0];
+	if (value.length >= 2 && (first === "`" || first === '"' || first === "'") && value.at(-1) === first) {
+		value = value.slice(1, -1).trim();
+	}
+	return value || undefined;
+}
+
 function parseManifest(task: unknown): GateManifest {
 	if (typeof task !== "string") return {};
 	const lines = task.split(/\r?\n/);
@@ -203,7 +212,8 @@ function parseManifest(task: unknown): GateManifest {
 		const match = line.match(/^\s*-\s*(Scope|Contract|Plan):\s*(.+?)\s*$/i);
 		if (!match) continue;
 		const key = match[1].toLowerCase();
-		const value = match[2].trim();
+		const value = normalizeManifestValue(match[2]);
+		if (!value) continue;
 		if (key === "scope") result.scope = value;
 		if (key === "contract") result.contract = value;
 		if (key === "plan") result.plan = value;

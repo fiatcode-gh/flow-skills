@@ -91,6 +91,24 @@ try {
 	result = await callTask({ agent: "flow-planner", task: plannerTask });
 	assert.equal(result, undefined, "planner dispatch must pass for the approved current contract revision");
 
+	const codePlannerTask = `# Plan it\n\nFlow gate:\n- Scope: \`demo\`\n- Contract: \`.flow/contracts/demo.md\``;
+	result = await callTask({ agent: "flow-planner", task: codePlannerTask });
+	assert.equal(result, undefined, "planner dispatch must pass when Scope/Contract are wrapped in backticks");
+
+	const quotedPlannerTask = `# Plan it\n\nFlow gate:\n- Scope: "demo"\n- Contract: '.flow/contracts/demo.md'`;
+	result = await callTask({ agent: "flow-planner", task: quotedPlannerTask });
+	assert.equal(result, undefined, "planner dispatch must pass when Scope/Contract are wrapped in matching quotes");
+
+	const emptyScopeTask = `# Plan it\n\nFlow gate:\n- Scope: \`\`\n- Contract: .flow/contracts/demo.md`;
+	result = await callTask({ agent: "flow-planner", task: emptyScopeTask });
+	assert.equal(result?.block, true, "empty-after-strip Scope must be treated as absent");
+	assert.match(result.reason, /must include Flow gate with Scope and Contract/i);
+
+	const mismatchedScopeTask = `# Plan it\n\nFlow gate:\n- Scope: \`demo"\n- Contract: .flow/contracts/demo.md`;
+	result = await callTask({ agent: "flow-planner", task: mismatchedScopeTask });
+	assert.equal(result?.block, true, "mismatched wrapper must fail closed as an unknown scope");
+	assert.match(result.reason, /no recorded contract approval/i);
+
 	writeFileSync(join(root, ".flow/contracts/demo.md"), "# Contract\n\nBehavior B.\n");
 	result = await callTask({ agent: "flow-planner", task: plannerTask });
 	assert.equal(result?.block, true, "planner dispatch must fail when the contract changed after approval");
@@ -161,6 +179,10 @@ try {
 	await callGate({ action: "approve", scope: "demo-direct", kind: "implementation" });
 	result = await callTask({ agent: "flow-implementer", task: directWriterTask });
 	assert.equal(result, undefined, "Plan NONE writer must pass after implementation approval bound to current contract");
+
+	const codeDirectWriterTask = `# Tiny direct implementation\n\nFlow gate:\n- Scope: demo-direct\n- Contract: .flow/contracts/demo.md\n- Plan: \`NONE\``;
+	result = await callTask({ agent: "flow-implementer", task: codeDirectWriterTask });
+	assert.equal(result, undefined, "Plan NONE writer must pass when the manifest value is backticked");
 
 	const verifierTask = `# Verify\n\nFlow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: scene-a\n- Owns: current scene\n- Independent split check: none\n- Excludes: other scenes\n- Restore obligation: NONE`;
 	result = await callTask({ agent: "flow-evidence-verifier", task: verifierTask });
