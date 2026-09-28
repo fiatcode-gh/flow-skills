@@ -10,7 +10,6 @@ The Weft lifecycle integration in the change that introduced this ledger is shar
 
 | Flow skill | Active mark | Current-baseline note |
 |---|---:|---|
-| `flow-assets` | 0/2 | Reset by shared Weft lifecycle integration. |
 | `flow-debugging` | 0/2 | Reset by shared Weft lifecycle integration. |
 | `flow-design` | 0/2 | Governance gate now binds contract approval to artifact digest. |
 | `flow-execution` | 0/2 | Governance gate now preflights writer authorization + accepted repository state. |
