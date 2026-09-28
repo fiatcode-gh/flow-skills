@@ -4,6 +4,8 @@ This ledger tracks the two-clean-pass field-trial mark for each **Flow skill**.
 
 Marks belong to Flow skills, not to sessions. One substantial OMP session may exercise several skills; audit each materially exercised skill independently.
 
+`docs/FIELD-TRIAL-AUDIT.md` describes how to run an audit against these rules.
+
 ## Rules
 
 1. **Trial-failing invariants.** Only these breaks fail a trial:
