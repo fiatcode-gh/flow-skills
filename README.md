@@ -68,7 +68,7 @@ Then replace `ctx7sk-REPLACE-WITH-YOUR-KEY` in each copy with the real Context7 
 
 ## Flow shape
 
-The old 24-skill surface is reduced to 15 skills in the v8 trial:
+The old 24-skill surface is reduced to 14 skills in the v8 trial:
 
 * `flow-design` — material product/architecture decisions only.
 * `flow-planning` — execution-grade HOW planning; front-loads interfaces/tests/ownership and lens concerns so implementation can be constrained.

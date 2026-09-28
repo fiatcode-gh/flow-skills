@@ -48,6 +48,7 @@ Evidence: the same audit. Both fall under `flow-execution`, which is 0/2 on this
 Evidence: the 2026-09-28 field-trial audit (23 sessions since `2c75bb5`).
 
 - `flow-execution`: no durable recovery checkpoint before the first device/emulator/external acceptance action in 3 of 5 planned sessions — two device/emulator sessions, and one session running irreversible production SSH operations, where the old trigger wording did not clearly cover a live server. Recurred, so the trigger now names live production servers and other hard-to-recover remote hosts (rule 4) and the mark resets (rule 5).
+- `flow-execution`: Main diagnosed and fixed a production backup-script defect itself during a live deploy instead of routing the semantic work to `flow-implementer` (session `01a0d276`).
 - `flow-review`: a fixed `/tmp` review path instead of the unique review root; self-review of a 4-line diff.
 - `flow-debugging`: one non-trigger slip — the skill applied to a live production-outage diagnosis but was not loaded.
 - Recorded without doctrine change: dispatch-footer wording; the `flow-review` lens rule; the Weft journal append habit.

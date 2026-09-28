@@ -101,6 +101,10 @@ try {
 	result = await callTask({ agent: "flow-planner", task: quotedPlannerTask });
 	assert.equal(result, undefined, "planner dispatch must pass when Scope/Contract are wrapped in matching quotes");
 
+	const spacedCodePlannerTask = `# Plan it\n\nFlow gate:\n- Scope: \` demo \`\n- Contract: \` .flow/contracts/demo.md \``;
+	result = await callTask({ agent: "flow-planner", task: spacedCodePlannerTask });
+	assert.equal(result, undefined, "planner dispatch must pass when backtick-wrapped Scope/Contract carry inner spaces");
+
 	const emptyScopeTask = `# Plan it\n\nFlow gate:\n- Scope: \`\`\n- Contract: .flow/contracts/demo.md`;
 	result = await callTask({ agent: "flow-planner", task: emptyScopeTask });
 	assert.equal(result?.block, true, "empty-after-strip Scope must be treated as absent");
@@ -192,6 +196,12 @@ try {
 	assert.match(result.reason, /no acceptance\/closure recorded/i);
 	assert.match(result.reason, /flow_gate accept must complete before the dependent flow-evidence-verifier dispatch/i);
 	assert.match(result.reason, /same parallel tool batch/i);
+
+	const verifierNoScopeTask = `# Verify\n\nEvidence capsule:\n- ID: scene-a\n- Owns: current scene\n- Independent split check: none\n- Excludes: other scenes\n- Restore obligation: NONE`;
+	result = await callTask({ agent: "flow-evidence-verifier", task: verifierNoScopeTask });
+	assert.equal(result?.block, true, "verifier dispatch without a Scope line must be blocked");
+	assert.match(result.reason, /flow-evidence-verifier task must include Flow gate with Scope/i);
+	assert.doesNotMatch(result.reason, /flow_gate accept must complete before the dependent flow-evidence-verifier dispatch/i);
 
 	await assert.rejects(
 		callGate({ action: "accept", scope: "demo", source: "acceptance-reviewer:ok" }, false),
