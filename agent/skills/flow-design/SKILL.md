@@ -26,11 +26,11 @@ A typo, dependency bump, obvious one-file bug after root cause, or another tiny/
 
 ## Imported design context
 
-A validated external planning/LDD handoff may contain user-approved design decisions. Preserve still-valid settled decisions instead of re-running brainstorming by ritual, but still reconcile them with current project reality and consolidate the locally governing contract before planning. Contract formation may therefore be confirmatory rather than exploratory. Reopen only decisions that are stale, contradicted, materially incomplete, or not actually user-approved. An implementation strategy in the handoff belongs to Plan/execution reasoning, not to this design skill.
+A validated external planning/LDD handoff may contain user-approved design decisions. Preserve still-valid settled decisions instead of re-running brainstorming by ritual, but still reconcile them with current project reality and consolidate the locally governing contract before planning. Contract formation may therefore be confirmatory rather than exploratory. Reopen only decisions that are stale, contradicted, materially incomplete, or not actually user-approved.
 
 ## Durability
 
-- Tiny/mechanical work that legitimately skips this stage may keep its explicit scope in the conversation/request.
+- Before you write a non-LDD contract, compare the scope with the `flow-ldd` skill description. If it matches, ask the user whether to switch to `flow-ldd`. Switch only when the user agrees.
 - For substantial non-LDD work, write the governing contract to `.flow/contracts/<slug>.md` after running the `flow-artifacts` exclude guard, record the head it was written against, and use `<slug>` as the stable `flow_gate` scope.
 - Under `flow-ldd`, write/update the unit contract in the epic's `.flow/ldd/<epic>/` authority instead of creating a parallel contract system; use `<epic>/<unit>` as the stable gate scope.
 

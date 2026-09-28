@@ -24,14 +24,13 @@ Never expose secret values. Review/audit specialists are read-only. In PR review
 
 ## Change-lens selection
 
-- COR always for the initial coherent change review.
+- COR and CRF always for the initial coherent change review.
 - TTC only when executable behavior/tests/validation/migrations/types/schemas/contracts changed.
-- CRF only when non-trivial logic, abstractions, docs/comments, cross-module refactors, duplication/nesting or mixed responsibilities changed.
 - SEC only when a real security boundary is involved (authentication/authorization, secrets, cryptography, payments, destructive operations, untrusted-input boundaries, privileged filesystem/process/network access, etc.).
 
 Route COR to bundled `reviewer`; TTC to `flow-ttc-reviewer`; CRF to `flow-craft-reviewer`; SEC to built-in `security-reviewer` or native `security_scan` when a dedicated scan is warranted. Do not pass concrete model names.
 
-Before spawning specialists, record an explicit disposition for all four change lenses: `COR run`, then `TTC run/skip + reason`, `CRF run/skip + reason`, and `SEC run/skip + reason`. Reasons should cite the changed surface/risk, not cost alone. This can stay concise in controller reasoning/work notes; it is an auditability guard, not a user-facing checklist.
+Before spawning specialists, record an explicit disposition for all four change lenses: `COR run`, `CRF run`, then `TTC run/skip + reason` and `SEC run/skip + reason`. Reasons should cite the changed surface/risk, not cost alone. This can stay concise in controller reasoning/work notes; it is an auditability guard, not a user-facing checklist.
 
 Run applicable lenses in parallel and blind to one another.
 

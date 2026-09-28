@@ -189,6 +189,8 @@ EXCLUSIVE={
     'comparison scheme': {'agent/agents/flow-evidence-verifier.md', 'agent/rules/flow-evidence.md'},
     'independent split check:': {'agent/agents/flow-evidence-verifier.md', 'agent/skills/flow-execution/SKILL.md'},
     'reuse of unaffected capsules': {'agent/rules/flow-evidence.md'},
+    'comments that narrate the code or contradict it': {'agent/skills/flow-review/references/review-lenses.md'},
+    'multi-story or cross-repository': {'agent/skills/flow-ldd/SKILL.md'},
 }
 for phrase,homes in EXCLUSIVE.items():
     for p in doctrine_surfaces:
@@ -201,6 +203,10 @@ POINTS_TO={
     'agent/skills/flow-ldd/SKILL.md': ['`flow-execution` section 8', '`flow-execution` section 9', 'defined in `flow-evidence-verifier`', '`flow-evidence` rule'],
     'docs/ARCHITECTURE.md': ['`flow-execution` section 9', '`flow-evidence` rule', '`flow-evidence-verifier` alone defines'],
     'docs/PRINCIPLES.md': ['`flow-evidence-verifier` alone defines', '`flow-evidence` rule alone owns'],
+    'agent/agents/flow-craft-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
+    'agent/agents/flow-acceptance-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
+    'agent/skills/flow-design/SKILL.md': ['`flow-ldd` skill description'],
+    'agent/skills/flow-planning/SKILL.md': ['`flow-ldd` skill description'],
 }
 for path,pointers in POINTS_TO.items():
     text=(ROOT/path).read_text()

@@ -35,6 +35,8 @@ Flow gate:
 
 Record the source revision/dirty-state assumptions the plan was derived from. A revision change triggers targeted revalidation, not ritual replanning.
 
+Outside `flow-ldd`, when the work splits into several independently shippable units, stop and report that to Main. Main then compares the scope with the `flow-ldd` skill description and asks the user whether to switch.
+
 ## 2. Front-load consequential judgment
 
 An execution-grade plan settles, where applicable:
@@ -48,7 +50,7 @@ An execution-grade plan settles, where applicable:
 - performance/allocation/lifetime constraints when material;
 - explicit non-goals and forbidden scope expansion.
 
-Use exact symbols, file paths and repository-native commands. Include code/pseudocode only where an exact recipe prevents rediscovery; do not make line count a goal or paste large code merely to appear complete.
+Use exact symbols, file paths and repository-native commands. Include code/pseudocode only where an exact recipe prevents rediscovery; do not paste large code merely to appear complete.
 
 A task is right-sized when it owns one **independently provable behavioral slice** and is worth one implementation/context boundary. Split a brief when it contains multiple Red→Green proof clusters that can each reach a valid repository handoff state independently, when it crosses multiple independently checkpointable seams, or when unrelated subsystems can be verified separately. If a proposed task names more than one independent proof cluster, the planner must split it **or explicitly state why no valid intermediate handoff exists** (for example, an atomic schema/type migration that cannot leave the repository buildable between halves). Do not split one inseparable behavior merely to satisfy a numeric file/turn/token target, and do not create a fresh task for setup or one-line propagation that belongs to a neighboring deliverable.
 
@@ -83,7 +85,9 @@ Before the plan becomes execution-grade, inspect it through the normal review co
 
 - **COR** — invariants, ownership, edge/error paths, integration and consequential failure modes are decided.
 - **TTC** — changed behavior maps to named tests/proofs, including negative/boundary/compatibility cases where applicable; expected Red evidence is stated.
-- **CRF** — responsibilities/decomposition are coherent; avoid planned dead abstractions, needless indirection, duplication, pathological lifetime/allocation behavior and mixed responsibilities.
+- **CRF**:
+  - each planned unit has one job; no planned dead code, needless abstraction, duplication or pathological lifetime/allocation behavior;
+  - new files, types and interfaces use the repository's domain model and names. Example: the repository says `Order`, so name it `OrderRefund`, not `PurchaseReversal`. If the repository has no domain model, impose none.
 - **SEC** — record run/skip with reason; when applicable, security boundaries and abuse/error behavior are explicit in the plan.
 
 Challenge the plan itself. Plan compliance is not correctness: if a planned instruction would create a defect, repair the plan rather than teaching later reviewers to defend it.
@@ -101,7 +105,7 @@ A plan is `execution-grade` only when:
 - source assumptions are current enough for the planned surfaces;
 - the integrated plan quality gate passes.
 
-If these do not hold, keep the artifact as strategy/draft and route unresolved judgment through planning/design rather than pretending it is cheap execution work.
+If these do not hold, keep the artifact as strategy/draft and route unresolved judgment through planning/design.
 
 ## 6. Execution handoff
 
@@ -111,10 +115,10 @@ Main/controller validates the plan receipt and obtains/retains the normal implem
 - task/plan contradiction or deliberately unresolved semantic judgment → `flow-implementer` (`@task`) or return to planning/design;
 - exact mechanical leaf → `sonic` (`@smol`).
 
-Prefer handing workers artifact paths instead of pasting whole plans into prompts. **One execution-grade task brief normally gets one fresh `flow-plan-executor` session.** Sequential tasks stay non-isolated in the same suitable feature checkout and run one writer at a time, so repository state carries forward while model context does not. Do not preserve an executor across adjacent plan tasks merely to avoid cold start; Unit 3 field evidence showed resident-context growth can dominate that cost. Independent tasks may use isolated/concurrent executors only when they are genuinely independent.
+Prefer handing workers artifact paths instead of pasting whole plans into prompts. **One execution-grade task brief normally gets one fresh `flow-plan-executor` session.** Sequential tasks stay non-isolated in the same suitable feature checkout and run one writer at a time, so repository state carries forward while model context does not. Independent tasks may use isolated/concurrent executors only when they are genuinely independent.
 
-The planner's handoff is receipt-first: source/base revision and dirty-state assumption, plan/task paths, dependency shape, quality-gate disposition, residual risks and the exact next action. Main uses that receipt to target any independent recheck instead of broadly replaying planner recon.
+The planner's handoff is receipt-first: source/base revision and dirty-state assumption, plan/task paths, dependency shape, quality-gate disposition, residual risks and the exact next action.
 
 ## External handoffs
 
-A validated ChatGPT/other-harness bundle may already contain an execution-grade plan. Judge it against this contract and the approved governing WHAT/WHY contract. If it passes, remains compatible with that contract, and source assumptions remain current, preserve it and do not repeat planning. If it contains a good strategy but not an execution-grade plan, keep the settled strategy and refine only the missing HOW; do not reopen settled WHAT/WHY.
+A validated ChatGPT/other-harness bundle may already contain an execution-grade plan. If it satisfies this skill and the approved governing WHAT/WHY contract, and source assumptions remain current, preserve it and do not repeat planning. If it contains a good strategy but not an execution-grade plan, keep the settled strategy and refine only the missing HOW; do not reopen settled WHAT/WHY.

@@ -40,7 +40,7 @@ Apply these whenever you create or change a skill, agent, rule or `agent/AGENTS.
 | `flow-debugging` | reproduce/root-cause/hypothesis before permanent fix | `flow-debugging`; read-only scout fan-out and deliberate escalation after repeated failures |
 | `flow-verification` | claims need fresh evidence; worker reports are not proof | always-apply `flow-evidence`; layered leaf→unit→integration→final proof avoids both blind workers and ritual duplicate full gates |
 | `flow-finishing` | final proof + user owns integration | `flow-integrating`; cohesion/reviewability replaces rigid line threshold; unchanged fresh final evidence may be reused |
-| `flow-reviewing-prs` | exact-head read-only review; COR always; TTC/CRF conditional; verify findings; exact publication approval | `flow-review` PR mode + specialist agents |
+| `flow-reviewing-prs` | exact-head read-only review; COR and CRF always; TTC/SEC conditional; verify findings; exact publication approval | `flow-review` PR mode + specialist agents |
 | `flow-receiving-pr-reviews` | reviewer findings are claims; re-anchor; factual/judgment split; explicit dispositions; exact reply gate | `flow-review` author-feedback mode |
 | `flow-auditing-codebases` | read-only whole-tree audit; four mandatory lenses; controller verifies | `flow-review` audit mode; SEC uses OMP security reviewer/scan |
 | `flow-handover` | independent context may be useful; returned work/planning is independently revalidated | `flow-external-session` worker/planning handoff modes |
@@ -68,7 +68,7 @@ Future refactors should preserve these even if filenames change:
 6. Writers verify their own changes; controller verification is additive, not a reason to suppress focused worker proof.
 7. Reviewer/worker output is a claim until the controller verifies consequential findings/results.
 8. Evidence broadens leaf → unit → integration → final tree; do not duplicate expensive full gates at every layer by ritual.
-9. Review concerns are never dropped: standalone/unplanned change review keeps applicability-driven COR/TTC/CRF/SEC; execution-grade planned work moves those concerns into the plan quality gate and uses one integrated final acceptance reviewer, with specialist escalation only when concrete residual risk warrants it.
+9. Review concerns are never dropped: standalone/unplanned change review always runs COR and CRF and runs TTC/SEC when applicable; execution-grade planned work moves those concerns into the plan quality gate and uses one integrated final acceptance reviewer, with specialist escalation only when concrete residual risk warrants it.
 10. Whole-codebase audit still runs CDH/TTC/DST/SEC.
 11. LDD architect never writes production code.
 12. LDD ledger is durable project truth, not backlog/transcript or permanent harness mechanics; Weft owns durable human backlog/project knowledge.

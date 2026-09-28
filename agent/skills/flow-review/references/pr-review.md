@@ -6,9 +6,14 @@ Treat verification commands as writes when they can rewrite tracked files as a s
 
 1. Pin exact remote base/head, description/requirements, commits, changed files/stat, required checks and existing discussion. For re-review, identify the last reviewed commit/verdict and verify old findings against the new head before focusing on the delta plus affected callers/contracts.
 2. Build a metadata-only packet; specialists fetch their own diff/context.
-3. Select COR/TTC/CRF/SEC by `review-lenses.md` and fan out applicable read-only specialists in parallel.
+3. Run COR and CRF always; select TTC/SEC by `review-lenses.md`. Fan out the read-only specialists in parallel.
 4. Verify/synthesize findings. A failing required check is blocking; unavailable/ambiguous required-check evidence is comment-only.
-5. Verdict: verified Critical/Important → request changes; no blockers + required checks green → approve; incomplete/pending/conflicted evidence → comment.
+5. Verdict. First set aside findings that are only about craft (CRF): post them as non-blocking comments, even when Important. Then:
+   - a verified Critical/Important finding remains → request changes;
+   - none remains and required checks are green → approve;
+   - evidence is incomplete, pending or conflicted → comment.
+
+   Example: the only finding is dead code and required checks are green → approve, with one non-blocking comment on the dead code.
 6. Draft one concise summary and only valuable changed-line inline comments. Show exact action/text/inline set to the user.
 7. After approval, re-query head. Head moved → publish nothing and rebuild. Use GitHub's batched review submission. Partial write → report exactly what posted; never retry blindly.
 8. Apply the shared Weft lifecycle when `${WEFT_GRAPH}` exists: log the review and close an existing user-owned review task when appropriate, but never create/pull/promote `TODO` / `LATER` work from findings in someone else's PR.

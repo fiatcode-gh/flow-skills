@@ -29,13 +29,13 @@ Marks below come from the field-trial audit of 23 sessions run on the stack sinc
 | Flow skill | Active mark | Current-baseline note |
 |---|---:|---|
 | `flow-debugging` | 2/2 | 2 clean; 1 non-trigger slip. |
-| `flow-design` | 2/2 | 10 clean; 0 trial-failing. |
+| `flow-design` | 0/2 | Reset by the craft + DDD unit (`docs(flow): enforce craft and domain names, suggest flow-ldd`): contract formation now asks the user about `flow-ldd` when the scope matches its description. Before that: 10 clean; 0 trial-failing. |
 | `flow-execution` | 0/2 | Reset by the plain-language rewrite (`docs(flow): rewrite flow-execution in plain language`); before that, by the widened recovery-checkpoint trigger. |
 | `flow-external-session` | 0/2 | Not exercised. |
 | `flow-integrating` | 2/2 | 4 clean. |
 | `flow-ldd` | 2/2 | 4 clean. |
-| `flow-planning` | 2/2 | 10 clean. |
-| `flow-review` | 2/2 | 5 clean; 2 slips. |
+| `flow-planning` | 0/2 | Reset by the craft + DDD unit (`docs(flow): enforce craft and domain names, suggest flow-ldd`): the plan quality gate now requires the repository's domain model and names. Before that: 10 clean. |
+| `flow-review` | 0/2 | Reset by the craft + DDD unit (`docs(flow): enforce craft and domain names, suggest flow-ldd`): CRF always runs, the named craft defects are Important, and craft-only PR findings never block. Before that: 5 clean; 2 slips. |
 | `flow-tdd` | 2/2 | 5 clean. |
 
 ## Trial-failing breaks
