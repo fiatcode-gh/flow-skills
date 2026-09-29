@@ -24,10 +24,12 @@ modelRoles:
 
   # High-throughput constrained execution, semantic implementation, multimodal
   # work and auxiliary review. Keep Main separate from the implementation tier.
-  execute: anthropic/claude-sonnet-5:high
-  task: anthropic/claude-sonnet-5:high
-  vision: anthropic/claude-sonnet-5:high
-  review_aux: anthropic/claude-sonnet-5:high
+  # Sonnet 5.5 recalibrated effort: Anthropic recommends medium for
+  # well-specified agentic work and high for harder or open-ended work.
+  execute: anthropic/claude-sonnet-5-5:medium
+  vision: anthropic/claude-sonnet-5-5:medium
+  task: anthropic/claude-sonnet-5-5:high
+  review_aux: anthropic/claude-sonnet-5-5:high
 
   # Spend the larger Team Premium allowance where controller reliability and
   # unresolved judgment have the most leverage.

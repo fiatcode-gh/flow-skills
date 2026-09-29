@@ -61,8 +61,8 @@ Ollama Cloud:
 Anthropic:
 
 - `smol` / `tiny` / `commit`: Claude Haiku 4.5;
-- `execute` / `task` / `vision` / `review_aux`: Claude Sonnet 5 high;
-- `default` / `plan` / `slow`: Claude Opus 5 high;
+- `execute` / `vision`: Claude Sonnet 5.5 medium; `task` / `review_aux`: Claude Sonnet 5.5 high;
+- `default` / `plan` / `slow`: Claude Opus 5.5 medium;
 - `critical`: Claude Fable 5.1 high (explicitly not max).
 
 All three v8 baseline configs add explicit OMP approval prompts for normal push/PR/review/comment/release commands through direct Bash patterns; `gh api` prompts only when a method or body flag is present. Blanket `tools.approval.eval: prompt` is intentionally unset because it interrupts ordinary eval usage too broadly; do not wrap publication commands in eval to bypass the direct-command prompts. **A divergent installed profile config is never overwritten by `omp-stack install`**: the installer warns and exits non-zero. Merge the wanted settings into `profiles/<name>/config.yml`, delete the profile copy, and rerun `install` so the profile points at the template (step 3 above).
