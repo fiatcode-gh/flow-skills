@@ -23,7 +23,7 @@ Marks belong to Flow skills, not to sessions. One substantial OMP session may ex
 
 ## Current baseline
 
-Marks below come from the field-trial audit of 23 sessions run on the stack since `2c75bb5` (approval/acceptance state gates), audited 2026-09-28 under these rules. The change that introduced these rules also fixed governance-guard tooling defects the audit found (rule 5: no reset), removed the unused `flow-assets` skill (git history is its archive; its removal changes no remaining skill's behavior), and widened the recovery-checkpoint trigger to live production servers and other hard-to-recover remote hosts. That trigger is defined in `flow-execution`, so only `flow-execution` resets; `flow-ldd` only mirrors and points at that definition.
+Marks below come from the field-trial audit of 23 sessions run on the stack since `2c75bb5` (approval/acceptance state gates), audited 2026-09-28 under these rules. The change that introduced these rules also fixed governance-guard tooling defects the audit found (rule 5: no reset), removed the unused `flow-assets` skill (git history is its archive; its removal changes no remaining skill's behavior), and widened the recovery-checkpoint trigger to live production servers and other hard-to-recover remote hosts. That trigger is defined in `flow-execution`, so only `flow-execution` resets; `flow-ldd` only mirrors and points at that definition. The plain-language rewrite of `agent/AGENTS.md` (`docs(flow): rewrite AGENTS.md in plain language`) changes no skill's behavior, so no mark resets (rule 5).
 
 | Flow skill | Active mark | Current-baseline note |
 |---|---:|---|

@@ -2,99 +2,110 @@
 
 ## Engineering principles
 
-- **YAGNI** — do not build what is not needed yet.
-- **DRY, without premature abstraction** — remove meaningful duplication; do not create abstractions before the shape is stable.
-- **Separation of concerns** — keep modules and layers focused.
-- **Self-explaining code** — code explains *what* through names and structure. Comments explain *why*, invariants, constraints, or non-obvious context only.
-- Prefer the smallest coherent change that satisfies the requirement. Avoid opportunistic cleanup unless it is required for correctness or explicitly requested.
+- **YAGNI:** do not build what is not needed yet.
+- **DRY, without premature abstraction:** remove meaningful duplication. Do not add an abstraction before its shape is stable.
+- **Separation of concerns:** keep each module and layer focused.
+- **Self-explaining code:** let names and structure show *what* the code does. Write comments only for *why*, invariants, constraints or non-obvious context.
+- Make the smallest coherent change that meets the requirement.
+- Do not clean up unrelated code on the side. Clean up only when correctness needs it or the user asks for it.
 
 ## OMP / Flow execution
 
-OMP owns Plan mode, task-agent lifecycle, isolation, Agent Hub, Vibe, built-in review and security scanning. Flow skills add judgment and gates; they do not recreate those mechanics.
-
+- Use OMP's own Plan mode, task-agent lifecycle, isolation, Agent Hub, Vibe, built-in review and security scanning. Flow skills add judgment and gates. Do not rebuild those mechanics.
 - Load a Flow skill when its description matches the task. There is no bootstrap skill.
-- Before substantial work enters planning, use `flow-design` to reconcile the user's intent with current project reality, write the governing WHAT/WHY contract, present the completed contract, and obtain explicit user approval. This applies to new/existing projects and internal/external brainstorms or handoffs. Preserve already-settled decisions and do not manufacture questions or alternatives; tiny/mechanical work with an already-explicit boundary may skip a separate contract artifact.
-- Use `flow-planning` when consequential implementation HOW should be made decision-complete before coding. Native Plan reasoning / `flow-planner` owns that judgment. A validated external **execution-grade** plan may satisfy the stage only when it remains compatible with the approved governing contract; a strategy-only handoff does not become execution-grade merely because `implementation_strategy` is settled.
-- A start/resume request does not create missing approval. For substantial work, require explicit user approval of the completed governing contract before planning, then explicit user approval of the completed execution-grade plan before any production-writing worker. Answers to clarification questions do not themselves approve the completed or materially amended contract unless the user explicitly says so. Durable Flow work records these gates with the essential `flow_gate` runtime tool: present the current artifact summary, use its native approval action, and include the resulting scope/artifact manifest in planner/writer dispatch. A recorded prior approval remains valid across resume only while its bound artifact digest is unchanged; a material contract/plan edit therefore reopens the corresponding gate mechanically.
-- Route task agents by agent name/role. Do not pass or hard-code concrete model identifiers in workflow prompts.
-- Parallelize independent work, not merely divisible work. Dependency structure decides isolation and concurrency. A sole/sequential semantic owner on a suitable feature checkout should normally stay non-isolated so it can be resumed. This resumability rule does not preserve planned executors: execution-grade plan tasks rotate through fresh `flow-plan-executor` (`@execute`) sessions while sharing repository state.
-- Writers verify their own changes with focused repository-native proof. Controller/final verification is additive; never make workers blind merely to preserve independence.
-- Route execution-grade plan work to `flow-plan-executor` (`@execute`); route unresolved semantic judgment/debugging/broken-plan fallback to `flow-implementer` (`@task`); route settled behavior-preserving/mechanical edits and already-diagnosed exact corrections to bundled `sonic` (`@smol`).
-- For execution-grade plan work, prefer one strong integrated `flow-acceptance-reviewer` pass after the coherent implementation instead of routine COR/TTC/CRF fan-out. Specialist lenses remain available for unplanned work, audits, PR review, security boundaries, or escalation. After Main accepts the acceptance/closure receipt, record the current repository state with `flow_gate`; verifier dispatch fails closed if later mutation makes that binding stale.
-- Main may code only in the Main-direct lane defined by `flow-execution`. It is not blanket permission for Main to implement substantial planned or semantic work.
+- Use `flow-design` before substantial work enters planning: write the governing WHAT/WHY contract, present it, and get explicit user approval. This holds for every start: a new or existing project, an internal brainstorm, an external handoff.
+- Skip the separate contract file only for tiny or mechanical work whose scope is already explicit.
+- `flow-design` says how to keep settled decisions and which questions to ask.
+- Use `flow-planning` when the implementation HOW must be decision-complete before coding. `flow-planner` (`@plan`) writes that plan, not Main.
+- `flow-planning` and `flow-external-session` say when an external plan already counts as execution-grade.
+- For substantial work, do not start planning until the user approves the completed contract.
+- For substantial work, do not dispatch the first production-writing worker until the user approves the completed execution-grade plan.
+- Treat a start or resume request as no approval. Example: the user says "go ahead" after you show the plan. Record the plan approval before you dispatch.
+- Treat answers to clarification questions as no approval of the contract. Only an explicit approval of the completed contract counts.
+- Record each approval with the `flow_gate` tool: `present` the artifact summary, then `approve`. Carry the `Flow gate:` block in the planner or writer brief (`flow-planning` section 1, `flow-execution` section 1).
+- Keep a recorded approval across resume while its artifact is unchanged. After a material edit to the contract or plan, get that approval again.
+- Route task agents by agent name or role. Never put a concrete model id in a workflow prompt.
+- Route each writer by what is left to decide:
+  - a task from an execution-grade plan → `flow-plan-executor` (`@execute`);
+  - unresolved semantic judgment, debugging, or a broken plan → `flow-implementer` (`@task`);
+  - a settled mechanical or behavior-preserving edit, or an exact fix already diagnosed → `sonic` (`@smol`).
+- Review planned work with one `flow-acceptance-reviewer` pass after the coherent change. Do not fan out COR/TTC/CRF lens reviewers by routine.
+- Add a specialist reviewer only for a concrete residual risk, such as a security boundary. `flow-review` owns lens review for unplanned work, audits and PRs.
+- After you accept the acceptance or closure receipt, record the repository state with `flow_gate` `accept`.
+- Write production code as Main only in the Main-direct lane defined by `flow-execution`. Do not implement substantial planned or semantic work yourself.
 
 ## Commits
 
-Use Conventional Commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`.
-
-Before committing, run the repository's declared formatter/linter on changed files and the verification appropriate to the change. If tooling is not documented, infer it from repository configuration or the project's Weft page.
-
-A local commit is not permission to push, open/update a pull request, publish a review, merge, release, or otherwise affect a remote system.
-
-Use the direct Bash/gh command surface for stakeholder-visible publication actions so configured approval patterns remain effective. Never route push/PR/review/comment/release actions through OMP `eval` or another wrapper to bypass those approval patterns.
+- Use Conventional Commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`.
+- Before you commit, run the repository's declared formatter and linter on the changed files, and the verification the change needs.
+- If the tooling is not documented, infer it from the repository configuration or the project's Weft page.
+- Treat a local commit as no permission to push, open or update a pull request, publish a review, merge, release, or change any other remote system.
+- Run stakeholder-visible publication through direct Bash or `gh` commands, so the configured approval patterns still apply.
+- Never route a push, PR, review, comment or release action through OMP `eval` or another wrapper. That bypasses the approval patterns.
 
 ## Communication
 
-Use short, plain English. Expand abbreviations on first use while keeping technical names exact. Avoid idioms and report-like ceremony. Discuss the approach in prose before presenting a structured choice when a real choice remains.
-
-Never use the section-sign character in prose/docs/specs; write `section 8`.
-
-Stakeholder-facing comments (pull requests, trackers, review replies) are short plain prose. Avoid automatic preambles and recaps; response length follows what the user asked for, not the work performed.
-
-Maintain the **forward pointer** in interactive Flow work. At each meaningful user-facing checkpoint, briefly state the current outcome, the next workflow action Main intends to take, and whether user input/approval is required. If Flow can determine and perform the next action, say what you will do and continue rather than asking the user to choose. Ask the user only at a genuine decision/approval gate or when blocked on information they uniquely control.
+- Write short, plain English. Avoid idioms and report-like ceremony.
+- Expand an abbreviation on first use. Keep technical names exact.
+- When a real choice remains, discuss the approach in prose before you present a structured choice.
+- Never use the section-sign character in prose, docs or specs. Write `section 8`.
+- Write stakeholder-facing comments (pull requests, trackers, review replies) as short plain prose.
+- Skip automatic preambles and recaps. Match a reply's length to what the user asked, not to the work done.
+- Keep the **forward pointer** in interactive Flow work. At each meaningful user-facing checkpoint, state briefly the current outcome, the next workflow action, and whether you need user input or approval.
+- When Flow can decide and perform the next action, say what you will do and continue. Do not ask the user to choose.
+- Ask the user only at a genuine decision or approval gate, or when you are blocked on information only they control.
 
 ## Skill authoring
 
-When evolving these skills, follow the skill design principles in `docs/PRINCIPLES.md`, and prefer a light real-world field trial and two or three clean uses over building a large evaluation harness prematurely. Tune descriptions after observing real mis-triggers.
+- When you change these skills, follow the skill design principles in `docs/PRINCIPLES.md`.
+- Prefer a light real-world field trial and two or three clean uses over building a large evaluation harness early.
+- Tune a skill description only after you see a real mis-trigger.
 
 ## Shell awareness
 
-Two shells may differ: the tool shell and the user's login shell. Before the first shell-sensitive command in a session, check reality:
+The tool shell and the user's login shell may differ. Before the first shell-sensitive command in a session, check both:
 
 ```sh
 ps -p $$ -o comm=
 basename "$SHELL"
 ```
 
-Write tool commands in POSIX `sh`. When Bash-only syntax is necessary, invoke Bash explicitly. Commands handed to the user must fit their login shell.
+- Write tool commands in POSIX `sh`. When you need Bash-only syntax, invoke Bash explicitly.
+- Write commands you hand to the user for their login shell.
 
 ## Weft graph
 
-`${WEFT_GRAPH}` is the durable human/project knowledge graph.
+`${WEFT_GRAPH}` is the durable human and project knowledge graph.
 
-- Before substantive work in a project, read the matching project page when available for constraints and gotchas.
-- When `${WEFT_GRAPH}` exists, substantive Flow work uses `weft-worklog` as a lifecycle hook: before the work, query project/topic-scoped `TODO` / `LATER` / stray `DOING`; after the work, re-query that scope, update only items this session actually owned, and automatically log completed work to today's journal. This standing authorization applies to those local Weft worklog/status writes; never mutate unrelated search matches.
-- When an existing `TODO` / `LATER` is the exact work item the session takes ownership of, mark it `DOING` when action begins; mark it `DONE` with result context when completed. If work stops incomplete, leave `DOING` only when it is genuinely still active/owned; otherwise restore the prior open marker.
-- Durable project state, backlog and conventions belong in Weft rather than harness-native memory files or ad-hoc repository backlogs.
-- PR reviewer mode is a hard ownership exception: reviewing someone else's PR may be logged and an existing user-owned "review this PR" work item may be advanced/closed, but findings from that PR must not create, pull, or promote `TODO` / `LATER` items in the user's Weft backlog. The code belongs to the PR author.
-- Personal collection projects use a `*-stack` repository name and matching `[[X Stack]]` canonical page where applicable.
+- Before substantive work in a project, read its project page, when one exists, for constraints and gotchas.
+- When `${WEFT_GRAPH}` exists, run `weft-worklog` Mode C as a lifecycle hook around substantive Flow work. Before the work, query the project's or topic's `TODO` / `LATER` / stray `DOING` items. After it, update only the items this session owned, and log the completed work to today's journal.
+- Do not ask for approval of these local worklog writes. Never change unrelated search matches.
+- `weft-worklog` Mode C says when to mark an item `DOING` or `DONE`, and when to restore its old marker.
+- Keep durable project state, backlog and conventions in Weft. Do not keep them in harness-native memory files or ad-hoc repository backlogs.
+- When you review someone else's PR, you may log the review and advance or close the user's own "review this PR" item. Never create, pull or promote `TODO` / `LATER` items in the user's backlog from that PR's findings. The code belongs to the PR author.
+- Name a personal collection project `*-stack`, with a matching `[[X Stack]]` canonical page where applicable.
 
 ## Documentation lookup
 
-For libraries, frameworks, SDKs, APIs, CLIs and cloud services, prefer the configured Context7 MCP when available. If it is unavailable or insufficient, use upstream official documentation or current web research rather than guessing.
+- For libraries, frameworks, SDKs, APIs, CLIs and cloud services, use the configured Context7 MCP first, when it is available.
+- If it is unavailable or insufficient, use the upstream official documentation or current web research. Do not guess.
 
 ## Codebase graph lookup
 
-In a repository indexed by the `codebase-memory` MCP (`index_status` reports ready), use
-the graph for orientation and breadth — where a concept lives, what a package depends on,
-which call chains reach a subsystem — instead of opening many files or guessing at `grep`
-patterns.
-
-- `lsp` stays authoritative at an exact position (definition, references, hover,
-  implementation) and for the reference pass before changing an exported symbol. Graph
-  call/usage edges are leads, not a complete reference list. `grep` stays the tool for
-  literals, comments, configuration and other non-code text.
-- Confirm a cited path or line by reading it; check the reported `parse_partial` /
-  `not_indexed` gaps before concluding something does not exist.
-- Not indexed or not ready: index this root once with `index_repository` (never with
-  `persistence`, which writes an artifact into the repository), or fall back to `grep`
-  and say so.
+- In a repository indexed by the `codebase-memory` MCP (`index_status` reports ready), use the graph for orientation and breadth: where a concept lives, what a package depends on, which call chains reach a subsystem. Do this instead of opening many files or guessing `grep` patterns.
+- Use `lsp` at an exact position (definition, references, hover, implementation) and for the reference pass before you change an exported symbol. It stays authoritative there.
+- Treat graph call and usage edges as leads, not a complete reference list.
+- Use `grep` for literals, comments, configuration and other non-code text.
+- Read a cited path or line to confirm it.
+- Before you conclude that something does not exist, check the reported `parse_partial` / `not_indexed` gaps.
+- When the repository is not indexed or not ready, index this root once with `index_repository`, or fall back to `grep` and say so.
+- Never pass `persistence` to `index_repository`. It writes an artifact into the repository.
 
 ## Python
 
 Use `uv` for Python.
 
-- Project dependencies: `uv add` / `uv remove`; run via `uv run`; synchronize via `uv sync`.
-- Standalone tools: `uv tool install`; one-off tools: `uvx`.
+- Project dependencies: `uv add` / `uv remove`. Run with `uv run`. Synchronize with `uv sync`.
+- Standalone tools: `uv tool install`. One-off tools: `uvx`.
 - Interpreters: `uv python install`.
-- Do not use `pip install`, `pipx`, Poetry or hand-rolled virtualenvs for user/project tooling.
+- Do not use `pip install`, `pipx`, Poetry or hand-rolled virtualenvs for user or project tooling.

@@ -173,6 +173,13 @@ EXCLUSIVE={
     'one parent contract': {'agent/skills/flow-design/SKILL.md'},
     'read that ledger once': {'agent/skills/flow-design/SKILL.md'},
     'start no unit before the parent is approved': {'agent/skills/flow-design/SKILL.md'},
+    'do not manufacture questions': {'agent/skills/flow-design/SKILL.md'},
+    'still-valid settled decisions': {'agent/skills/flow-design/SKILL.md'},
+    'a validated external bundle may already contain': {'agent/skills/flow-planning/SKILL.md'},
+    'refine only those gaps': {'agent/skills/flow-external-session/SKILL.md'},
+    'cor and crf always for the initial coherent change review': {'agent/skills/flow-review/SKILL.md'},
+    'flip that exact item to `doing`': {'agent/skills/weft-worklog/SKILL.md'},
+    'restore the prior': {'agent/skills/weft-worklog/SKILL.md'},
 }
 for phrase,homes in EXCLUSIVE.items():
     for p in doctrine_surfaces:
@@ -187,6 +194,7 @@ POINTS_TO={
     'agent/agents/flow-craft-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
     'agent/agents/flow-acceptance-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
     'agent/skills/flow-planning/SKILL.md': ['`flow-design` "Multi-unit work"'],
+    'agent/AGENTS.md': ['`flow-design` says how to keep settled decisions', '`flow-planning` and `flow-external-session` say when an external plan already counts as execution-grade', '(`flow-planning` section 1, `flow-execution` section 1)', '`flow-review` owns lens review', '`weft-worklog` Mode C says when to mark an item'],
 }
 for path,pointers in POINTS_TO.items():
     text=(ROOT/path).read_text()
