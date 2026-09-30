@@ -1,21 +1,29 @@
 ---
 name: flow-planning
-description: Use after the governing WHAT/WHY contract is approved when consequential implementation HOW should be made decision-complete before coding; write an execution-grade plan that moves judgment up front so constrained executors can work cheaply and escalate contradictions instead of improvising.
+description: Use after the governing WHAT/WHY contract is approved when consequential implementation HOW should be decision-complete before coding; write an execution-grade plan that moves judgment up front so constrained executors can work cheaply and escalate contradictions instead of improvising.
 ---
 
 # Flow planning
 
-Flow planning converts an approved contract/specification into an **execution-grade plan**. The goal is decision completeness, not document volume: pay for consequential engineering judgment once, encode it durably, then make implementation mostly plan-following.
+Flow planning turns an approved contract or specification into an **execution-grade plan**. The goal is decision completeness, not document volume: pay for consequential judgment once, record it durably, and let implementation mostly follow the plan.
 
-Use this skill when the implementer would otherwise need to decide material file/module ownership, interfaces, state/data flow, error semantics, compatibility behavior, test shape, performance/lifetime constraints, or integration sequencing. Skip it for a tiny/bounded change whose implementation is already obvious from the contract and repository pattern.
+- Use this skill when the implementer would otherwise decide something material: file/module ownership, interfaces, state/data flow, error semantics, compatibility behavior, test shape, performance/lifetime constraints, or integration order.
+- Skip it for a tiny, bounded change whose implementation is already obvious from the contract and repository patterns.
 
 ## 1. Establish the planning boundary
 
-Read the approved governing contract/spec, current source seams, tests, project rules, branch/worktree state and any validated external planning handoff. For substantial work, `flow-design` owns formation/approval of the WHAT/WHY contract before this skill begins. Planning does not carry implementation authorization.
+- Read the approved governing contract/spec, current source seams, tests, project rules, branch/worktree state and any validated external planning handoff.
+- For substantial work, `flow-design` forms the WHAT/WHY contract and gets it approved before this skill begins.
+- Planning carries no implementation authorization.
+- Write `.flow/plans/<slug>/PLAN.md` plus `plan-tasks/01-<task>.md`, `02-<task>.md` and so on. The `flow-artifacts` rule owns the exclude guard and the lifecycle.
+- A compact one-file `PLAN.md` is fine when it stays readable and no worker needs a sliced brief.
 
-Write `.flow/plans/<slug>/PLAN.md` plus `plan-tasks/01-<task>.md`, `02-<task>.md` and so on; the `flow-artifacts` rule owns the exclude guard and lifecycle. A compact one-file `PLAN.md` is fine when it stays readable and no worker needs a sliced brief.
+Who plans:
 
-For substantial planning, Main/controller must dispatch `flow-planner` (`@plan`) to own consequential HOW recon/writing unless a current validated external plan already satisfies this skill's execution-grade contract. Dispatch only after the completed governing contract/WHAT boundary has explicit user approval. Answers to clarification questions do not themselves approve the completed or materially amended contract. For durable Flow work, the planner task brief must carry the runtime authorization manifest below; `flow-governance-guard` rejects dispatch when the contract approval is absent or its digest no longer matches the current artifact. Main owns the governing contract, validates the planner receipt, and owns plan acceptance, but it does not author substantial consequential HOW itself.
+- For substantial planning, Main must dispatch `flow-planner` (`@plan`) to own the consequential HOW recon and writing.
+- Skip that dispatch only when a current, validated external plan already meets this skill's execution-grade bar (section 5 and "External handoffs").
+- Dispatch the planner only after the user explicitly approves the completed governing contract (the WHAT boundary). `flow-design` step 7 says what counts as that approval.
+- For durable Flow work, put this block (the Flow gate block) in the planner's task brief.
 
 ```text
 Flow gate:
@@ -23,9 +31,16 @@ Flow gate:
 - Contract: <path to the approved contract>
 ```
 
-Record the source revision/dirty-state assumptions the plan was derived from. A revision change triggers targeted revalidation, not ritual replanning.
+- `flow-governance-guard` rejects the dispatch when the contract approval is missing or its digest no longer matches the current artifact. Example: the contract was edited after approval.
+- Main owns the governing contract, validates the planner's receipt and owns plan acceptance.
+- Main does not write substantial consequential HOW itself.
+- Record the source revision and dirty-state assumptions the plan was derived from.
+- When the source revision changes, revalidate the affected parts. Do not replan by ritual.
 
-When the work has parts that could ship separately, stop and report that to Main. Main proposes a split into units (`flow-design` "Multi-unit work").
+Units and tasks:
+
+- When the work has parts that could ship separately, stop and report that to Main. These are units: Main proposes the split to the user (`flow-design` "Multi-unit work"). Example: an invoice export and a payment-retry job that can each be released alone.
+- Split slices that can be proved alone inside one release into tasks yourself (section 2). Example: a new database column, then the API that fills it; each is proved alone, but they ship together.
 
 ## 2. Front-load consequential judgment
 
@@ -40,11 +55,26 @@ An execution-grade plan settles, where applicable:
 - performance/allocation/lifetime constraints when material;
 - explicit non-goals and forbidden scope expansion.
 
-Use exact symbols, file paths and repository-native commands. Include code/pseudocode only where an exact recipe prevents rediscovery; do not paste large code merely to appear complete.
+- Use exact symbols, file paths and repository-native commands.
+- Include code/pseudocode only where an exact recipe prevents rediscovery. Do not paste large code just to look complete.
 
-A task is right-sized when it owns one **independently provable behavioral slice** and is worth one implementation/context boundary. Split a brief when it contains multiple Red→Green proof clusters that can each reach a valid repository handoff state independently, when it crosses multiple independently checkpointable seams, or when unrelated subsystems can be verified separately. If a proposed task names more than one independent proof cluster, the planner must split it **or explicitly state why no valid intermediate handoff exists** (for example, an atomic schema/type migration that cannot leave the repository buildable between halves). Do not split one inseparable behavior merely to satisfy a numeric file/turn/token target, and do not create a fresh task for setup or one-line propagation that belongs to a neighboring deliverable.
+Right-sized tasks:
 
-Each `plan-tasks/*.md` must also be a **fresh-executor capsule**: enough current paths/symbols/preconditions, locked decisions, proof commands and expected handoff state for a new executor session to start without prior worker transcript/context. State the expected starting repository condition and the compact completion receipt the next controller should receive. When a task depends on an earlier task, depend on repository state/artifacts and named proof, not on remembered conversation.
+- Give each task one **independently provable behavioral slice**, worth one implementation/context boundary.
+- Split a brief when any of these holds:
+  - it holds more than one Red→Green proof cluster that can each reach a valid repository handoff state on its own;
+  - it crosses more than one independently checkpointable seam;
+  - it covers unrelated subsystems that can be verified separately.
+- When a task names more than one independent proof cluster, split it, or state explicitly why no valid intermediate handoff exists. Example: an atomic schema or type migration that cannot leave the repository buildable between its halves.
+- Do not split one inseparable behavior just to meet a file, turn or token count.
+- Do not make a separate task for setup or one-line propagation that belongs to a neighboring deliverable.
+
+Fresh-executor capsule:
+
+- Make each `plan-tasks/*.md` a **fresh-executor capsule**: a new executor session starts from it without any earlier worker transcript or context.
+- Give it current paths/symbols/preconditions, locked decisions, proof commands and the expected handoff state.
+- State the starting repository condition and the compact completion receipt the next controller should receive.
+- When a task depends on an earlier task, depend on repository state/artifacts and named proof, not remembered conversation.
 
 ## 3. Define executor discretion
 
@@ -67,22 +97,22 @@ Escalate when:
 - scope/data/architecture/error semantics must change
 ```
 
-The executor is allowed to recognize a bad plan. It is not allowed to silently redesign it.
+The executor may recognize a bad plan. It may not silently redesign it.
 
 ## 4. Plan quality gate — move review left
 
-Before the plan becomes execution-grade, inspect it through the normal review concerns. This is one integrated planning gate, not four automatic reviewer dispatches.
+Before the plan becomes execution-grade, check it against the normal review concerns. This is one integrated planning gate, not four automatic reviewer dispatches.
 
 - **COR** — invariants, ownership, edge/error paths, integration and consequential failure modes are decided.
-- **TTC** — changed behavior maps to named tests/proofs, including negative/boundary/compatibility cases where applicable; expected Red evidence is stated.
+- **TTC** — changed behavior maps to named tests/proofs, including negative/boundary/compatibility cases where applicable. Expected Red evidence is stated.
 - **CRF**:
-  - each planned unit has one job; no planned dead code, needless abstraction, duplication or pathological lifetime/allocation behavior;
+  - each planned code unit has one job; no planned dead code, needless abstraction, duplication or pathological lifetime/allocation behavior;
   - new files, types and interfaces use the repository's domain model and names. Example: the repository says `Order`, so name it `OrderRefund`, not `PurchaseReversal`. If the repository has no domain model, impose none.
-- **SEC** — record run/skip with reason; when applicable, security boundaries and abuse/error behavior are explicit in the plan.
+- **SEC** — record run or skip, with the reason. When applicable, the plan makes security boundaries and abuse/error behavior explicit.
 
-Challenge the plan itself. Plan compliance is not correctness: if a planned instruction would create a defect, repair the plan rather than teaching later reviewers to defend it.
-
-The plan must end with a compact `Plan quality gate` receipt giving COR/TTC/CRF/SEC dispositions and any residual risks deliberately left to implementation evidence.
+- Challenge the plan itself. Plan compliance is not correctness.
+- When a planned instruction would create a defect, repair the plan. Do not teach later reviewers to defend it.
+- End the plan with a compact `Plan quality gate` receipt: COR/TTC/CRF/SEC dispositions and any residual risks deliberately left to implementation evidence.
 
 ## 5. Mark execution grade
 
@@ -95,20 +125,22 @@ A plan is `execution-grade` only when:
 - source assumptions are current enough for the planned surfaces;
 - the integrated plan quality gate passes.
 
-If these do not hold, keep the artifact as strategy/draft and route unresolved judgment through planning/design.
+When any of these fails, keep the artifact as strategy/draft and route the unresolved judgment through planning/design.
 
 ## 6. Execution handoff
 
-Main/controller validates the plan receipt and obtains/retains the normal implementation authorization boundary. For substantial planned work, plan receipt validation does not itself authorize implementation: Main presents the completed execution-grade plan and obtains **explicit user plan approval** before the first production-writing worker. Bind that approval with `flow_gate`: call `present` for `kind=plan` using the same Flow scope, the exact `PLAN.md` path and the user-facing dependency/locked-decision/proof summary, then call `approve`. A generic start/resume command does not create missing approval; a recorded prior approval remains valid while the approved plan artifact is materially unchanged. Editing the plan changes its digest and mechanically blocks production-writer dispatch until the amended plan is presented and approved again. Then `flow-execution` chooses:
-
-- current execution-grade plan → `flow-plan-executor` (`@execute`) for the constrained implementation lane;
-- task/plan contradiction or deliberately unresolved semantic judgment → `flow-implementer` (`@task`) or return to planning/design;
-- exact mechanical leaf → `sonic` (`@smol`).
-
-Prefer handing workers artifact paths instead of pasting whole plans into prompts. **One execution-grade task brief normally gets one fresh `flow-plan-executor` session.** Sequential tasks stay non-isolated in the same suitable feature checkout and run one writer at a time, so repository state carries forward while model context does not. Independent tasks may use isolated/concurrent executors only when they are genuinely independent.
-
-The planner's handoff is receipt-first: source/base revision and dirty-state assumption, plan/task paths, dependency shape, quality-gate disposition, residual risks and the exact next action.
+- Main validates the plan receipt and obtains or retains the normal implementation authorization boundary.
+- Plan receipt validation does not itself authorize implementation.
+- For substantial planned work, Main presents the completed execution-grade plan and gets **explicit user plan approval** before the first production-writing worker.
+- Bind that approval with `flow_gate`: call `present` for `kind=plan` with the same Flow scope, the exact `PLAN.md` path and the user-facing dependency/locked-decision/proof summary. Then call `approve`.
+- `flow-execution` section 1 says what does not count as plan approval.
+- A recorded prior approval stays valid while the approved plan artifact is materially unchanged.
+- Editing the plan changes its digest. That mechanically blocks production-writer dispatch until the amended plan is presented and approved again.
+- Then `flow-execution` routes each writer (section 2), orders and isolates the tasks (section 3) and writes the briefs (section 4).
+- One execution-grade task brief normally gets one fresh `flow-plan-executor` session.
+- The planner's handoff is receipt-first: source/base revision and dirty-state assumption, plan/task paths, dependency shape, quality-gate disposition, residual risks and the exact next action.
 
 ## External handoffs
 
-A validated external bundle may already contain an execution-grade plan. If it satisfies this skill and the approved governing WHAT/WHY contract, and source assumptions remain current, preserve it and do not repeat planning. If it contains a good strategy but not an execution-grade plan, keep the settled strategy and refine only the missing HOW; do not reopen settled WHAT/WHY.
+- A validated external bundle may already contain an execution-grade plan. Preserve it and do not repeat planning when it satisfies this skill and the approved governing WHAT/WHY contract, and its source assumptions are still current.
+- When it holds a good strategy but not an execution-grade plan, keep the settled strategy and refine only the missing HOW. Do not reopen settled WHAT/WHY.

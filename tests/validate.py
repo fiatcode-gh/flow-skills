@@ -207,7 +207,7 @@ POINTS_TO={
     'docs/PRINCIPLES.md': ['`flow-evidence-verifier` alone defines', '`flow-evidence` rule alone owns'],
     'agent/agents/flow-craft-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
     'agent/agents/flow-acceptance-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
-    'agent/skills/flow-planning/SKILL.md': ['`flow-design` "Multi-unit work"'],
+    'agent/skills/flow-planning/SKILL.md': ['`flow-design` "Multi-unit work"', '`flow-design` step 7 says what counts as that approval', '`flow-execution` section 1 says what does not count as plan approval', '`flow-execution` routes each writer (section 2), orders and isolates the tasks (section 3) and writes the briefs (section 4)'],
     'agent/AGENTS.md': ['`flow-design` says how to keep settled decisions', '`flow-planning` and `flow-external-session` say when an external plan already counts as execution-grade', '(`flow-planning` section 1, `flow-execution` section 1)', '`flow-review` owns lens review', '`weft-worklog` Mode C says when to mark an item'],
 }
 for path,pointers in POINTS_TO.items():
