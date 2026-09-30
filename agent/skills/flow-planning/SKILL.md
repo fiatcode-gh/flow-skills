@@ -111,4 +111,4 @@ The planner's handoff is receipt-first: source/base revision and dirty-state ass
 
 ## External handoffs
 
-A validated ChatGPT/other-harness bundle may already contain an execution-grade plan. If it satisfies this skill and the approved governing WHAT/WHY contract, and source assumptions remain current, preserve it and do not repeat planning. If it contains a good strategy but not an execution-grade plan, keep the settled strategy and refine only the missing HOW; do not reopen settled WHAT/WHY.
+A validated external bundle may already contain an execution-grade plan. If it satisfies this skill and the approved governing WHAT/WHY contract, and source assumptions remain current, preserve it and do not repeat planning. If it contains a good strategy but not an execution-grade plan, keep the settled strategy and refine only the missing HOW; do not reopen settled WHAT/WHY.

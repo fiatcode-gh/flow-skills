@@ -4,7 +4,7 @@ set -eu
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$HERE/.." && pwd)
 ROOT=$(readlink -f "$ROOT")
-PROFILES="openai-codex ollama-cloud anthropic"
+PROFILES="ollama-cloud anthropic"
 
 info() { printf '%s\n' "$*"; }
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }

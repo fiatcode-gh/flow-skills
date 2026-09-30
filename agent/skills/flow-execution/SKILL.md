@@ -12,7 +12,7 @@ description: Use when local implementation is authorized; prefer constrained exe
 - Read the governing contract, the plan and the project rules. Check branch and dirty state per the `flow-safety` rule.
 - Require two recorded approvals before the first production-writing worker on substantial work: the contract, then the plan (`flow_gate` `present`, then `approve`).
 - Treat a start or resume command as no approval. Example: the user says "go ahead" after you show the plan. Call `flow_gate` for `kind=plan` first. Dispatch after the approval is recorded.
-- Treat an external handoff (ChatGPT, another harness) as evidence. It approves nothing: validate it locally, then record the contract and plan approvals here.
+- Treat an external handoff (external chat or harness) as evidence. It approves nothing: validate it locally, then record the contract and plan approvals here.
 - Read `flow-planning` for what counts as an execution-grade plan. A detailed strategy is not one. Do not re-plan a validated current plan that already meets it.
 - Carry this block (the Flow gate block) in every `flow-plan-executor` and `flow-implementer` brief. The guard checks both artifact digests at spawn and blocks a missing or stale approval.
 

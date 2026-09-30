@@ -22,7 +22,7 @@ def run(bundle: Path) -> subprocess.CompletedProcess[str]:
 def manifest(**updates: object) -> dict[str, object]:
     data: dict[str, object] = {
         "flow_handoff": 2,
-        "source": "chatgpt",
+        "source": "open-webui",
         "repository": "fiatcode-gh/residuum-rpg-cli",
         "observed_ref": "0e00372c49eac3420f93186b39023439348d3678",
         "design_status": "settled",

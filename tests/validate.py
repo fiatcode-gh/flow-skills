@@ -215,9 +215,9 @@ else:
     for required in ['authorization must be exactly not-carried', "artifact path must be relative without '..'", 'artifacts must declare handoff.md']:
         if required not in validator_text: err(f'planning-handoff validator invariant missing: {required}')
 
-interop=(ROOT/'docs/GPT-INTEROP.md').read_text().lower()
+interop=(ROOT/'docs/EXTERNAL-INTEROP.md').read_text().lower()
 for required in ['flow-planning', 'never authorization', 'synchronization discipline', 'standalone markdown', 'kickoff prompts']:
-    if required not in interop: err(f'gpt interop doctrine missing: {required}')
+    if required not in interop: err(f'external interop doctrine missing: {required}')
 
 compat=(ROOT/'docs/OMP-COMPATIBILITY.md').read_text().lower()
 for required in ['interruptible by user steering', 'without preventing the user from prompting', 'ordinary task results may also self-deliver', 'leaves native wait/steering semantics intact', 'targeted peer-reply waits', 'omp 18.2.10', 'policy: prompt', 'formatapprovaldetails', 'flow_gate', 'fail-closed']:
@@ -399,7 +399,6 @@ for p in skills:
 # Every native provider profile must expose the same complete role vocabulary.
 required_roles={'default','smol','tiny','vision','execute','task','plan','slow','review_aux','critical','commit'}
 profile_cfgs={
-    'openai-codex': ROOT/'profiles/openai-codex/config.yml',
     'ollama-cloud': ROOT/'profiles/ollama-cloud/config.yml',
     'anthropic': ROOT/'profiles/anthropic/config.yml',
 }
@@ -418,23 +417,6 @@ for profile,path in profile_cfgs.items():
     for role,model in roles.items():
         if not isinstance(model,str) or not model.startswith(prefix):
             err(f'{path.relative_to(ROOT)}: modelRoles.{role} must use {prefix}*, got {model!r}')
-
-expected_openai={
-    'default':'openai-codex/gpt-6-luna:auto',
-    'smol':'openai-codex/gpt-6-luna',
-    'tiny':'openai-codex/gpt-6-luna:low',
-    'vision':'openai-codex/gpt-6-luna',
-    'execute':'openai-codex/gpt-6-luna',
-    'task':'openai-codex/gpt-6-sol',
-    'plan':'openai-codex/gpt-6-sol:high',
-    'slow':'openai-codex/gpt-6-sol:high',
-    'review_aux':'openai-codex/gpt-6-sol:high',
-    'critical':'openai-codex/gpt-6-sol:xhigh',
-    'commit':'openai-codex/gpt-6-luna:low',
-}
-openai=yaml.safe_load(profile_cfgs['openai-codex'].read_text()).get('modelRoles',{})
-if openai != expected_openai:
-    err('profiles/openai-codex/config.yml: role mapping drifted from documented routing')
 
 expected_ollama={
     'default':'ollama-cloud/glm-5.3:high',

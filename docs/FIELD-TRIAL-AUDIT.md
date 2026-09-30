@@ -80,4 +80,4 @@ Do this for every change to a skill, agent, rule or `agent/AGENTS.md`, before yo
 
 ## Auditing outside OMP
 
-For ChatGPT or another harness, zip the selected session files together with their subagent directories, plus this file and `docs/FIELD-TRIALS.md`, and ask for the section 3 report format. Verify its findings locally as in section 4 before recording anything.
+For an external chat (for example Open WebUI) or another harness, zip the selected session files together with their subagent directories, plus this file and `docs/FIELD-TRIALS.md`, and ask for the section 3 report format. Verify its findings locally as in section 4 before recording anything.

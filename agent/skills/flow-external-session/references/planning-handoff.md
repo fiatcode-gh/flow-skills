@@ -1,6 +1,6 @@
 # External planning handoff protocol
 
-Use this protocol for a **static planning/architecture handoff** from an independently run session or harness, including ChatGPT. It is not a worker mailbox and it carries no execution authorization.
+Use this protocol for a **static planning/architecture handoff** from an independently run session or harness (for example Open WebUI). It is not a worker mailbox and it carries no execution authorization.
 
 The canonical entry point is `FLOW-HANDOFF.json`. Human continuation context lives in `HANDOFF.md`. Treat the entire bundle as external evidence/proposal until the receiving Main validates and incorporates it.
 
@@ -23,7 +23,7 @@ The machine-readable shape is also recorded in `references/planning-handoff.sche
 ```json
 {
   "flow_handoff": 2,
-  "source": "chatgpt",
+  "source": "open-webui",
   "repository": "owner/name",
   "observed_ref": "<full-sha>",
   "design_status": "settled",

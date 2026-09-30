@@ -32,6 +32,6 @@ After upgrading OMP:
 ./scripts/omp-stack doctor
 ```
 
-Then sanity-check `omp --profile openai-codex`, `omp --profile ollama-cloud`, and `omp --profile anthropic`.
+Then sanity-check `omp --profile ollama-cloud` and `omp --profile anthropic`.
 
 Then sanity-check in OMP that `flow-planner`, `flow-plan-executor`, `flow-acceptance-reviewer`, `flow-implementer` and the Flow skills are discoverable; confirm `@execute` resolves per profile, publication Bash commands prompt, and an isolated test task exposes the `isolated` field. Do not paper over a changed OMP contract inside skills; update the native boundary deliberately.

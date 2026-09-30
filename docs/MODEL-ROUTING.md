@@ -3,7 +3,6 @@
 The stack encodes **intent in roles**, not concrete model names. Native OMP profiles map the same role vocabulary to different providers:
 
 ```sh
-omp --profile openai-codex
 omp --profile ollama-cloud
 omp --profile anthropic
 ```
@@ -12,26 +11,26 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 
 ## Routing
 
-| Load | Role / agent | OpenAI Codex profile | Ollama Cloud profile | Anthropic profile |
-|---|---|---|---|---|
-| tiny metadata/title/background | `@tiny` | Luna low | DeepSeek V4.1 Flash low | Haiku 4.5 |
-| commit/changelog generation | `@commit` | Luna low | DeepSeek V4.1 Flash low | Haiku 4.5 |
-| repo exploration | bundled `scout` / `@smol` | Luna | DeepSeek V4.1 Flash low | Haiku 4.5 |
-| behavior-preserving mechanical work / diagnosed exact correction | bundled `sonic` / `@smol` | Luna | DeepSeek V4.1 Flash low | Haiku 4.5 |
-| Main/controller | `@default` | Terra | **DeepSeek V4 Pro high (v8 trial)** | Opus 5.5 medium |
-| execution-grade plan follower | `flow-plan-executor` / `@execute` | **Luna** | **GLM-5.3-Flash high** | Sonnet 5.5 medium |
-| residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | Terra | GLM-5.3-Flash high | Sonnet 5.5 high |
-| deliberate execution planning | `flow-planner` / `@plan` | Sol high | DeepSeek V4 Pro high | Opus 5.5 medium |
-| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | Sol high | DeepSeek V4 Pro high | Opus 5.5 medium |
-| TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | Terra high | GLM-5.3-Flash high | Sonnet 5.5 high |
-| vision / multimodal inspection | `@vision` | Luna | GLM-5.3-Flash high | Sonnet 5.5 medium |
-| exceptional security/concurrency/data-integrity escalation | `@critical` | Sol xhigh | Kimi K3 high | Fable 5.1 high |
+| Load | Role / agent | Ollama Cloud profile | Anthropic profile |
+|---|---|---|---|
+| tiny metadata/title/background | `@tiny` | DeepSeek V4.1 Flash low | Haiku 4.5 |
+| commit/changelog generation | `@commit` | DeepSeek V4.1 Flash low | Haiku 4.5 |
+| repo exploration | bundled `scout` / `@smol` | DeepSeek V4.1 Flash low | Haiku 4.5 |
+| behavior-preserving mechanical work / diagnosed exact correction | bundled `sonic` / `@smol` | DeepSeek V4.1 Flash low | Haiku 4.5 |
+| Main/controller | `@default` | **DeepSeek V4 Pro high (v8 trial)** | Opus 5.5 medium |
+| execution-grade plan follower | `flow-plan-executor` / `@execute` | **GLM-5.3-Flash high** | Sonnet 5.5 medium |
+| residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GLM-5.3-Flash high | Sonnet 5.5 high |
+| deliberate execution planning | `flow-planner` / `@plan` | DeepSeek V4 Pro high | Opus 5.5 medium |
+| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | DeepSeek V4 Pro high | Opus 5.5 medium |
+| TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GLM-5.3-Flash high | Sonnet 5.5 high |
+| vision / multimodal inspection | `@vision` | GLM-5.3-Flash high | Sonnet 5.5 medium |
+| exceptional security/concurrency/data-integrity escalation | `@critical` | Kimi K3 high | Fable 5.1 high |
 
 `slow` intentionally stops below the most expensive explicit escalation. `critical` is the escape hatch; no automatic Flow agent binds `@critical` on purpose. Escalation should be a conscious model/session choice, not accidental fan-out.
 
 ## Provider profiles
 
-`profiles/openai-codex/config.yml`, `profiles/ollama-cloud/config.yml`, and `profiles/anthropic/config.yml` are the single source of truth for each profile's settings, not runtime overlays. `scripts/omp-stack install` symlinks each profile's `config.yml` to its template; a real file is replaced only when it is byte-identical, otherwise the installer warns, leaves it alone, and exits non-zero. Merge a divergent copy into the template, delete the copy, and rerun `install`.
+`profiles/ollama-cloud/config.yml` and `profiles/anthropic/config.yml` are the single source of truth for each profile's settings, not runtime overlays. `scripts/omp-stack install` symlinks each profile's `config.yml` to its template; a real file is replaced only when it is byte-identical, otherwise the installer warns, leaves it alone, and exits non-zero. Merge a divergent copy into the template, delete the copy, and rerun `install`.
 
 OMP named profiles isolate the full OMP-native user root, not merely model selection. The installer therefore links the same `AGENTS.md`, agents, rules, skills, extensions and support library into every managed profile root. MCP remains profile-owned and opt-in. Sessions, blobs, `agent.db` and provider authentication remain genuinely separate by design.
 
