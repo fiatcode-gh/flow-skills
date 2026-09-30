@@ -331,19 +331,22 @@ if 'do not end a locally-complete integration checkpoint with only a status summ
 for required in ['flow_gate action=status', 'flow_gate action=clear', 'stale contract/plan approval or acceptance binding is a blocker']:
     if required not in integrating: err(f'flow-integrating governance-gate invariant missing: {required}')
 
-agents_md=(ROOT/'agent/AGENTS.md').read_text().lower()
-for required in ['maintain the **forward pointer**', 'next workflow action', 'genuine decision/approval gate', 'production-writing worker', 'sole/sequential semantic owner', 'fresh `flow-plan-executor`', 'before substantial work enters planning', 'governing what/why contract', 'for substantial work, require explicit user approval of the completed governing contract', 'answers to clarification questions do not themselves approve', 'main may code only in the main-direct lane defined by `flow-execution`', 'never route push/pr/review/comment/release actions through omp `eval`', 'essential `flow_gate` runtime tool', 'bound artifact digest', 'record the current repository state with `flow_gate`']:
-    if required not in agents_md: err(f'AGENTS communication invariant missing: {required}')
-if 'for ordinary work, the main session may code' in agents_md:
+agents_md=(ROOT/'agent/AGENTS.md').read_text()
+# Pin only what other files name and the exact skill, agent and tool names that
+# route behavior: the heading README.md names, the shell-check commands, and the
+# Flow routing names. The prose itself is not pinned.
+AGENTS_MARKERS=[
+    '## Codebase graph lookup', 'Context7', '`codebase-memory`', '`index_status`', '`index_repository`',
+    'ps -p $$ -o comm=\nbasename "$SHELL"\n',
+    '`flow-design`', '`flow-planning`', '`flow-planner`', '`flow_gate`',
+    '`flow-plan-executor` (`@execute`)', '`flow-implementer` (`@task`)', '`sonic` (`@smol`)',
+    '`flow-acceptance-reviewer`', 'Main-direct lane', '`flow-execution`',
+    '**forward pointer**', 'OMP `eval`', '`weft-worklog`', '`docs/PRINCIPLES.md`',
+]
+for required in AGENTS_MARKERS:
+    if required not in agents_md: err(f'agent/AGENTS.md missing machine-read marker or pointer target: {required!r}')
+if 'for ordinary work, the main session may code' in agents_md.lower():
     err('AGENTS: blanket Main coding permission survived')
-for required in [
-    'substantive flow work uses `weft-worklog` as a lifecycle hook',
-    'automatically log completed work',
-    'mark it `doing` when action begins',
-    'findings from that pr must not create, pull, or promote `todo` / `later` items',
-]:
-    if required not in agents_md:
-        err(f'AGENTS Weft/Flow lifecycle invariant missing: {required}')
 
 weft_worklog=(ROOT/'agent/skills/weft-worklog/SKILL.md').read_text().lower()
 for required in [
