@@ -227,9 +227,23 @@ for path,pointers in POINTS_TO.items():
     for ptr in pointers:
         if ptr not in text: err(f'{path}: pointer to doctrine home missing: {ptr}')
 
-external=(ROOT/'agent/skills/flow-external-session/SKILL.md').read_text().lower()
-for required in ['planning handoff intake', 'references/planning-handoff.md', 'evidence/proposal, not authority or authorization', 'do not create a mailbox for a one-way static planning import', 'contract-formation stage', 'locally governing what/why contract', 'implementation_strategy: settled', 'execution-grade contract', 'refine only those gaps']:
-    if required not in external: err(f'flow-external-session planning-handoff invariant missing: {required}')
+external_raw=(ROOT/'agent/skills/flow-external-session/SKILL.md').read_text()
+external=external_raw.lower()
+# Pin only what tools parse or other files name: the skill name and title, the
+# four mode names and their headings, the reference and script paths, the
+# mailbox home, the handoff field, and the flow-design and flow-planning
+# pointers, including the execution-grade grading that agent/AGENTS.md points at.
+EXTERNAL_MARKERS=[
+    'name: flow-external-session\n', '\n# Flow external session\n', 'task/Agent Hub',
+    '**external worktree validation**', '**worker handoff**', '**planning handoff intake**', '**mailbox**',
+    '## External worktree', '## Worker handoff', '## Planning handoff intake', '## Mailbox',
+    '`references/external-worktree.md`', '`references/planning-handoff.md`', '`references/mailbox-protocol.md`',
+    '`scripts/validate-planning-handoff.py`', '`scripts/mailbox`', '`.flow/mailbox/`',
+    '`implementation_strategy: settled`', "`flow-design`'s contract-formation stage",
+    '`flow-planning` execution-grade contract',
+]
+for required in EXTERNAL_MARKERS:
+    if required not in external_raw: err(f'flow-external-session missing machine-read marker or pointer target: {required!r}')
 
 ph=(ROOT/'agent/skills/flow-external-session/references/planning-handoff.md').read_text().lower()
 schema_path=ROOT/'agent/skills/flow-external-session/references/planning-handoff.schema.json'
