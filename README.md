@@ -110,3 +110,5 @@ See `docs/MODEL-ROUTING.md`. Current OMP assumptions are recorded in `docs/OMP-C
 ```
 
 The suite validates skill/agent/rule frontmatter, role references, removed legacy assumptions, shell syntax, installer safety shape, and AI-memory slicing behavior.
+
+CI (`.github/workflows/ci.yml`) runs the same suite on every pull request and on pushes to `main`, with Node 24 and `uv`.
