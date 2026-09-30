@@ -62,7 +62,19 @@ for p in openai-codex ollama-cloud anthropic; do
 done
 ```
 
-Then replace `ctx7sk-REPLACE-WITH-YOUR-KEY` in each copy with the real Context7 key. The ClickUp entry needs no secret — it authenticates over OAuth on first use. A profile whose `mcp.json` is missing simply has no MCP servers; OMP starts normally and the doctrine in `agent/AGENTS.md` falls back to `grep`/`glob` and upstream documentation.
+Then replace `ctx7sk-REPLACE-WITH-YOUR-KEY` in each copy with the real Context7 key. A profile whose `mcp.json` is missing simply has no MCP servers; OMP starts normally and the doctrine in `agent/AGENTS.md` falls back to `grep`/`glob` and upstream documentation.
+
+ClickUp is deliberately **not** in the template: it is configured per project, only in work repositories, as an untracked `<repo>/.omp/mcp.json` hidden through that checkout's `.git/info/exclude` (`/.omp/mcp.json`). OMP reads project MCP config from `<cwd>/.omp/mcp.json` only — no ancestor walk — so each repository needs its own copy and OMP must be launched from the repository root:
+
+```json
+{
+	"mcpServers": {
+		"clickup": { "type": "http", "url": "https://mcp.clickup.com/mcp" }
+	}
+}
+```
+
+The entry needs no secret. OAuth runs on first use (`/mcp reauth clickup`), and the credential is stored per profile, keyed by URL, so one sign-in per profile covers every repository that defines it.
 
 `codebase-memory-mcp` keeps its own per-account index and background watcher outside this repository (`~/.cache/codebase-memory-mcp`). It indexes a project on explicit `index_repository` and re-indexes on git-detected change; `auto_index` is off by default, so a never-indexed repository answers nothing until it is indexed once. Never commit the optional `.codebase-memory/graph.db.zst` export — the watcher rewrites it constantly.
 

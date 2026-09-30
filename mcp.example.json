@@ -15,10 +15,6 @@
 			"type": "stdio",
 			"command": "codebase-memory-mcp",
 			"args": []
-		},
-		"clickup": {
-			"type": "http",
-			"url": "https://mcp.clickup.com/mcp"
 		}
 	}
 }
