@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""List and render OMP session transcripts for Flow field-trial audits.
+
+usage:
+  flow-sessions list [--since ISO] [--sessions-root DIR]
+  flow-sessions render SESSION.jsonl [--full] [--think N] [--call N] [--result N] [--text N]
+
+`list` prints one block per top-level session started at/after --since: start time,
+profile, project, short id, title, models, Flow skills read, subagents by role,
+flow_gate actions and the transcript path. Subagent transcripts live in the
+sibling directory named like the session file without `.jsonl`.
+
+`render` prints a compact transcript; every line is tagged `[#<jsonl-line> HH:MM:SS]`
+so findings can cite `<short-id>#<line>`.
+"""
+import argparse
+import collections
+import datetime as dt
+import json
+import re
+import sys
+from pathlib import Path
+
+DEFAULT_ROOT = Path.home() / ".omp" / "profiles"
+
+
+def rows(path):
+    with open(path) as fh:
+        for line in fh:
+            yield json.loads(line)
+
+
+def cut(value, limit):
+    text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+    return text if len(text) <= limit else f"{text[:limit]} …[+{len(text) - limit} chars]"
+
+
+def parse_since(value):
+    since = dt.datetime.fromisoformat(value)
+    return since if since.tzinfo else since.astimezone()
+
+
+def summarize(path):
+    session = None
+    models, skills, agents, gates = (collections.Counter() for _ in range(4))
+    for row in rows(path):
+        kind = row["type"]
+        if kind == "session":
+            session = row
+        elif kind == "model_change":
+            models[row["model"]] += 1
+        elif kind == "message" and row["message"].get("role") == "assistant":
+            for part in row["message"]["content"]:
+                if part.get("type") != "toolCall":
+                    continue
+                args = part.get("arguments") or {}
+                skills.update(re.findall(r"skill://([a-z0-9-]+)", json.dumps(args)))
+                if part["name"] == "task" and isinstance(args.get("tasks"), list):
+                    agents.update((t.get("agent") or "task").strip() for t in args["tasks"])
+                if part["name"] == "flow_gate":
+                    gates[":".join(filter(None, [args.get("action"), args.get("kind")]))] += 1
+    return session, models, skills, agents, gates
+
+
+def cmd_list(args):
+    since = parse_since(args.since) if args.since else None
+    found = []
+    for path in sorted(args.sessions_root.glob("*/agent/sessions/*/*.jsonl")):
+        session, models, skills, agents, gates = summarize(path)
+        if session is None:
+            continue
+        start = dt.datetime.fromisoformat(session["timestamp"].replace("Z", "+00:00"))
+        if since and start < since:
+            continue
+        found.append((start, path, session, models, skills, agents, gates))
+    for start, path, session, models, skills, agents, gates in sorted(found, key=lambda item: item[0]):
+        profile = path.relative_to(args.sessions_root).parts[0]
+        short_id = path.stem.split("_", 1)[-1][:8]
+        print(f"{start.astimezone():%Y-%m-%d %H:%M} {profile} {Path(session.get('cwd', '')).name} {short_id} | {session.get('title')}")
+        print(f"  models  {dict(models)}")
+        print(f"  skills  {dict(skills)}")
+        print(f"  agents  {dict(agents)}  gates {dict(gates)}")
+        print(f"  path    {path}")
+    print(f"{len(found)} session(s)", file=sys.stderr)
+
+
+def cmd_render(args):
+    limits = {name: 10**9 if args.full else getattr(args, name) for name in ("think", "call", "result", "text")}
+    for index, row in enumerate(rows(args.path)):
+        tag = f"[#{index} {(row.get('timestamp') or '')[11:19]}]"
+        kind = row["type"]
+        if kind == "session":
+            print(f"{tag} SESSION cwd={row.get('cwd')} title={row.get('title')}")
+        elif kind == "model_change":
+            print(f"{tag} MODEL {row.get('model')}")
+        elif kind == "custom_message" and row.get("customType") != "xdev-mount-notice":
+            print(f"{tag} NOTICE[{row.get('customType')}] {cut(row.get('content', ''), limits['result'] * 2)}")
+        elif kind == "custom" and row.get("customType") == "session_exit":
+            print(f"{tag} EXIT {row.get('data')}")
+        elif kind == "message":
+            render_message(tag, row["message"], limits)
+
+
+def render_message(tag, message, limits):
+    role = message.get("role")
+    if role == "user":
+        content = message["content"]
+        text = content if isinstance(content, str) else "\n".join(p.get("text", "") for p in content if p.get("type") == "text")
+        print(f"{tag} USER: {cut(text, limits['text'] * 3)}")
+    elif role == "fileMention":
+        print(f"{tag} FILE-MENTION {[f.get('path') for f in message.get('files', [])]}")
+    elif role == "assistant":
+        for part in message["content"]:
+            if part.get("type") == "thinking":
+                print(f"{tag} THINK: {cut(part.get('thinking', ''), limits['think'])}")
+            elif part.get("type") == "text":
+                print(f"{tag} ASSISTANT: {cut(part.get('text', ''), limits['text'])}")
+            elif part.get("type") == "toolCall":
+                print(f"{tag} CALL {part['name']}: {cut(part.get('arguments'), limits['call'])}")
+    elif role == "toolResult":
+        text = "\n".join(p.get("text", "") for p in message.get("content", []) if p.get("type") == "text")
+        error = " ERROR" if message.get("isError") else ""
+        print(f"{tag} RESULT {message.get('toolName')}{error}: {cut(text, limits['result'])}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = parser.add_subparsers(dest="command", required=True)
+    listing = sub.add_parser("list", help="list top-level sessions")
+    listing.add_argument("--since", help="ISO timestamp; naive values use local time")
+    listing.add_argument("--sessions-root", type=Path, default=DEFAULT_ROOT, help="directory holding <profile>/agent/sessions")
+    listing.set_defaults(run=cmd_list)
+    render = sub.add_parser("render", help="render one transcript")
+    render.add_argument("path", type=Path)
+    render.add_argument("--full", action="store_true", help="no truncation")
+    render.add_argument("--think", type=int, default=500)
+    render.add_argument("--call", type=int, default=900)
+    render.add_argument("--result", type=int, default=500)
+    render.add_argument("--text", type=int, default=4000)
+    render.set_defaults(run=cmd_render)
+    args = parser.parse_args()
+    args.run(args)
+
+
+if __name__ == "__main__":
+    main()

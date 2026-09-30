@@ -79,8 +79,9 @@ reference. A worker handed no path resolves its own.
 ## The mailbox
 
 One directory per channel — one worker session's mailbox — under the
-mailbox home the dispatching skill names, with one single-writer file per
-side. Nobody shares a write target — a
+mailbox home the dispatching skill names (default `.flow/mailbox/` in the
+dispatcher's checkout, per the `flow-artifacts` rule), with one single-writer
+file per side. Nobody shares a write target — a
 shared record has already produced a real two-writer collision once. When one
 worker session carries several tasks they share its channel.
 

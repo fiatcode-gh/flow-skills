@@ -164,7 +164,7 @@ A note on revision energy: the user is *direct* in feedback ("nope", "this secti
 - **Over-sectioning.** Twelve h3 headings on a 150-line post means each section is one paragraph and nothing builds. Merge until each section has weight.
 - **Listy structure where prose would carry it.** Not everything is a bulleted list. Sometimes a paragraph that flows from cause to effect is what the rhythm needs.
 - **Code-block tourism.** Long code blocks the reader will skim past without understanding. Either trim to the load-bearing few lines and link to the full source, or annotate what each section is doing in prose before the block.
-- **Tag sprawl.** Don't invent `ai-pair-programming-with-claude-sonnet-4-6` as a tag. Look at what tags already exist and pick from those.
+- **Tag sprawl.** Don't invent `ai-pair-programming-with-one-model-version` as a tag. Look at what tags already exist and pick from those.
 - **Forgotten subtitle pattern.** For opinion posts, the optional `##` subtitle right under the frontmatter is part of the voice — check whether the post needs one before finishing.
 - **Mismatched date.** If you write a post on 2026-05-25 and the timestamp says 2026-03-18 because you copy-pasted frontmatter from an existing post, the user will notice. Always set a fresh timestamp.
 

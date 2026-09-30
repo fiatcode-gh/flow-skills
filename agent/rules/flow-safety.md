@@ -11,7 +11,7 @@ Before mutating a repository, inspect the current branch/worktree and working-tr
 - Treat pre-existing changes as user-owned. Never silently discard, reset, stash, overwrite, relocate, or "clean up" them.
 - Before any temporary test mutation/probe touches a pre-existing dirty file, snapshot its exact current content outside the target path. Restore from that snapshot, never from `HEAD`/checkout/reset, and verify byte-for-byte restoration before continuing.
 - Do not put feature work directly on `main`/`master` unless the user explicitly chose that.
-- A sole/sequential writer on a suitable feature checkout should normally use that checkout directly so its session/work can remain resumable. Isolation is primarily for **independent concurrent writers** or an explicitly disposable experiment, not a generic safety wrapper.
+- A sole/sequential semantic owner on a suitable feature checkout should normally use that checkout directly so its session/work can remain resumable. This does not override fresh `flow-plan-executor` rotation for execution-grade plan tasks: planned tasks share the checkout/repository state, not executor-session continuity. Isolation is primarily for **independent concurrent writers** or an explicitly disposable experiment, not a generic safety wrapper.
 - Independent concurrent writers should use OMP isolation when available. Dependent or overlapping writers stay sequential unless redesigned to be independent.
 - Prefer preserving a useful non-isolated unit owner for follow-up/review corrections; completed isolated task workspaces are disposable and may not be revivable.
 - Do not assume another agent/session's workspace is disposable or safe to mutate.

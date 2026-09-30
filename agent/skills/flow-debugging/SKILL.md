@@ -13,6 +13,8 @@ Read the full error/trace. Reproduce reliably; if you cannot, gather observabili
 
 Use parallel read-only scouts when independent traces (client/server, caller/callee, old/new implementation) reduce search time. The main/debugging agent owns the hypothesis.
 
+For caller/callee, data-flow or cross-package tracing in an indexed repository, `trace_path`/`search_graph` is usually cheaper than a scout fan-out. Read the cited lines before treating a hop as real; edges are name-derived where the graph has no type resolution.
+
 ## 2. Compare
 
 Find similar working behavior in the same codebase/version. List meaningful differences rather than dismissing them prematurely. For regressions, use history/bisect when it materially narrows the search rather than as ritual.

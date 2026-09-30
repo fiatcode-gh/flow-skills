@@ -4,7 +4,7 @@ set -eu
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$HERE/.." && pwd)
 ROOT=$(readlink -f "$ROOT")
-PROFILES="openai-codex ollama-cloud anthropic"
+PROFILES="ollama-cloud anthropic"
 
 info() { printf '%s\n' "$*"; }
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -19,6 +19,12 @@ profile_dir() { # profile
   fi
 }
 
+shared_agent_dir() { # <config-root>/agent, derived from a profile agent dir
+  set -- $PROFILES
+  dir=$(profile_dir "$1")
+  printf '%s/agent\n' "$(dirname -- "$(dirname -- "$(dirname -- "$dir")")")"
+}
+
 link_owned() { # source dest
   src=$1 dst=$2
   if [ -e "$dst" ] && [ ! -L "$dst" ]; then
@@ -27,30 +33,53 @@ link_owned() { # source dest
   ln -sfn "$src" "$dst"
 }
 
+link_config() { # profile dir
+  profile=$1 dir=$2
+  cfg="$dir/config.yml"
+  template="$ROOT/profiles/$profile/config.yml"
+  if [ -L "$cfg" ] || [ ! -e "$cfg" ]; then
+    link_owned "$template" "$cfg"
+    info "linked $cfg -> $template"
+    return 0
+  fi
+  if cmp -s "$cfg" "$template"; then
+    ln -sfn "$template" "$cfg"
+    info "replaced identical copy: $cfg -> $template"
+    return 0
+  fi
+  info "WARN: $cfg differs from $template; left untouched (merge it, then rerun install)"
+  return 1
+}
+
 install_profile() { # profile
   profile=$1
   dir=$(profile_dir "$profile")
   mkdir -p "$dir"
+  prc=0
   for name in AGENTS.md agents rules skills extensions lib; do
     link_owned "$ROOT/agent/$name" "$dir/$name"
     info "linked $dir/$name -> $ROOT/agent/$name"
   done
-
-  cfg="$dir/config.yml"
-  template="$ROOT/profiles/$profile/config.yml"
-  if [ -e "$cfg" ]; then
-    info "left $cfg untouched; compare/merge $template manually"
-  else
-    cp "$template" "$cfg"
-    info "created $cfg from $template"
-  fi
+  link_config "$profile" "$dir" || prc=1
   info "left $dir/mcp.json untouched; optional example: $ROOT/mcp.example.json"
+  return "$prc"
+}
+
+install_shared() {
+  dir=$(shared_agent_dir)
+  mkdir -p "$dir"
+  link_owned "$ROOT/agent/keybindings.yml" "$dir/keybindings.yml"
+  info "linked $dir/keybindings.yml -> $ROOT/agent/keybindings.yml"
 }
 
 install() {
+  rc=0
+  install_shared
   for profile in $PROFILES; do
-    install_profile "$profile"
+    install_profile "$profile" || rc=1
   done
+  [ "$rc" -eq 0 ] || info "one or more profile configs diverge from their template; nothing was overwritten"
+  return "$rc"
 }
 
 verify_link() { # source dest
@@ -64,17 +93,23 @@ verify_link() { # source dest
 verify_profile() { # profile
   profile=$1
   dir=$(profile_dir "$profile")
-  rc=0
+  prc=0
   info "profile: $profile ($dir)"
   for name in AGENTS.md agents rules skills extensions lib; do
-    verify_link "$ROOT/agent/$name" "$dir/$name" || rc=1
+    verify_link "$ROOT/agent/$name" "$dir/$name" || prc=1
   done
-  [ -f "$dir/config.yml" ] && info "ok: $dir/config.yml present (profile-owned)" || { info "FAIL: $dir/config.yml missing"; rc=1; }
-  return "$rc"
+  verify_link "$ROOT/profiles/$profile/config.yml" "$dir/config.yml" || prc=1
+  return "$prc"
+}
+
+verify_shared() {
+  dir=$(shared_agent_dir)
+  verify_link "$ROOT/agent/keybindings.yml" "$dir/keybindings.yml"
 }
 
 verify() {
   rc=0
+  verify_shared || rc=1
   for profile in $PROFILES; do
     verify_profile "$profile" || rc=1
   done
@@ -103,7 +138,7 @@ doctor_profile() { # profile
     info "WARN: explicit old ai-memory.ts path is redundant; native extensions/ auto-discovery owns it now"
   fi
 
-  for role in default smol tiny vision task plan slow review_aux critical commit; do
+  for role in default smol tiny vision execute task plan slow review_aux critical commit; do
     if grep -Eq "^[[:space:]]+$role:" "$cfg"; then info "ok: modelRoles.$role present"; else info "WARN: modelRoles.$role missing"; fi
   done
 

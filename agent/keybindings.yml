@@ -1,0 +1,14 @@
+# Shared OMP keybindings: resolves chords shadowed by zellij.
+#
+# Loaded from the default agent directory, so every named profile inherits it
+# and may override action-by-action in its own keybindings.yml.
+#
+# Shadowed in zellij locked mode by `shared_among "normal" "locked"` and the
+# locked-mode `Ctrl g`; ctrl+alt+m is avoided because Ctrl+M is CR and collapses
+# to Alt+Enter whenever the kitty keyboard protocol is unavailable.
+
+app.editor.external: ctrl+alt+e # default ctrl+g -> zellij lock toggle
+app.model.selectTemporary: alt+shift+m # default alt+p -> TogglePaneInGroup
+app.plan.toggle: ctrl+alt+p # default alt+shift+p -> ToggleGroupMarking
+app.display.reset: ctrl+alt+r # default alt+l -> MoveFocusOrTab right
+app.message.dequeue: [alt+q, shift+up] # default alt+up -> MoveFocus up

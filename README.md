@@ -4,6 +4,14 @@ Personal, OMP-native coding-agent stack for fiatcode.
 
 This repository intentionally does **not** emulate the old cross-harness `ai-stack` layout. OMP owns execution mechanics — Plan mode, task agents, isolation, Agent Hub, built-in review/security — while Flow owns engineering judgment, safety, review lenses, TDD, debugging, durable epic state, and external-effect gates.
 
+## Dependencies
+
+- `omp` — the harness itself.
+- [`codebase-memory-mcp`](https://github.com/DeusData/codebase-memory-mcp) — the codebase graph that `agent/AGENTS.md` routes structural lookups to. Without it, `Codebase graph lookup` has nothing to query and agents fall back to `grep`/`glob`.
+- `@upstash/context7-mcp` via `npx` — library documentation lookup, also named in `agent/AGENTS.md`.
+
+Both MCP servers are configured per profile; see [MCP servers](#mcp-servers).
+
 ## Layout
 
 ```text
@@ -14,17 +22,19 @@ agent/
   skills/                   optional workflow/domain capabilities
   extensions/               auto-discovered OMP extensions
   lib/                      extension support code
+  keybindings.yml           shared chord remaps (zellij-safe)
 profiles/
-  openai-codex/config.yml   first-install baseline for `omp --profile openai-codex`
   ollama-cloud/config.yml   first-install baseline for `omp --profile ollama-cloud`
   anthropic/config.yml      first-install baseline for `omp --profile anthropic`
-mcp.example.json            optional Context7 MCP example
+mcp.example.json            MCP server template, copied per profile (see below)
 scripts/omp-stack           install / verify / doctor
 ```
 
 ## Install
 
-The installer provisions three native OMP profiles: `openai-codex`, `ollama-cloud`, and `anthropic`. It symlinks the shared Flow surfaces into each profile, copies that profile's baseline `config.yml` only when one does not already exist, refuses to clobber real managed-surface files/directories, and never writes `mcp.json`.
+The installer provisions two native OMP profiles: `ollama-cloud` and `anthropic`. It links `agent/keybindings.yml` into the shared agent directory once — named profiles inherit it and can still override single actions — symlinks the shared Flow surfaces and that profile's `config.yml` into each profile, refuses to clobber real managed-surface files/directories, and never writes `mcp.json`.
+
+`profiles/<name>/config.yml` is the single source of truth: each profile's `config.yml` is a symlink back to it, so a settings change belongs in this repository. An existing real file is replaced by the symlink only when it is already byte-identical to the template; otherwise the installer warns, leaves it alone, and exits non-zero so the divergence is visible. Merge it by hand, then rerun `install`. Editing settings through OMP's own settings UI rewrites the target file in this repository — review it with `git diff` like any other change.
 
 ```sh
 ./scripts/omp-stack install
@@ -34,35 +44,62 @@ The installer provisions three native OMP profiles: `openai-codex`, `ollama-clou
 Launch OMP directly with the native profile selector:
 
 ```sh
-omp --profile openai-codex
 omp --profile ollama-cloud
 omp --profile anthropic
 ```
 
-Existing profile configs are never overwritten; compare them with `profiles/<name>/config.yml` after stack updates. See `docs/MIGRATION.md`.
+See `docs/MIGRATION.md` for moving an existing profile onto the linked config.
+
+## MCP servers
+
+MCP stays profile-owned: the installer never writes or links `mcp.json`, because the file carries credentials and per-profile enablement. Every profile is meant to see the **same** servers, so copy the template into each one and keep the copies identical:
+
+```sh
+for p in ollama-cloud anthropic; do
+  cp mcp.example.json "$(omp --profile "$p" config path)/mcp.json"
+done
+```
+
+Then replace `ctx7sk-REPLACE-WITH-YOUR-KEY` in each copy with the real Context7 key. A profile whose `mcp.json` is missing simply has no MCP servers; OMP starts normally and the doctrine in `agent/AGENTS.md` falls back to `grep`/`glob` and upstream documentation.
+
+ClickUp is deliberately **not** in the template: it is configured per project, only in work repositories, as an untracked `<repo>/.omp/mcp.json` hidden through that checkout's `.git/info/exclude` (`/.omp/mcp.json`). OMP reads project MCP config from `<cwd>/.omp/mcp.json` only — no ancestor walk — so each repository needs its own copy and OMP must be launched from the repository root:
+
+```json
+{
+	"mcpServers": {
+		"clickup": { "type": "http", "url": "https://mcp.clickup.com/mcp" }
+	}
+}
+```
+
+The entry needs no secret. OAuth runs on first use (`/mcp reauth clickup`), and the credential is stored per profile, keyed by URL, so one sign-in per profile covers every repository that defines it.
+
+`codebase-memory-mcp` keeps its own per-account index and background watcher outside this repository (`~/.cache/codebase-memory-mcp`). It indexes a project on explicit `index_repository` and re-indexes on git-detected change; `auto_index` is off by default, so a never-indexed repository answers nothing until it is indexed once. Never commit the optional `.codebase-memory/graph.db.zst` export — the watcher rewrites it constantly.
 
 ## Flow shape
 
-The old 24-skill surface is reduced to 14 skills:
+The old 24-skill surface is reduced to 13 skills in the v8 trial:
 
-- `flow-design` — material product/architecture decisions only.
-- `flow-execution` — judgment-aware routing, resumable unit ownership, dependency-aware isolation, layered verification and review waves.
-- `flow-tdd` — behavior-first Red/Green/Refactor.
-- `flow-debugging` — root-cause-first diagnosis.
-- `flow-review` — local change, PR reviewer, PR author-feedback, and codebase-audit modes.
-- `flow-integrating` — final evidence and user-owned integration decision.
-- `flow-ldd` — durable architect/worker protocol for epics; architect never codes.
-- `flow-external-session` — external worktrees, static planning/worker handoffs and filesystem mailbox when genuinely needed.
-- `forgejo`, `ui-design`, `blog-post` — domain capabilities.
-- `weft-worklog`, `weft-memory`, `weft-maintenance` — grouped Weft operations.
+* `flow-design` — material product/architecture decisions only.
+* `flow-planning` — execution-grade HOW planning; front-loads interfaces/tests/ownership and lens concerns so implementation can be constrained.
+* `flow-execution` — routes execution-grade work to cheap constrained executors, preserves semantic fallback, layered verification and bounded acceptance review.
+* `flow-tdd` — behavior-first Red/Green/Refactor.
+* `flow-debugging` — root-cause-first diagnosis.
+* `flow-review` — local change, PR reviewer, PR author-feedback, and codebase-audit modes.
+* `flow-integrating` — final evidence and user-owned integration decision.
+* `flow-external-session` — external worktrees, static planning/worker handoffs and filesystem mailbox when genuinely needed.
+* `ui-design`, `blog-post` — domain capabilities.
+* `weft-worklog`, `weft-memory`, `weft-maintenance` — grouped Weft operations.
 
-The old bootstrap (`flow-using-skills`), hand-written planning skill, normal workspace ceremony and standalone verification skill are gone. Native OMP discovery/Plan/isolation replace the local mechanics; validated external ChatGPT/other-harness planning handoffs can preserve already-settled design/strategy without duplicating native Plan; `flow-safety` and `flow-evidence` rules retain the invariants. Normal execution keeps semantic ownership on `@task`, pushes settled mechanical leaves/corrections to `@smol`, preserves non-isolated unit owners when useful, waits eventfully instead of polling long-running children, makes writers own safe touched-file formatting and focused proof, and broadens evidence from leaf to final tree without ritual duplicate full-suite runs. Interactive checkpoints maintain a forward pointer: what changed, what Flow will do next, and whether the user is actually needed.
+Flow working state (contracts, plans, checkpoints, evidence, mailboxes, runtime approval/acceptance bindings) lives in the project's `.flow/` directory, hidden from git through `.git/info/exclude` by the always-on `flow-artifacts` rule; only decision records under `docs/decisions/` and requested audit reports are tracked.
+
+The old bootstrap (`flow-using-skills`), normal workspace ceremony and standalone verification skill remain gone. v8 deliberately restores **Flow planning doctrine** on top of native OMP Plan/model mechanics: substantial work becomes contract → execution-grade plan → constrained `@execute` implementation → one strong `@slow` acceptance review. `@task` remains the semantic/debugging fallback and `@smol` the mechanical lane. Review lenses are not deleted: they move left into the plan quality gate for planned work and remain specialist reviewers for unplanned/PR/audit paths. Writers still own focused proof, Main owns integration/final evidence, and integration distills each contract into a short committed decision record.
 
 ## Model philosophy
 
 Skills and agents use **roles**, never concrete models. Native OMP profiles provide provider-specific role maps while the Flow content stays shared.
 
-The OpenAI Codex profile keeps the quota-conscious Luna → Terra → Sol ladder. The Ollama Cloud profile uses DeepSeek V4 Flash for cheap roles, GLM-5.3-Flash for routine coding/vision, DeepSeek V4 Pro for deliberate planning/review, and Kimi K3 for explicit critical escalation. The Anthropic profile uses Haiku 4.5 for cheap leaves, Sonnet 5 for semantic implementation/vision/auxiliary review, Opus 5 for Main/planning/correctness reasoning, and Fable 5.1 high for explicit critical escalation.
+The Ollama Cloud trial keeps DeepSeek V4 Pro as Main/planning/final acceptance, uses DeepSeek V4.1 Flash for cheap mechanical roles, GLM-5.3-Flash for constrained execution/semantic coding/vision and auxiliary review, and Kimi K3 for explicit critical escalation. The Anthropic v8 profile uses Haiku 4.5 for cheap leaves, Sonnet 5.5 for constrained execution/semantic implementation/vision/auxiliary review, Opus 5.5 for Main/planning/correctness reasoning, and Fable 5.1 high for explicit critical escalation.
 
 See `docs/MODEL-ROUTING.md`. Current OMP assumptions are recorded in `docs/OMP-COMPATIBILITY.md`.
 
@@ -73,3 +110,5 @@ See `docs/MODEL-ROUTING.md`. Current OMP assumptions are recorded in `docs/OMP-C
 ```
 
 The suite validates skill/agent/rule frontmatter, role references, removed legacy assumptions, shell syntax, installer safety shape, and AI-memory slicing behavior.
+
+CI (`.github/workflows/ci.yml`) runs the same suite on every pull request and on pushes to `main`, with Node 24 and `uv`.

@@ -3,7 +3,6 @@
 The stack encodes **intent in roles**, not concrete model names. Native OMP profiles map the same role vocabulary to different providers:
 
 ```sh
-omp --profile openai-codex
 omp --profile ollama-cloud
 omp --profile anthropic
 ```
@@ -12,33 +11,34 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 
 ## Routing
 
-| Load | Role / agent | OpenAI Codex profile | Ollama Cloud profile | Anthropic profile |
-|---|---|---|---|---|
-| tiny metadata/title/background | `@tiny` | Luna low | DeepSeek V4 Flash low | Haiku 4.5 |
-| commit/changelog generation | `@commit` | Luna low | DeepSeek V4 Flash low | Haiku 4.5 |
-| repo exploration | bundled `scout` / `@smol` | Luna | DeepSeek V4 Flash low | Haiku 4.5 |
-| behavior-preserving mechanical work / diagnosed exact correction | bundled `sonic` / `@smol` | Luna | DeepSeek V4 Flash low | Haiku 4.5 |
-| Main / normal interactive coding | `@default` | Terra | GLM-5.3-Flash high | Opus 5 high |
-| semantic delegated unit / Vibe good | `@task` | Terra | GLM-5.3-Flash high | Sonnet 5 high |
-| TTC/CRF/audit auxiliary lenses | `@review_aux` | Terra high | DeepSeek V4 Pro high | Sonnet 5 high |
-| deliberate native planning | `@plan` | Sol high | DeepSeek V4 Pro high | Opus 5 high |
-| primary correctness review / hard reasoning | `@slow` | Sol high | DeepSeek V4 Pro high | Opus 5 high |
-| vision / multimodal inspection | `@vision` | Luna | GLM-5.3-Flash high | Sonnet 5 high |
-| exceptional security/concurrency/data-integrity escalation | `@critical` | Sol xhigh | Kimi K3 high | Fable 5.1 high |
+| Load | Role / agent | Ollama Cloud profile | Anthropic profile |
+|---|---|---|---|
+| tiny metadata/title/background | `@tiny` | DeepSeek V4.1 Flash low | Haiku 4.5 |
+| commit/changelog generation | `@commit` | DeepSeek V4.1 Flash low | Haiku 4.5 |
+| repo exploration | bundled `scout` / `@smol` | DeepSeek V4.1 Flash low | Haiku 4.5 |
+| behavior-preserving mechanical work / diagnosed exact correction | bundled `sonic` / `@smol` | DeepSeek V4.1 Flash low | Haiku 4.5 |
+| Main/controller | `@default` | **DeepSeek V4 Pro high (v8 trial)** | Opus 5.5 medium |
+| execution-grade plan follower | `flow-plan-executor` / `@execute` | **GLM-5.3-Flash high** | Sonnet 5.5 medium |
+| residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GLM-5.3-Flash high | Sonnet 5.5 high |
+| deliberate execution planning | `flow-planner` / `@plan` | DeepSeek V4 Pro high | Opus 5.5 medium |
+| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | DeepSeek V4 Pro high | Opus 5.5 medium |
+| TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GLM-5.3-Flash high | Sonnet 5.5 high |
+| vision / multimodal inspection | `@vision` | GLM-5.3-Flash high | Sonnet 5.5 medium |
+| exceptional security/concurrency/data-integrity escalation | `@critical` | Kimi K3 high | Fable 5.1 high |
 
 `slow` intentionally stops below the most expensive explicit escalation. `critical` is the escape hatch; no automatic Flow agent binds `@critical` on purpose. Escalation should be a conscious model/session choice, not accidental fan-out.
 
 ## Provider profiles
 
-`profiles/openai-codex/config.yml`, `profiles/ollama-cloud/config.yml`, and `profiles/anthropic/config.yml` are first-install baselines, not runtime overlays. `scripts/omp-stack install` copies a baseline only when the corresponding native profile has no `config.yml`; later installs leave profile-owned config untouched.
+`profiles/ollama-cloud/config.yml` and `profiles/anthropic/config.yml` are the single source of truth for each profile's settings, not runtime overlays. `scripts/omp-stack install` symlinks each profile's `config.yml` to its template; a real file is replaced only when it is byte-identical, otherwise the installer warns, leaves it alone, and exits non-zero. Merge a divergent copy into the template, delete the copy, and rerun `install`.
 
 OMP named profiles isolate the full OMP-native user root, not merely model selection. The installer therefore links the same `AGENTS.md`, agents, rules, skills, extensions and support library into every managed profile root. MCP remains profile-owned and opt-in. Sessions, blobs, `agent.db` and provider authentication remain genuinely separate by design.
 
 ## Ollama Cloud selection rationale
 
-- **DeepSeek V4 Flash** owns `smol` / `tiny` / `commit`: cheap reasoning is appropriate for discovery, mechanical leaves and background text.
-- **GLM-5.3-Flash** owns `default` / `task` / `vision`: it is the routine coding lane and supplies multimodal capability. OMP currently advertises GLM 5.3 Flash reasoning at `high` / `max`, so routine work uses `high`.
-- **DeepSeek V4 Pro** owns `plan` / `slow` / `review_aux`: deliberate planning and independent review get a stronger reasoning model from a different family than the routine implementer.
+- **DeepSeek V4.1 Flash** owns `smol` / `tiny` / `commit`: cheap reasoning is appropriate for discovery, mechanical leaves and background text.
+- **DeepSeek V4 Pro** owns `default` / `plan` / `slow` in the v8 trial. Unit 2 showed GLM could implement substantial code but slipped on orchestration constraints; this keeps stronger controller/planning/final-acceptance judgment without moving routine execution onto the expensive lane.
+- **GLM-5.3-Flash** owns `execute` / `task` / `vision` / `review_aux`: constrained plan-following is its primary v8 lane; `task` remains the semantic fallback while auxiliary review stays on a separate model family from the controller.
 - **Kimi K3** owns `critical`: it is reserved for explicit frontier escalation. The profile uses `high`, matching OMP's generic Ollama Cloud effort mapping rather than inventing an unsupported `max` lane.
 
 Keep the exact model IDs under review when OMP or Ollama Cloud changes its discovered catalog. The role topology matters more than any one model name.
@@ -46,17 +46,21 @@ Keep the exact model IDs under review when OMP or Ollama Cloud changes its disco
 ## Anthropic selection rationale
 
 - **Claude Haiku 4.5** owns `smol` / `tiny` / `commit`: cheap bounded work does not need the premium reasoning tier. The baseline intentionally leaves Haiku's effort suffix unpinned because its first-party OMP effort surface is not the same adaptive ladder as Sonnet/Opus/Fable.
-- **Claude Sonnet 5 high** owns `task` / `vision` / `review_aux`: it is the high-throughput semantic implementation and multimodal lane, while auxiliary review stays independent from the Opus correctness lane.
-- **Claude Opus 5 high** owns `default` / `plan` / `slow`: the Team Premium profile spends its larger allowance on controller reliability, long-horizon orchestration, architecture and primary correctness reasoning rather than making Main another implementation-tier session.
+- **Claude Sonnet 5.5** owns `execute` / `task` / `vision` / `review_aux`: it is the high-throughput constrained-execution, semantic-implementation and multimodal lane, while auxiliary review stays independent from the Opus correctness lane. Sonnet 5.5 recalibrated its effort levels, so the Sonnet 5 `high` setting is not carried over. Anthropic recommends `medium` for well-specified agentic work and `high` for harder or longer work: `execute` (decision-complete plans) and `vision` run at `medium`; `task` (unresolved judgment, debugging) and `review_aux` (independent review) run at `high`.
+- **Claude Opus 5.5 medium** owns `default` / `plan` / `slow`: the Team Premium profile spends its larger allowance on controller reliability, long-horizon orchestration, architecture and primary correctness reasoning rather than making Main another implementation-tier session. `medium` is Anthropic's default for Opus 5.5 and matches or beats Opus 5 at `high` on agentic tasks.
 - **Claude Fable 5.1 high** owns `critical`: the role is explicit-only, and `high` is deliberate. Do not pin `max` here; maximum effort would burn Team Premium allowance too aggressively for a reusable baseline.
 
 Authenticate the profile through OMP's Anthropic/Claude OAuth flow so Team entitlement remains profile-local. Do not put account credentials in this repository. Keep exact model IDs under review when OMP or Anthropic changes the first-party catalog.
 
 ## Routing principle
 
-Use the strongest model only for **unresolved judgment**. Once behavior and the edit shape are settled, behavior-preserving propagation or an already-diagnosed exact correction can move to `sonic`. A written plan reduces rediscovery but does not automatically make semantic implementation a cheap-worker task. Direct Sonic never owns a new-behavior Red/Green decision cycle.
+Use the strongest model for **unresolved judgment**, not for routine plan transcription/execution. `flow-planning` deliberately moves consequential interfaces/tests/ownership/error semantics into the `@plan` stage. A task becomes eligible for `@execute` only when its plan is execution-grade and states locked decisions, concrete proof, discretion and escalation conditions.
 
-Main may dispatch `sonic` directly for a fully diagnosed mechanical edit; semantic unit owners may also delegate settled leaves to it. Semantic corrections should return to the existing owner when possible rather than cold-starting another reasoning session.
+`@execute` is still above `sonic`: it may implement new behavior/TDD from a decision-complete brief, but it must escalate contradictions instead of redesigning. `@task` remains the semantic fallback for debugging, broken plans and deliberately unresolved implementation judgment. `sonic` remains reserved for one-obvious-result mechanical work.
+
+## External-effect approval backstop
+
+All three v8 baseline profiles add OMP-native `bash.patterns` prompts for normal GitHub publication commands: `git push`, the `gh pr`/`gh issue`/`gh release` write subcommands, and `gh api` calls that carry a request-method or body flag as its own token. Plain `gh api` reads do not prompt. Blanket `tools.approval.eval` prompting is deliberately unset because it interrupts ordinary eval use; publication commands must stay on the direct Bash surface rather than being wrapped in eval. These prompts are a runtime backstop for Flow's user-authorization rule, not sandbox containment: another already-approved program can still perform network effects through its own APIs. The user-facing Flow gate remains authoritative. Because the profile `config.yml` is a symlink to the template, the patterns reach every managed profile with the next `install`; `tests/bash-patterns.test.mjs` proves the list against OMP's matcher.
 
 ## Concurrency
 
@@ -83,9 +87,13 @@ Do not cap `flow-implementer` below its `@task`/auto policy yet. First optimize 
 
 Do not globally prewalk semantic implementers down to the cheap role at first write. Reasoning often continues after the first edit (test failure, redesign, integration). Instead, keep the semantic model as unit owner and explicitly delegate sufficiently mechanical leaves to bundled `sonic`; use `scout` for read-only discovery. The parent still verifies and integrates all child work.
 
-## Review economics
+## Planning and review economics
 
-Review coherent waves rather than every tiny implementation task. COR remains the strongest normal lens. TTC/CRF use `@review_aux` and run only when applicable. Security uses OMP's security specialist/scan only when the surface warrants it. Before dispatch, explicitly record run/skip dispositions for COR/TTC/CRF/SEC so conditional-lens selection is inspectable rather than implicit. After corrections, rerun affected/newly applicable lenses instead of automatically repeating the whole original set.
+For substantial planned work, spend judgment once: `@plan` applies COR/TTC/CRF/SEC as a **plan quality gate**, then `@execute` implements the locked plan and `@slow` performs one integrated final acceptance review. The acceptance reviewer checks plan conformance **and** independently challenges correctness so a defective plan cannot launder a defect into approval.
+
+Do not automatically dispatch COR/TTC/CRF again after execution-grade plan work. Add a specialist only for concrete residual risk, batch verified findings into one correction round, and use one scoped acceptance closure review by default.
+
+For unplanned/ad-hoc changes, PR review and audits, the existing `flow-review` specialist doctrine remains intact: COR and CRF always run on the initial review, TTC/SEC run or skip with reason, affected-lens reruns after fixes.
 
 ## Nested delegation
 

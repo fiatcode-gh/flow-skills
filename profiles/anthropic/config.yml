@@ -1,9 +1,16 @@
 # omp-stack managed baseline for: omp --profile anthropic
-# scripts/omp-stack copies this file only when the profile has no config.yml.
+# scripts/omp-stack symlinks the profile's config.yml to this file; edit
+# settings here and review the result with git diff like any other change.
 # Authenticate this profile through OMP's Anthropic/Claude OAuth flow; never
 # store Team credentials in this repository.
 providers:
   webSearchOrder: []
+
+# Do not probe unused local inference endpoints at startup.
+disabledProviders:
+  - ollama
+  - llama.cpp
+  - lm-studio
 
 defaultThinkingLevel: auto
 
@@ -15,21 +22,77 @@ modelRoles:
   tiny: anthropic/claude-haiku-4-5-20251001
   commit: anthropic/claude-haiku-4-5-20251001
 
-  # High-throughput semantic implementation, multimodal work and auxiliary
-  # review. Keep Main separate from the implementation tier.
-  task: anthropic/claude-sonnet-5:high
-  vision: anthropic/claude-sonnet-5:high
-  review_aux: anthropic/claude-sonnet-5:high
+  # High-throughput constrained execution, semantic implementation, multimodal
+  # work and auxiliary review. Keep Main separate from the implementation tier.
+  # Sonnet 5.5 recalibrated effort: Anthropic recommends medium for
+  # well-specified agentic work and high for harder or open-ended work.
+  execute: anthropic/claude-sonnet-5-5:medium
+  vision: anthropic/claude-sonnet-5-5:medium
+  task: anthropic/claude-sonnet-5-5:high
+  review_aux: anthropic/claude-sonnet-5-5:high
 
   # Spend the larger Team Premium allowance where controller reliability and
   # unresolved judgment have the most leverage.
-  default: anthropic/claude-opus-5:high
-  plan: anthropic/claude-opus-5:high
-  slow: anthropic/claude-opus-5:high
+  default: anthropic/claude-opus-5-5:medium
+  plan: anthropic/claude-opus-5-5:medium
+  slow: anthropic/claude-opus-5-5:medium
 
   # Explicit-only frontier escalation. High is deliberate: max would consume
   # Team Premium allowance too aggressively for a reusable baseline.
   critical: anthropic/claude-fable-5-1:high
+
+# Native backstop for Flow's external-effect gate. Keep publication commands
+# on the direct Bash/gh surface so these explicit prompt policies apply.
+# `gh api` prompts only when a method/body flag is present as its own token;
+# tests/bash-patterns.test.mjs proves this list against OMP's matcher.
+bash:
+  patterns:
+    - match: "git push*"
+      approval: prompt
+    - match: "gh pr create*"
+      approval: prompt
+    - match: "gh pr merge*"
+      approval: prompt
+    - match: "gh pr review*"
+      approval: prompt
+    - match: "gh pr comment*"
+      approval: prompt
+    - match: "gh pr edit*"
+      approval: prompt
+    - match: "gh pr close*"
+      approval: prompt
+    - match: "gh issue comment*"
+      approval: prompt
+    - match: "gh release create*"
+      approval: prompt
+    - match: "gh api -X*"
+      approval: prompt
+    - match: "gh api * -X*"
+      approval: prompt
+    - match: "gh api --method*"
+      approval: prompt
+    - match: "gh api * --method*"
+      approval: prompt
+    - match: "gh api -f*"
+      approval: prompt
+    - match: "gh api * -f*"
+      approval: prompt
+    - match: "gh api -F*"
+      approval: prompt
+    - match: "gh api * -F*"
+      approval: prompt
+    - match: "gh api --field*"
+      approval: prompt
+    - match: "gh api * --field*"
+      approval: prompt
+    - match: "gh api --raw-field*"
+      approval: prompt
+    - match: "gh api * --raw-field*"
+      approval: prompt
+    - match: "gh api --input*"
+      approval: prompt
+    - match: "gh api * --input*"
+      approval: prompt
 
 # Keep per-dispatch effort disabled so an orchestrator cannot silently turn a
 # cheap worker into the selected model's highest reasoning level.
