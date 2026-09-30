@@ -93,7 +93,7 @@ For substantial planned work, spend judgment once: `@plan` applies COR/TTC/CRF/S
 
 Do not automatically dispatch COR/TTC/CRF again after execution-grade plan work. Add a specialist only for concrete residual risk, batch verified findings into one correction round, and use one scoped acceptance closure review by default.
 
-For unplanned/ad-hoc changes, PR review and audits, the existing `flow-review` applicability-driven specialist doctrine remains intact: COR and CRF initial, TTC/SEC run or skip with reason, affected-lens reruns after fixes.
+For unplanned/ad-hoc changes, PR review and audits, the existing `flow-review` specialist doctrine remains intact: COR and CRF always run on the initial review, TTC/SEC run or skip with reason, affected-lens reruns after fixes.
 
 ## Nested delegation
 
