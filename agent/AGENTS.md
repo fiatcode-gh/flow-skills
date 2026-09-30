@@ -7,7 +7,7 @@
 - **Separation of concerns:** keep each module and layer focused.
 - **Self-explaining code:** let names and structure show *what* the code does. Write comments only for *why*, invariants, constraints or non-obvious context.
 - Make the smallest coherent change that meets the requirement.
-- Do not clean up unrelated code on the side. Clean up only when correctness needs it or the user asks for it.
+- Clean up unrelated code only when correctness needs it or the user asks for it.
 
 ## OMP / Flow execution
 
@@ -16,13 +16,14 @@
 - Use `flow-design` before substantial work enters planning: write the governing WHAT/WHY contract, present it, and get explicit user approval. This holds for every start: a new or existing project, an internal brainstorm, an external handoff.
 - Skip the separate contract file only for tiny or mechanical work whose scope is already explicit.
 - `flow-design` says how to keep settled decisions and which questions to ask.
-- Use `flow-planning` when the implementation HOW must be decision-complete before coding. `flow-planner` (`@plan`) writes that plan, not Main.
+- Use `flow-planning` when the consequential implementation HOW must be decision-complete before coding. `flow-planner` (`@plan`) writes that plan, not Main.
 - `flow-planning` and `flow-external-session` say when an external plan already counts as execution-grade.
 - For substantial work, do not start planning until the user approves the completed contract.
 - For substantial work, do not dispatch the first production-writing worker until the user approves the completed execution-grade plan.
 - Treat a start or resume request as no approval. Example: the user says "go ahead" after you show the plan. Record the plan approval before you dispatch.
 - Treat answers to clarification questions as no approval of the contract. Only an explicit approval of the completed contract counts.
-- Record each approval with the `flow_gate` tool: `present` the artifact summary, then `approve`. Carry the `Flow gate:` block in the planner or writer brief (`flow-planning` section 1, `flow-execution` section 1).
+- For durable Flow work, record each approval with the `flow_gate` tool: `present` the artifact summary, then `approve`.
+- Carry the `Flow gate:` block in the planner or writer brief (`flow-planning` section 1, `flow-execution` section 1).
 - Keep a recorded approval across resume while its artifact is unchanged. After a material edit to the contract or plan, get that approval again.
 - Route task agents by agent name or role. Never put a concrete model id in a workflow prompt.
 - Route each writer by what is left to decide:
@@ -30,7 +31,8 @@
   - unresolved semantic judgment, debugging, or a broken plan → `flow-implementer` (`@task`);
   - a settled mechanical or behavior-preserving edit, or an exact fix already diagnosed → `sonic` (`@smol`).
 - Review planned work with one `flow-acceptance-reviewer` pass after the coherent change. Do not fan out COR/TTC/CRF lens reviewers by routine.
-- Add a specialist reviewer only for a concrete residual risk, such as a security boundary. `flow-review` owns lens review for unplanned work, audits and PRs.
+- Add a specialist reviewer only for a concrete residual risk, such as a security boundary.
+- `flow-review` owns lens review for unplanned work, audits and PRs.
 - After you accept the acceptance or closure receipt, record the repository state with `flow_gate` `accept`.
 - Write production code as Main only in the Main-direct lane defined by `flow-execution`. Do not implement substantial planned or semantic work yourself.
 
@@ -59,7 +61,7 @@
 
 - When you change these skills, follow the skill design principles in `docs/PRINCIPLES.md`.
 - Prefer a light real-world field trial and two or three clean uses over building a large evaluation harness early.
-- Tune a skill description only after you see a real mis-trigger.
+- Tune a skill description after you see a real mis-trigger.
 
 ## Shell awareness
 
