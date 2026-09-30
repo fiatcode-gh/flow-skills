@@ -132,9 +132,21 @@ if legacy_guard_path.exists(): err('legacy flow-orchestration-guard.ts must be r
 legacy_guard_test=ROOT/'tests/flow-orchestration-guard.test.mjs'
 if legacy_guard_test.exists(): err('legacy flow-orchestration-guard.test.mjs must be removed')
 
-design=(ROOT/'agent/skills/flow-design/SKILL.md').read_text().lower()
-for required in ['before substantial planning','governing contract','clarify the intention with the user','completed governing contract','explicit user approval','main owns the contract','internal brainstorm','external handoff','flow_gate','native user confirmation','artifact digest']:
-    if required not in design: err(f'flow-design contract-formation invariant missing: {required}')
+design_raw=(ROOT/'agent/skills/flow-design/SKILL.md').read_text()
+# Pin only what tools parse or other files name: the headings, the step 7
+# opener and the "Resume step" name that other files point at, and the
+# tool, skill, agent and path names that route behavior.
+DESIGN_MARKERS=[
+    '## When this is warranted', '## Process', '## Imported design context',
+    '## Durability', '## Multi-unit work', '## Rules',
+    '\n7. Present the completed contract', 'Resume step',
+    '`flow_gate`', '`kind=contract`', '`present`', '`approve`',
+    '`flow-planner`', '`flow-planning`', '`flow-artifacts`',
+    '`.flow/contracts/<slug>.md`', '`.flow/contracts/<parent-slug>.md`',
+    '`.flow/ldd/<epic>/`', '`docs/decisions/`', '`docs/decisions/<epic>.md`',
+]
+for required in DESIGN_MARKERS:
+    if required not in design_raw: err(f'flow-design missing machine-read marker or pointer target: {required!r}')
 
 planning_raw=(ROOT/'agent/skills/flow-planning/SKILL.md').read_text()
 planning=planning_raw.lower()
