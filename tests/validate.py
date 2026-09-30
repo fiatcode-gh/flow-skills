@@ -269,17 +269,20 @@ doctrine_drift=[
 for label,text,bad in doctrine_drift:
     if bad in text: err(f'{label}: stale doctrine survived: {bad}')
 
-evidence=(ROOT/'agent/rules/flow-evidence.md').read_text().lower()
-for required in [
-    'writers verify their own work', 'delegation never transfers verification responsibility',
-    'leaf worker proves its leaf', 'do not rerun the same expensive full suite',
-    'pre-edit bytes', 'not restoration proof when the file was already modified',
-    'invalid flow orchestration', 'docs-only', 'affected evidence stale',
-    'structured evidence receipts must be internally self-consistent',
-    '`match` is itself an evidence claim', 'contradictory or transcription-damaged receipt', 'unchanged `match` receipt is reusable',
-    'reopens the stability barrier', 'rerun only affected evidence', 'reuse of unaffected capsules', 'flow_gate', 'mechanical backstop',
-]:
-    if required not in evidence: err(f'flow-evidence invariant missing: {required}')
+evidence_raw=(ROOT/'agent/rules/flow-evidence.md').read_text()
+# Pin only what tools parse or other files name: the rule name and title, the
+# claim, tool and receipt names the rule defines, and the concepts that
+# flow-execution, docs/ARCHITECTURE.md and docs/PRINCIPLES.md point at.
+EVIDENCE_MARKERS=[
+    'name: flow-evidence\n', '\n# Flow evidence\n',
+    '`tests pass`', '`build works`', '`bug fixed`',
+    '`flow_gate`', '`MATCH`', '`UNKNOWN`', '`before`', '`after`',
+    '`git diff --exit-code <file>`', '`HEAD`',
+    'Writers verify their own work', 'Scope proof by ownership', 'claim relevance',
+    'stability barrier', 'self-consistent',
+]
+for required in EVIDENCE_MARKERS:
+    if required not in evidence_raw: err(f'flow-evidence missing machine-read marker or pointer target: {required!r}')
 
 artifacts=(ROOT/'agent/rules/flow-artifacts.md').read_text()
 for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'mailbox/<channel>/', 'runtime/gates.json', 'docs/decisions/', 'read-only history', 'absolute path', 'docs/reports/', 'Never edit `.gitignore`']:
