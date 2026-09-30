@@ -2,7 +2,7 @@
 
 Use this protocol for a **static planning/architecture handoff** from an independently run session or harness, including ChatGPT. It is not a worker mailbox and it carries no execution authorization.
 
-The canonical entry point is `FLOW-HANDOFF.json`. Human continuation context lives in `HANDOFF.md`. Treat the entire bundle as external evidence/proposal until the receiving Main/architect validates and incorporates it.
+The canonical entry point is `FLOW-HANDOFF.json`. Human continuation context lives in `HANDOFF.md`. Treat the entire bundle as external evidence/proposal until the receiving Main validates and incorporates it.
 
 For an **explicit cross-harness continuation** (for example, “hand this to local OMP” or “resume this locally”), a standalone Markdown design/plan is **not a complete protocol handoff**. The sending side should produce the manifest plus every declared artifact. If only legacy Markdown is available, OMP may use it as unvalidated evidence after source reconciliation, but must not describe it as validator-compliant intake.
 
@@ -16,39 +16,37 @@ uv run python agent/skills/flow-external-session/scripts/validate-planning-hando
 
 A failed validation is a stop: report the concrete schema/path problem rather than silently repairing the external bundle.
 
-## Manifest schema v1
+## Manifest schema v2
 
 The machine-readable shape is also recorded in `references/planning-handoff.schema.json`. The validator additionally enforces safe relative artifact paths and required `HANDOFF.md`.
 
 ```json
 {
-  "flow_handoff": 1,
-  "kind": "planning",
+  "flow_handoff": 2,
   "source": "chatgpt",
   "repository": "owner/name",
   "observed_ref": "<full-sha>",
-  "epic": null,
   "design_status": "settled",
   "implementation_strategy": "settled",
   "authorization": "not-carried",
   "artifacts": [
     "HANDOFF.md",
-    "proposed-ledger-delta.md",
+    "IMPLEMENTATION-PLAN.md",
     "proposed-units/example.md"
   ]
 }
 ```
 
-Required fields are `flow_handoff`, `kind`, `source`, `repository`, `observed_ref`, `epic`, `design_status`, `implementation_strategy`, `authorization`, and `artifacts`.
+Required fields are `flow_handoff`, `source`, `repository`, `observed_ref`, `design_status`, `implementation_strategy`, `authorization`, and `artifacts`.
 
 Allowed values:
 
-- `flow_handoff`: exactly `1`;
-- `kind`: `planning` or `ldd`;
+- `flow_handoff`: exactly `2`;
 - `design_status`: `settled`, `partial`, `unresolved`, `not_applicable`;
 - `implementation_strategy`: `settled`, `partial`, `unresolved`, `not_needed`;
-- `authorization`: exactly `not-carried`;
-- `epic`: a non-empty string for `kind: ldd`, otherwise `null`.
+- `authorization`: exactly `not-carried`.
+
+Schema v1 (with `kind` and `epic`) is retired. The validator rejects a v1 manifest and says what to change.
 
 `implementation_strategy: settled` means the sending harness considers the strategy settled; it does not assert that the declared artifacts satisfy the receiving stack's current `flow-planning` execution-grade contract.
 
@@ -69,15 +67,15 @@ Keep it concise and include:
 - local revalidation checklist;
 - the recommended next local workflow action.
 
-Additional declared files may carry a larger implementation plan, proposed LDD ledger delta, or proposed unit contracts. Keep them proposals until accepted locally.
+Additional declared files may carry a larger implementation plan or proposed unit contracts. Keep them proposals until accepted locally.
 
 ## Receiving-side validation
 
-1. Confirm the handoff targets the intended repository/epic.
-2. Read the current local project instructions, dirty state, `HEAD`, and—under LDD—the canonical `LEDGER.md`/`RESUME.md`.
-3. Compare `observed_ref` with the current checkout. Equal SHA does **not** erase local dirty-state or ledger differences. Different SHA does not automatically invalidate the handoff: inspect whether intervening changes touch the assumptions/contracts/surfaces the handoff relies on.
+1. Confirm the handoff targets the intended repository.
+2. Read the current local project instructions, dirty state, `HEAD` and the `docs/decisions/` records for the area.
+3. Compare `observed_ref` with the current checkout. Equal SHA does **not** erase local dirty-state differences. Different SHA does not automatically invalidate the handoff: inspect whether intervening changes touch the assumptions/contracts/surfaces the handoff relies on.
 4. Revalidate consequential source claims cheaply at the current tree. Reopen only the affected decision/strategy, not the whole prior discussion by ritual.
-5. Under LDD, reconcile proposals into the canonical ledger/unit files. A proposed ledger delta or unit contract is never higher authority than the current ledger until the architect accepts and records it. Explicit current user instruction still outranks both.
+5. For an epic with a frozen `.flow/ldd/` ledger, use the `flow-design` resume step. Never write the handoff into the ledger.
 6. Grade any reusable implementation plan against the current `flow-planning` execution-grade contract; `implementation_strategy: settled` alone is not sufficient.
 7. Preserve the authorization boundary: after intake, obtain the normal local implementation/integration approval required by Flow.
 
@@ -87,7 +85,6 @@ After validation:
 
 - design materially unresolved/conflicted → `flow-design`;
 - design settled but implementation strategy materially unresolved/risky → `flow-planning` using the receiving stack's planner-ownership rules;
-- design and implementation strategy settled/current → preserve that strategy, then grade the reusable plan artifacts against `flow-planning`; execution-grade artifacts may skip a redundant Plan call, while strategy-only artifacts must refine only the missing consequential HOW/tests/interfaces before execution;
-- existing LDD epic → record accepted decisions/units in the ledger first, then follow the same rule above.
+- design and implementation strategy settled/current → preserve that strategy, then grade the reusable plan artifacts against `flow-planning`; execution-grade artifacts may skip a redundant Plan call, while strategy-only artifacts must refine only the missing consequential HOW/tests/interfaces before execution.
 
 The purpose is to preserve useful thinking across harnesses without turning an external transcript into hidden authority or paying to rediscover a strategy that is still valid.

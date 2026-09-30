@@ -23,7 +23,7 @@ skills=list((ROOT/'agent/skills').glob('*/SKILL.md'))
 agents=list((ROOT/'agent/agents').glob('*.md'))
 rules=list((ROOT/'agent/rules').glob('*.md'))
 
-if len(skills)!=14: err(f'expected 14 skills, got {len(skills)}')
+if len(skills)!=13: err(f'expected 13 skills, got {len(skills)}')
 if len(agents)!=10: err(f'expected 10 agents, got {len(agents)}')
 if len(rules)!=3: err(f'expected 3 rules, got {len(rules)}')
 
@@ -40,7 +40,7 @@ for p in skills:
         if asset.is_file() and asset.suffix in {'.md','.json','.py','.sh',''} and MODEL_LEAK.search(asset.read_text(errors='replace')): err(f'{asset.relative_to(ROOT)}: concrete model/provider identifier leaked into skill content')
 
 expected={
-'flow-design','flow-planning','flow-execution','flow-tdd','flow-debugging','flow-review','flow-integrating','flow-ldd','flow-external-session','ui-design','blog-post','weft-worklog','weft-memory','weft-maintenance'}
+'flow-design','flow-planning','flow-execution','flow-tdd','flow-debugging','flow-review','flow-integrating','flow-external-session','ui-design','blog-post','weft-worklog','weft-memory','weft-maintenance'}
 if names!=expected: err(f'skill set mismatch: {sorted(names^expected)}')
 
 agent_names=set()
@@ -69,11 +69,6 @@ for base in check_paths:
         text=p.read_text()
         for bad in ['never spawn an agent for work that writes', 'Never pick silently: ask the user which one', 'every new function has a test']:
             if bad.lower() in text.lower(): err(f'{p.relative_to(ROOT)}: legacy rule survived: {bad}')
-
-# LDD boundary is intentional and explicit.
-ldd=(ROOT/'agent/skills/flow-ldd/SKILL.md').read_text().lower()
-if 'architect **never writes production code**' not in ldd: err('LDD strict non-coding architect rule missing')
-if '.flow/ldd' not in ldd: err('LDD .flow namespace missing')
 
 # Nested delegation and live-clarification contract.
 impl_path=ROOT/'agent/agents/flow-implementer.md'
@@ -142,16 +137,16 @@ for required in ['before substantial planning','governing contract','clarify the
     if required not in design: err(f'flow-design contract-formation invariant missing: {required}')
 
 planning=(ROOT/'agent/skills/flow-planning/SKILL.md').read_text().lower()
-for required in ['execution-grade plan','locked decisions','executor discretion','plan quality gate','cor','ttc','crf','sec','decision completeness','fresh-executor capsule','one fresh `flow-plan-executor` session','independently provable behavioral slice','valid intermediate handoff exists','receipt-first','plan receipt validation does not itself authorize implementation','explicit user plan approval','for substantial planned work','approved governing contract','for substantial planning','ldd or non-ldd','must dispatch `flow-planner` (`@plan`)','answers to clarification questions do not themselves approve','flow-governance-guard','flow gate:','flow_gate','changes its digest']:
+for required in ['execution-grade plan','locked decisions','executor discretion','plan quality gate','cor','ttc','crf','sec','decision completeness','fresh-executor capsule','one fresh `flow-plan-executor` session','independently provable behavioral slice','valid intermediate handoff exists','receipt-first','plan receipt validation does not itself authorize implementation','explicit user plan approval','for substantial planned work','approved governing contract','for substantial planning','must dispatch `flow-planner` (`@plan`)','answers to clarification questions do not themselves approve','flow-governance-guard','flow gate:','flow_gate','changes its digest']:
     if required not in planning: err(f'flow-planning invariant missing: {required}')
 
 execution_raw=(ROOT/'agent/skills/flow-execution/SKILL.md').read_text()
 execution=execution_raw.lower()
 # Pin only what tools parse or other files name: the brief templates Main copies
 # into task briefs (the guards parse those), the flow_gate strings, and the
-# headings/lane that flow-ldd, docs/ARCHITECTURE.md and agent/AGENTS.md point at.
+# headings/lane that flow-execution itself, docs/ARCHITECTURE.md and agent/AGENTS.md point at.
 EXECUTION_MARKERS=[
-    'Flow gate:\n- Scope: <contract slug or epic/unit>\n- Contract: <approved contract path>\n- Plan: <approved PLAN.md path>\n',
+    'Flow gate:\n- Scope: <contract slug>\n- Contract: <approved contract path>\n- Plan: <approved PLAN.md path>\n',
     'Plan: NONE', 'kind=implementation', 'flow_gate action=accept',
     'Verification ownership:\n- Focused proof: <commands/checks the writer must run>\n- Formatter: <scoped formatter command or concrete safety exception>\n- Focused static/build: <allowed/required checks>\n- Main-owned gates: <broader commands and why they stay with Main>\n',
     'Evidence capsule:\n- ID: <stable short id>\n- Owns: <one coherent scene family/device state/acceptance cluster>\n- Independent split check: none | <why the named evidence is inseparable>\n- Excludes: <other capsules left to fresh verifier sessions>\n- Restore obligation: NONE | <state that must be restored>\n',
@@ -159,26 +154,6 @@ EXECUTION_MARKERS=[
 ]
 for required in EXECUTION_MARKERS:
     if required not in execution_raw: err(f'flow-execution missing machine-read marker or pointer target: {required!r}')
-
-for required in [
-    'current flow/omp stack owns **execution mechanics**', 'flow-execution',
-    'bounded parallel read-only `scout`', 'normally non-isolated',
-    'correct efficiently', 'worker self-verification is required', 'forward pointer',
-    'external planning intake', 'does not carry local implementation authorization',
-    'flow-planning', 'flow-plan-executor', 'execution-grade',
-    'native interruptible `hub wait` is valid', 'does not block user steering/prompting',
-    'flow does not intercept agent hub waits',
-    'before the first device/emulator/manual/external acceptance action',
-    'one coherent scene/state/acceptance cluster', 'active main cannot rotate itself',
-    'unit-start/resume command does not create missing approval',
-    'explicit plan approval', 'acceptance review is a dependency barrier',
-    'multi-step device/manual acceptance', 'evidence capsule:', 'substantial ldd consequential how',
-    'dispatch a dedicated `flow-planner` (`@plan`)',
-    'answers to blocking/open contract questions do not themselves approve',
-    'reopens the stability barrier', 'flow_gate present', 'flow_gate action=accept',
-    'flow gate', 'plan: none',
-]:
-    if required not in ldd: err(f'flow-ldd missing execution-policy invariant: {required}')
 
 # One normative home per doctrine rule. A phrase below may appear only in the
 # files that own its rule; every other surface points at the home by name.
@@ -190,7 +165,14 @@ EXCLUSIVE={
     'independent split check:': {'agent/agents/flow-evidence-verifier.md', 'agent/skills/flow-execution/SKILL.md'},
     'reuse of unaffected capsules': {'agent/rules/flow-evidence.md'},
     'comments that narrate the code or contradict it': {'agent/skills/flow-review/references/review-lenses.md'},
-    'multi-story or cross-repository': {'agent/skills/flow-ldd/SKILL.md'},
+    'applies to multi-unit work too': {'agent/skills/flow-execution/SKILL.md'},
+    'only what the code and tests cannot show': {'agent/skills/flow-integrating/SKILL.md'},
+    'what it leaves out': {'agent/skills/flow-integrating/SKILL.md'},
+    'no rule edits or deletes a frozen ledger': {'agent/rules/flow-artifacts.md'},
+    'never trust a record you have not checked': {'agent/skills/flow-design/SKILL.md'},
+    'one parent contract': {'agent/skills/flow-design/SKILL.md'},
+    'read that ledger once': {'agent/skills/flow-design/SKILL.md'},
+    'start no unit before the parent is approved': {'agent/skills/flow-design/SKILL.md'},
 }
 for phrase,homes in EXCLUSIVE.items():
     for p in doctrine_surfaces:
@@ -200,13 +182,11 @@ for phrase,homes in EXCLUSIVE.items():
         if phrase not in (ROOT/home).read_text().lower(): err(f'{home}: doctrine home lost its rule: {phrase}')
 POINTS_TO={
     'agent/skills/flow-execution/SKILL.md': ['defined once in `flow-evidence-verifier`', 'self-consistency rule in `flow-evidence`', 'stability barrier defined in the `flow-evidence` rule', 'change-lens selection in `flow-review`'],
-    'agent/skills/flow-ldd/SKILL.md': ['`flow-execution` section 8', '`flow-execution` section 9', 'defined in `flow-evidence-verifier`', '`flow-evidence` rule'],
     'docs/ARCHITECTURE.md': ['`flow-execution` section 9', '`flow-evidence` rule', '`flow-evidence-verifier` alone defines'],
     'docs/PRINCIPLES.md': ['`flow-evidence-verifier` alone defines', '`flow-evidence` rule alone owns'],
     'agent/agents/flow-craft-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
     'agent/agents/flow-acceptance-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
-    'agent/skills/flow-design/SKILL.md': ['`flow-ldd` skill description'],
-    'agent/skills/flow-planning/SKILL.md': ['`flow-ldd` skill description'],
+    'agent/skills/flow-planning/SKILL.md': ['`flow-design` "Multi-unit work"'],
 }
 for path,pointers in POINTS_TO.items():
     text=(ROOT/path).read_text()
@@ -247,9 +227,7 @@ for stale in ['long bounded waits', 'keeps interactive main out of bare/job wait
 
 doctrine_drift=[
     ('flow-planning', planning, 'for substantial planning, main/controller should prefer dispatching'),
-    ('flow-planning-non-ldd', planning, 'for substantial non-ldd planning, prefer the same dedicated planner'),
     ('flow-execution-wait', execution, 'never wait merely to observe'),
-    ('flow-ldd-wait', ldd, 'never wait merely to observe'),
     ('flow-execution', execution, '- tiny cohesive edit where spawn overhead exceeds the work → main may implement directly under `flow-tdd`;'),
     ('flow-external-session', external, 'skip a redundant native plan when the implementation strategy is already current and sufficiently specified'),
     ('planning-handoff', ph, 'design and implementation strategy settled/current → skip a redundant plan call'),
@@ -270,10 +248,8 @@ for required in [
     if required not in evidence: err(f'flow-evidence invariant missing: {required}')
 
 artifacts=(ROOT/'agent/rules/flow-artifacts.md').read_text()
-for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'mailbox/<channel>/', 'runtime/gates.json', 'git add -f', 'git ls-files --others --ignored --exclude-standard', 'absolute path', 'docs/reports/', 'Never edit `.gitignore`']:
+for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'mailbox/<channel>/', 'runtime/gates.json', 'docs/decisions/', 'read-only history', 'absolute path', 'docs/reports/', 'Never edit `.gitignore`']:
     if required not in artifacts: err(f'flow-artifacts invariant missing: {required}')
-skeleton=(ROOT/'agent/skills/flow-ldd/references/ledger-skeleton.md').read_text().lower()
-if 'gitignored' in skeleton: err('ledger-skeleton: stale gitignore doctrine survived')
 for path,required in [
     ('agent/skills/flow-design/SKILL.md', '.flow/contracts/<slug>.md'),
     ('agent/skills/flow-planning/SKILL.md', '.flow/plans/<slug>/PLAN.md'),
@@ -283,7 +259,7 @@ for path,required in [
     ('agent/skills/flow-external-session/SKILL.md', '.flow/mailbox/'),
     ('agent/skills/flow-external-session/references/mailbox-protocol.md', '.flow/mailbox/'),
     ('agent/skills/flow-integrating/SKILL.md', 'flow-artifacts'),
-    ('agent/skills/flow-ldd/SKILL.md', 'flow-artifacts'),
+    ('agent/skills/flow-integrating/SKILL.md', 'docs/decisions/<slug>.md'),
     ('docs/PRINCIPLES.md', 'personal exclude guard'),
     ('docs/ARCHITECTURE.md', '## Artifacts'),
     ('README.md', 'flow-artifacts'),
@@ -356,7 +332,7 @@ for required in ['flow_gate action=status', 'flow_gate action=clear', 'stale con
     if required not in integrating: err(f'flow-integrating governance-gate invariant missing: {required}')
 
 agents_md=(ROOT/'agent/AGENTS.md').read_text().lower()
-for required in ['maintain the **forward pointer**', 'next workflow action', 'genuine decision/approval gate', 'production-writing worker', 'sole/sequential semantic owner', 'fresh `flow-plan-executor`', 'before substantial work enters planning', 'governing what/why contract', 'for substantial work, require explicit user approval of the completed governing contract', 'answers to clarification questions do not themselves approve', 'outside `flow-ldd`, main may code only in the main-direct lane defined by `flow-execution`', 'never route push/pr/review/comment/release actions through omp `eval`', 'essential `flow_gate` runtime tool', 'bound artifact digest', 'record the current repository state with `flow_gate`']:
+for required in ['maintain the **forward pointer**', 'next workflow action', 'genuine decision/approval gate', 'production-writing worker', 'sole/sequential semantic owner', 'fresh `flow-plan-executor`', 'before substantial work enters planning', 'governing what/why contract', 'for substantial work, require explicit user approval of the completed governing contract', 'answers to clarification questions do not themselves approve', 'main may code only in the main-direct lane defined by `flow-execution`', 'never route push/pr/review/comment/release actions through omp `eval`', 'essential `flow_gate` runtime tool', 'bound artifact digest', 'record the current repository state with `flow_gate`']:
     if required not in agents_md: err(f'AGENTS communication invariant missing: {required}')
 if 'for ordinary work, the main session may code' in agents_md:
     err('AGENTS: blanket Main coding permission survived')
@@ -606,12 +582,6 @@ for stale in ['deepseek v4 flash low', '`default` / `plan` / `slow` / `review_au
     if stale in migration: err(f'docs/MIGRATION.md stale Ollama routing survived: {stale}')
 for required in ['deepseek v4.1 flash low', '`execute` / `task` / `vision` / `review_aux`: glm-5.3-flash high']:
     if required not in migration: err(f'docs/MIGRATION.md current Ollama routing missing: {required}')
-
-verification_doctrine=(ROOT/'agent/skills/flow-ldd/references/verification-doctrine.md').read_text().lower()
-for required in ['reuse recent proof by claim dependency', 'later change stales only proof whose dependency surface it can affect']:
-    if required not in verification_doctrine: err(f'LDD verification doctrine freshness invariant missing: {required}')
-if 'reuse a recent proof only if the exact tree/head' in verification_doctrine:
-    err('LDD verification doctrine stale exact-tree-only freshness rule survived')
 
 # Every file that loads into a session has a byte cap; growth needs a deliberate cap change.
 budget=json.loads((ROOT/'tests/doctrine-budget.json').read_text())

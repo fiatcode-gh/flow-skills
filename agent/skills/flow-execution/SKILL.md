@@ -6,7 +6,6 @@ description: Use when local implementation is authorized; prefer constrained exe
 # Flow execution
 
 - OMP owns task spawning, isolation and Agent Hub. This repo's `flow-governance-guard` and `flow-evidence-guard` extensions provide `flow_gate` and the spawn checks. This skill decides who does what and when.
-- The same model applies inside and outside `flow-ldd`.
 
 ## 1. Check authorization
 
@@ -19,13 +18,13 @@ description: Use when local implementation is authorized; prefer constrained exe
 
 ```text
 Flow gate:
-- Scope: <contract slug or epic/unit>
+- Scope: <contract slug>
 - Contract: <approved contract path>
 - Plan: <approved PLAN.md path>
 ```
 
-- Write `Plan: NONE` for a tiny `flow-ldd` unit with no separate plan. After the contract approval, record approval with `flow_gate` `present` `kind=implementation` against the contract, then `approve`, before dispatch.
-- Run tiny non-LDD work on the user's concrete request alone. It runs in the Main-direct lane (section 2).
+- Write `Plan: NONE` when the approved contract's work needs no separate plan. Example: a debugged fix sent to `flow-implementer`. After the contract approval, record approval with `flow_gate` `present` `kind=implementation` against the contract, then `approve`, before dispatch.
+- Run tiny work on the user's concrete request alone. It runs in the Main-direct lane (section 2).
 
 ## 2. Route the work
 
@@ -34,10 +33,9 @@ Work to owner:
 - Open judgment, debugging, or a plan contradiction → `flow-implementer` (`@task`), or back to `flow-planning`/`flow-design`.
 - An exact mechanical edit, or a correction already diagnosed with one obvious result and existing proof → `sonic` (`@smol`).
 - Read-only fact finding → `scout`. Give it the paths and symbols you already know.
-- A tiny cohesive edit outside `flow-ldd`, where spawning costs more than the edit → Main writes it under `flow-tdd`. This is the Main-direct lane.
+- A tiny cohesive edit, where spawning costs more than the edit → Main writes it under `flow-tdd`. This is the Main-direct lane. It applies to multi-unit work too.
 
 Rules:
-- Never write production code as Main while `flow-ldd` is active, including tiny fixes.
 - Never send ambiguous or new behavior, architecture, migration, concurrency or error semantics, or root-cause diagnosis to `sonic`.
 - Send those to `flow-plan-executor` only when the plan has settled them. The executor follows locked decisions and escalates contradictions.
 - A `flow-plan-executor` spawns no children. A `flow-implementer` may use `scout` and `sonic`.
@@ -118,7 +116,7 @@ Each layer proves its own scope. Do not rerun full suites as ritual (`flow-evide
 
 - When local commits are expected, commit coherent behavior units with Conventional Commits and the repository's pre-commit checks. Do not commit once per worker by rule.
 - Reuse fresh final proof by the claim it covers (`flow-evidence` rule).
-- Write `.flow/checkpoints/<head>.md` before the first device, emulator, manual or external acceptance action. Record it in the ledger too, under `flow-ldd`.
+- Write `.flow/checkpoints/<head>.md` before the first device, emulator, manual or external acceptance action.
 - Treat each of these as that action:
   - the first ADB or device command, driving an emulator or app, a screenshot, a manual smoke step;
   - the first command against a live production server or other hard-to-recover remote host (deploy, migration, service restart, config change, on-host check);

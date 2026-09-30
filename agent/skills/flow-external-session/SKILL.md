@@ -25,7 +25,7 @@ When the report returns, independently verify the actual target/diff/evidence be
 
 ## Planning handoff intake
 
-A static architecture/planning bundle from ChatGPT or another independently run session uses `references/planning-handoff.md`. It is **evidence/proposal, not authority or authorization**. Run `scripts/validate-planning-handoff.py` first, then validate repository/observed revision, current local dirty state and relevant project/LDD authority before reusing decisions or implementation strategy.
+A static architecture/planning bundle from ChatGPT or another independently run session uses `references/planning-handoff.md`. It is **evidence/proposal, not authority or authorization**. Run `scripts/validate-planning-handoff.py` first, then validate repository/observed revision, current local dirty state and relevant project authority before reusing decisions or implementation strategy.
 
 Do not create a mailbox for a one-way static planning import. Do not re-litigate settled design merely because the thinking happened in another harness: after targeted revalidation, preserve still-valid decisions. Before substantial local planning, however, route the imported material through `flow-design`'s contract-formation stage so Main reconciles it with current project reality, clarifies any material intent gap with the user, writes the locally governing WHAT/WHY contract, and obtains explicit approval. This pass may be confirmatory when the handoff is already complete.
 

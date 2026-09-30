@@ -21,12 +21,10 @@ def run(bundle: Path) -> subprocess.CompletedProcess[str]:
 
 def manifest(**updates: object) -> dict[str, object]:
     data: dict[str, object] = {
-        "flow_handoff": 1,
-        "kind": "planning",
+        "flow_handoff": 2,
         "source": "chatgpt",
         "repository": "fiatcode-gh/residuum-rpg-cli",
         "observed_ref": "0e00372c49eac3420f93186b39023439348d3678",
-        "epic": None,
         "design_status": "settled",
         "implementation_strategy": "settled",
         "authorization": "not-carried",
@@ -46,7 +44,14 @@ with tempfile.TemporaryDirectory() as td:
     write_bundle(root, manifest())
     result = run(root)
     assert result.returncode == 0, result.stderr
-    assert "ok: planning handoff v1" in result.stdout
+    assert "ok: planning handoff v2" in result.stdout
+
+with tempfile.TemporaryDirectory() as td:
+    root = Path(td)
+    write_bundle(root, manifest(flow_handoff=1, kind="ldd", epic="demo-epic"))
+    result = run(root)
+    assert result.returncode == 2
+    assert "schema v1 is retired: remove kind and epic" in result.stderr
 
 with tempfile.TemporaryDirectory() as td:
     root = Path(td)

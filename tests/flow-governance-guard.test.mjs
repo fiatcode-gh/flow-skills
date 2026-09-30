@@ -199,6 +199,26 @@ try {
 	result = await callTask({ agent: "flow-implementer", task: codeDirectWriterTask });
 	assert.equal(result, undefined, "Plan NONE writer must pass when the manifest value is backticked");
 
+	await callGate({
+		action: "present",
+		scope: "demo-epic/unit-1",
+		kind: "contract",
+		path: ".flow/contracts/demo.md",
+		summary: "In-flight unit contract under an epic/unit scope.",
+	});
+	await callGate({ action: "approve", scope: "demo-epic/unit-1", kind: "contract" });
+	await callGate({
+		action: "present",
+		scope: "demo-epic/unit-1",
+		kind: "plan",
+		path: ".flow/plans/demo/PLAN.md",
+		summary: "In-flight unit plan.",
+	});
+	await callGate({ action: "approve", scope: "demo-epic/unit-1", kind: "plan" });
+	const unitWriterTask = `# Implement\n\nFlow gate:\n- Scope: demo-epic/unit-1\n- Contract: .flow/contracts/demo.md\n- Plan: .flow/plans/demo/PLAN.md`;
+	result = await callTask({ agent: "flow-plan-executor", task: unitWriterTask });
+	assert.equal(result, undefined, "an in-flight epic/unit scope must keep passing with current contract and plan approvals");
+
 	const verifierTask = `# Verify\n\nFlow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: scene-a\n- Owns: current scene\n- Independent split check: none\n- Excludes: other scenes\n- Restore obligation: NONE`;
 	result = await callTask({ agent: "flow-evidence-verifier", task: verifierTask });
 	assert.equal(result?.block, true, "device evidence must fail before acceptance/closure is recorded");
@@ -234,6 +254,7 @@ try {
 
 	await callGate({ action: "clear", scope: "demo" });
 	await callGate({ action: "clear", scope: "demo-direct" });
+	await callGate({ action: "clear", scope: "demo-epic/unit-1" });
 	const state = JSON.parse(readFileSync(join(root, ".flow/runtime/gates.json"), "utf8"));
 	assert.deepEqual(state.scopes, {}, "clear must remove each integrated scope's gate state");
 

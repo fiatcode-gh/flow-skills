@@ -80,7 +80,7 @@ The entry needs no secret. OAuth runs on first use (`/mcp reauth clickup`), and 
 
 ## Flow shape
 
-The old 24-skill surface is reduced to 14 skills in the v8 trial:
+The old 24-skill surface is reduced to 13 skills in the v8 trial:
 
 * `flow-design` — material product/architecture decisions only.
 * `flow-planning` — execution-grade HOW planning; front-loads interfaces/tests/ownership and lens concerns so implementation can be constrained.
@@ -89,14 +89,13 @@ The old 24-skill surface is reduced to 14 skills in the v8 trial:
 * `flow-debugging` — root-cause-first diagnosis.
 * `flow-review` — local change, PR reviewer, PR author-feedback, and codebase-audit modes.
 * `flow-integrating` — final evidence and user-owned integration decision.
-* `flow-ldd` — durable architect/worker protocol for epics; architect never codes.
 * `flow-external-session` — external worktrees, static planning/worker handoffs and filesystem mailbox when genuinely needed.
 * `ui-design`, `blog-post` — domain capabilities.
 * `weft-worklog`, `weft-memory`, `weft-maintenance` — grouped Weft operations.
 
-Flow working state (contracts, plans, checkpoints, evidence, LDD ledgers, mailboxes, runtime approval/acceptance bindings) lives in the project's `.flow/` directory, hidden from git through `.git/info/exclude` by the always-on `flow-artifacts` rule; only shared-mode LDD ledgers and requested audit reports are tracked.
+Flow working state (contracts, plans, checkpoints, evidence, mailboxes, runtime approval/acceptance bindings) lives in the project's `.flow/` directory, hidden from git through `.git/info/exclude` by the always-on `flow-artifacts` rule; only decision records under `docs/decisions/` and requested audit reports are tracked.
 
-The old bootstrap (`flow-using-skills`), normal workspace ceremony and standalone verification skill remain gone. v8 deliberately restores **Flow planning doctrine** on top of native OMP Plan/model mechanics: substantial work becomes contract → execution-grade plan → constrained `@execute` implementation → one strong `@slow` acceptance review. `@task` remains the semantic/debugging fallback and `@smol` the mechanical lane. Review lenses are not deleted: they move left into the plan quality gate for planned work and remain specialist reviewers for unplanned/PR/audit paths. Writers still own focused proof, Main owns integration/final evidence, and LDD resumes from small durable pointers instead of replaying the whole epic.
+The old bootstrap (`flow-using-skills`), normal workspace ceremony and standalone verification skill remain gone. v8 deliberately restores **Flow planning doctrine** on top of native OMP Plan/model mechanics: substantial work becomes contract → execution-grade plan → constrained `@execute` implementation → one strong `@slow` acceptance review. `@task` remains the semantic/debugging fallback and `@smol` the mechanical lane. Review lenses are not deleted: they move left into the plan quality gate for planned work and remain specialist reviewers for unplanned/PR/audit paths. Writers still own focused proof, Main owns integration/final evidence, and integration distills each contract into a short committed decision record.
 
 ## Model philosophy
 

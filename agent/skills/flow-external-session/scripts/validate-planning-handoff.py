@@ -8,16 +8,13 @@ import os
 import sys
 from pathlib import Path
 
-ALLOWED_KINDS = {"planning", "ldd"}
 ALLOWED_DESIGN = {"settled", "partial", "unresolved", "not_applicable"}
 ALLOWED_STRATEGY = {"settled", "partial", "unresolved", "not_needed"}
 REQUIRED = {
     "flow_handoff",
-    "kind",
     "source",
     "repository",
     "observed_ref",
-    "epic",
     "design_status",
     "implementation_strategy",
     "authorization",
@@ -54,19 +51,18 @@ def main(argv: list[str]) -> int:
         fail(f"cannot parse manifest JSON: {exc}")
     if not isinstance(data, dict):
         fail("manifest root must be a JSON object")
+    if data.get("flow_handoff") == 1:
+        fail("schema v1 is retired: remove kind and epic, then set flow_handoff to 2")
 
     missing = sorted(REQUIRED - data.keys())
     extra = sorted(data.keys() - REQUIRED)
     if missing:
         fail(f"missing required fields: {', '.join(missing)}")
     if extra:
-        fail(f"unknown fields for schema v1: {', '.join(extra)}")
+        fail(f"unknown fields for schema v2: {', '.join(extra)}")
 
-    if data["flow_handoff"] != 1:
-        fail("flow_handoff must be exactly 1")
-    kind = data["kind"]
-    if kind not in ALLOWED_KINDS:
-        fail("kind must be planning or ldd")
+    if data["flow_handoff"] != 2:
+        fail("flow_handoff must be exactly 2")
     nonempty_string(data["source"], "source")
     nonempty_string(data["repository"], "repository")
     nonempty_string(data["observed_ref"], "observed_ref")
@@ -76,12 +72,6 @@ def main(argv: list[str]) -> int:
         fail("invalid implementation_strategy")
     if data["authorization"] != "not-carried":
         fail("authorization must be exactly not-carried")
-
-    epic = data["epic"]
-    if kind == "ldd":
-        nonempty_string(epic, "epic")
-    elif epic is not None:
-        fail("epic must be null for kind=planning")
 
     artifacts = data["artifacts"]
     if not isinstance(artifacts, list) or not artifacts:
@@ -113,8 +103,8 @@ def main(argv: list[str]) -> int:
         fail("artifacts must declare HANDOFF.md")
 
     print(
-        "ok: planning handoff v1 "
-        f"kind={kind} repository={data['repository']} observed_ref={data['observed_ref']}"
+        "ok: planning handoff v2 "
+        f"repository={data['repository']} observed_ref={data['observed_ref']}"
     )
     return 0
 

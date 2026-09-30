@@ -1,28 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://fiatcode.dev/flow/planning-handoff-v1.schema.json",
-  "title": "Flow external planning handoff v1",
+  "$id": "https://fiatcode.dev/flow/planning-handoff-v2.schema.json",
+  "title": "Flow external planning handoff v2",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "flow_handoff",
-    "kind",
     "source",
     "repository",
     "observed_ref",
-    "epic",
     "design_status",
     "implementation_strategy",
     "authorization",
     "artifacts"
   ],
   "properties": {
-    "flow_handoff": { "const": 1 },
-    "kind": { "enum": ["planning", "ldd"] },
+    "flow_handoff": { "const": 2 },
     "source": { "type": "string", "minLength": 1 },
     "repository": { "type": "string", "minLength": 1 },
     "observed_ref": { "type": "string", "minLength": 1 },
-    "epic": { "type": ["string", "null"] },
     "design_status": {
       "enum": ["settled", "partial", "unresolved", "not_applicable"]
     },
@@ -36,12 +32,5 @@
       "uniqueItems": true,
       "items": { "type": "string", "minLength": 1 }
     }
-  },
-  "allOf": [
-    {
-      "if": { "properties": { "kind": { "const": "ldd" } } },
-      "then": { "properties": { "epic": { "type": "string", "minLength": 1 } } },
-      "else": { "properties": { "epic": { "type": "null" } } }
-    }
-  ]
+  }
 }

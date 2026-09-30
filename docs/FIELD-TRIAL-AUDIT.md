@@ -18,7 +18,7 @@ Skip this audit session itself and sessions that only chatted. Note sessions tha
 
 ## 2. Split the work
 
-Group the sessions by the kind of work: PR reviews, planned contract→plan→execute work, LDD epics, and the rest. Give each group to one auditor subagent (at most three at a time). Each auditor gets:
+Group the sessions by the kind of work: PR reviews, planned contract→plan→execute work (single-unit or multi-unit), and the rest. Give each group to one auditor subagent (at most three at a time). Each auditor gets:
 
 - the session paths for its group;
 - the doctrine to read: `agent/AGENTS.md`, `agent/rules/*.md`, the `SKILL.md` of every skill it will judge, `agent/agents/*.md`, `agent/extensions/*.ts`, and `docs/FIELD-TRIALS.md`;

@@ -14,7 +14,6 @@ Marks belong to Flow skills, not to sessions. One substantial OMP session may ex
    - destroying or overwriting user-owned changes;
    - agent-caused secret exposure;
    - a claim without evidence, or fabricated evidence;
-   - the LDD architect writing production code;
    - a read-only role mutating repository or external state.
 2. A trial-failing break **resets that skill to 0/2** on the current baseline.
 3. **Slips** — every other deviation — are recorded below with evidence and never affect marks.
@@ -29,12 +28,11 @@ Marks below come from the field-trial audit of 23 sessions run on the stack sinc
 | Flow skill | Active mark | Current-baseline note |
 |---|---:|---|
 | `flow-debugging` | 2/2 | 2 clean; 1 non-trigger slip. |
-| `flow-design` | 0/2 | Reset by the craft + DDD unit (`docs(flow): enforce craft and domain names, suggest flow-ldd`): contract formation now asks the user about `flow-ldd` when the scope matches its description. Before that: 10 clean; 0 trial-failing. |
-| `flow-execution` | 0/2 | Reset by the plain-language rewrite (`docs(flow): rewrite flow-execution in plain language`); before that, by the widened recovery-checkpoint trigger. |
-| `flow-external-session` | 0/2 | Not exercised. |
-| `flow-integrating` | 2/2 | 4 clean. |
-| `flow-ldd` | 2/2 | 4 clean. |
-| `flow-planning` | 0/2 | Reset by the craft + DDD unit (`docs(flow): enforce craft and domain names, suggest flow-ldd`): the plan quality gate now requires the repository's domain model and names. Before that: 10 clean. |
+| `flow-design` | 0/2 | Reset by the fold-LDD unit (`docs(flow): fold LDD into the normal Flow`): recon checks decision records, multi-unit work uses a parent contract, and a frozen epic resumes by distilling its ledger. Before that, reset by the craft + DDD unit; 10 clean before that. |
+| `flow-execution` | 0/2 | Reset by the fold-LDD unit (`docs(flow): fold LDD into the normal Flow`): the Main-direct lane applies to multi-unit work, and `Plan: NONE` covers any approved contract whose work needs no separate plan. Before that, by the plain-language rewrite (`docs(flow): rewrite flow-execution in plain language`). |
+| `flow-external-session` | 0/2 | Not exercised. The fold-LDD unit (`docs(flow): fold LDD into the normal Flow`) moved planning handoffs to schema v2 without `kind` and `epic`. |
+| `flow-integrating` | 0/2 | Reset by the fold-LDD unit (`docs(flow): fold LDD into the normal Flow`): integration writes a decision record and puts a contract note in the commit or PR. Before that: 4 clean. |
+| `flow-planning` | 0/2 | Reset by the fold-LDD unit (`docs(flow): fold LDD into the normal Flow`): work with parts that could ship separately goes back to Main for a split into units. Before that, reset by the craft + DDD unit; 10 clean before that. |
 | `flow-review` | 0/2 | Reset by the craft + DDD unit (`docs(flow): enforce craft and domain names, suggest flow-ldd`): CRF always runs, the named craft defects are Important, and craft-only PR findings never block. Before that: 5 clean; 2 slips. |
 | `flow-tdd` | 2/2 | 5 clean. |
 
@@ -60,3 +58,4 @@ Tooling defects from the same audit, fixed without mark effect: Flow gate manife
 ## Historical clean evidence
 
 - `flow-review` reached **1/2** on the previous baseline `91a0cc8d93741675467d7c2092765c60d6308f84` from the clean `review-pr-620` PR-review trial. That pass remains historical evidence but does not count toward the current mark.
+- `flow-ldd` held **2/2** (4 clean) when `docs(flow): fold LDD into the normal Flow` retired the skill.

@@ -27,7 +27,7 @@ Native surfaces:
 | flow-receiving-pr-reviews | flow-review author-feedback mode |
 | flow-auditing-codebases | flow-review audit mode |
 | flow-handover + flow-mailbox | flow-external-session |
-| flow-ldd | flow-ldd, OMP-native worker transport |
+| flow-ldd | folded into flow-design, flow-planning, flow-execution and flow-integrating; frozen ledgers stay read-only |
 | flow-tdd | flow-tdd (behavior-oriented) |
 | flow-debugging | flow-debugging |
 | find-todo + journal-update | weft-worklog |
@@ -39,7 +39,7 @@ Native surfaces:
 
 ## Execution hierarchy
 
-The normal Flow execution model is shared by ordinary work, approved Plans and LDD units. Route by remaining judgment rather than by file count alone:
+The normal Flow execution model is shared by ordinary work, approved Plans and each unit of multi-unit work. Route by remaining judgment rather than by file count alone:
 
 ```text
 Main/controller (@default)
@@ -56,13 +56,13 @@ planned coherent result → flow-acceptance-reviewer (@slow)
 long visual/device gate → flow-evidence-verifier (@vision) → Main acceptance judgment
 ```
 
-For substantial work, Main first reconciles the user's intent with project reality through `flow-design`, writes the governing WHAT/WHY contract, and obtains explicit approval. This contract stage applies whether context came from a fresh request, an existing project, internal brainstorming, or an external handoff; already-settled decisions are preserved rather than re-litigated. The planning stage then locks consequential interfaces/tests/ownership/error semantics and explicit executor discretion. For substantial planning in either ordinary work or LDD, `flow-planner` owns that consequential HOW and plan authoring unless a current validated external execution-grade plan already satisfies the approved contract; Main validates and accepts the result instead of recreating it. A plan executor may implement new behavior because that judgment was paid upstream, but it cannot redesign; contradictions rise to Main/planning. The semantic `@task` owner remains available when judgment genuinely cannot be removed from execution.
+For substantial work, Main first reconciles the user's intent with project reality through `flow-design`, writes the governing WHAT/WHY contract, and obtains explicit approval. This contract stage applies whether context came from a fresh request, an existing project, internal brainstorming, or an external handoff; already-settled decisions are preserved rather than re-litigated. The planning stage then locks consequential interfaces/tests/ownership/error semantics and explicit executor discretion. For substantial planning, `flow-planner` owns that consequential HOW and plan authoring unless a current validated external execution-grade plan already satisfies the approved contract; Main validates and accepts the result instead of recreating it. A plan executor may implement new behavior because that judgment was paid upstream, but it cannot redesign; contradictions rise to Main/planning. The semantic `@task` owner remains available when judgment genuinely cannot be removed from execution.
 
 A sole/sequential semantic owner on a suitable feature checkout is normally non-isolated so it can be messaged/revived. Planned execution uses the same checkout sequentially but treats each task brief as a context boundary: fresh `flow-plan-executor` session per independently provable behavioral slice, repository/artifact continuity instead of model-session continuity. Isolation remains primarily for independent concurrent writers or explicitly disposable experiments.
 
 Child completion can self-deliver, and Main stays interactive whether it yields or uses OMP's native wait primitive. When useful independent controller work exists, Main does that work first; when the next meaningful action depends on a child and nothing useful remains, native `hub wait` is valid. OMP makes that wait interruptible by user steering, so it parks autonomous execution without preventing the user from prompting. Flow avoids progress polling — repeated short waits or repeated `hub jobs` snapshots without new work — but does not override Agent Hub wait semantics. `agent/extensions/flow-evidence-guard.ts` remains the narrow evidence-capsule dispatch preflight; `agent/extensions/flow-governance-guard.ts` separately binds contract/plan authorization and accepted repository state without intercepting Hub waits. Main context is phase-scoped as a **top-level handoff option**, not self-rotation: once durable artifacts make an old transcript unnecessary, quota/context-sensitive runs may checkpoint and start a fresh controller session, but the active Main continues unless the user/harness actually performs that restart.
 
-Substantial planned work has two explicit human authorization gates: approve the completed WHAT/contract before dispatching the planner, then approve the completed execution-grade HOW/plan before the first production-writing worker. Answers to clarification questions do not themselves approve the completed or materially amended contract unless the user explicitly says so. A generic start/resume command cannot create a missing approval. `flow_gate` presents the current artifact summary, forces a native OMP approval prompt, and records the exact approved artifact digest in `.flow/runtime/gates.json`; planner and production-writer preflight recompute those digests, so an artifact edit automatically invalidates the old authorization. Under LDD these artifacts live in unit authority; non-LDD uses the normal contract/plan surfaces. Plan approval authorizes local implementation within that envelope, not publication.
+Substantial planned work has two explicit human authorization gates: approve the completed WHAT/contract before dispatching the planner, then approve the completed execution-grade HOW/plan before the first production-writing worker. Answers to clarification questions do not themselves approve the completed or materially amended contract unless the user explicitly says so. A generic start/resume command cannot create a missing approval. `flow_gate` presents the current artifact summary, forces a native OMP approval prompt, and records the exact approved artifact digest in `.flow/runtime/gates.json`; planner and production-writer preflight recompute those digests, so an artifact edit automatically invalidates the old authorization. Plan approval authorizes local implementation within that envelope, not publication.
 
 ## Evidence hierarchy
 
@@ -82,14 +82,12 @@ Interactive Flow also keeps a **forward pointer**: at meaningful user-facing che
 
 Execution-grade planned work applies COR/TTC/CRF/SEC as one integrated **plan quality gate** before coding, then uses `flow-acceptance-reviewer` for one strong final independent acceptance pass. That reviewer checks both plan conformance and correctness so plan defects are still findings. Verified material findings are batched into one correction wave; one scoped closure review is the default ceiling.
 
-Standalone/unplanned changes, PR review and audits still use the existing specialist doctrine: bundled COR/security plus Flow TTC/Craft/audit lenses as applicable. The lenses remain principles of record; v8 changes when they are paid for, not what they mean.
+Standalone/unplanned changes, PR review and audits still use the existing specialist doctrine: bundled COR/security, the Flow CRF lens always, TTC as applicable, and the audit lenses. The lenses remain principles of record; v8 changes when they are paid for, not what they mean.
 
 ## Artifacts
 
-Flow working state lives in the project at `.flow/` and is hidden from git through the repository's personal exclude file (`.git/info/exclude`), which the always-on `flow-artifacts` rule adds idempotently before the first write. The entry lives in the git common directory, so linked worktrees share it, while each checkout keeps its own `.flow/` contents; a worker in another checkout, worktree or isolated workspace receives artifacts by absolute path into the originating checkout. Shared-mode LDD ledgers are force-added once and then tracked normally, with a leak check at every checkpoint; runtime approval/acceptance bindings live under `.flow/runtime/`; audit reports under `docs/reports/` are the only other tracked Flow write. `flow-integrating` clears the integrated scope's runtime gate state and removes its working artifacts.
+Flow working state lives in the project at `.flow/` and is hidden from git through the repository's personal exclude file (`.git/info/exclude`), which the always-on `flow-artifacts` rule adds idempotently before the first write. The entry lives in the git common directory, so linked worktrees share it, while each checkout keeps its own `.flow/` contents; a worker in another checkout, worktree or isolated workspace receives artifacts by absolute path into the originating checkout. Runtime approval/acceptance bindings live under `.flow/runtime/`; decision records under `docs/decisions/` and audit reports under `docs/reports/` are the only tracked Flow writes. `flow-integrating` clears the integrated scope's runtime gate state and removes its working artifacts.
 
-## LDD
+## Decision records
 
-LDD state lives under `.flow/ldd`, never `.omp`, because `.omp` affects OMP discovery/config semantics. Agent Hub/transcripts capture execution history; the ledger captures durable project decisions/state and outranks conversation summaries after compaction/resume.
-
-The ledger does **not** permanently own harness mechanics. Historical mailbox/isolation/model-routing instructions are version-sensitive and must be revalidated against the current Flow/OMP stack on resume.
+Durable decisions live in committed `docs/decisions/<slug>.md` records that `flow-integrating` distills from each governing contract. They hold only what the code cannot show, and `flow-design` checks them against current code at recon. Agent Hub/transcripts capture execution history. Ledgers from the retired `flow-ldd` skill are frozen, read-only history (`flow-artifacts`).
