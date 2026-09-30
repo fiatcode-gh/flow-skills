@@ -310,17 +310,24 @@ tdd=(ROOT/'agent/skills/flow-tdd/SKILL.md').read_text().lower()
 for required in ['ownership and workspace safety', 'higher-layer verification', 'unit owner']:
     if required not in tdd: err(f'flow-tdd layered-proof invariant missing: {required}')
 
-review=(ROOT/'agent/skills/flow-review/SKILL.md').read_text().lower()
-if 'do **not** automatically repeat every original lens' not in review:
-    err('flow-review affected-lens rerun invariant missing')
-if 'explicit disposition for all four change lenses' not in review:
-    err('flow-review explicit lens-disposition invariant missing')
-if 'next action' not in review:
-    err('flow-review forward-pointer invariant missing')
-if 'mutation-safe verification rules in `references/pr-review.md`' not in review:
-    err('flow-review mutation-safe PR-review pointer missing')
-if 'shared `review_tmp` convention in `references/github-operations.md`' not in review:
-    err('flow-review shared temporary-workspace pointer missing')
+review_raw=(ROOT/'agent/skills/flow-review/SKILL.md').read_text()
+# Pin only what tools parse or other files name: the skill name and title, the
+# mode names and reference paths, the headings and selection rules other files
+# point at, the lens routes, the disposition labels and the two pointer sentences.
+REVIEW_MARKERS=[
+    'name: flow-review\n', '\n# Flow review\n',
+    '**Local/change review**', '**PR reviewer**', '**Author feedback**', '**Codebase audit**', 'PR reviewer mode',
+    '`references/pr-review.md`', '`references/author-feedback.md`', '`references/audit.md`',
+    '`references/review-lenses.md`', '`references/audit-lenses.md`', '`review_tmp`', 'pinned review checkout',
+    '## Shared evidence contract', '## Change-lens selection', '## Publication gate',
+    'TTC only when', 'SEC only when',
+    '`reviewer`', '`flow-ttc-reviewer`', '`flow-craft-reviewer`', '`security-reviewer`', '`security_scan`',
+    '`COR run`', '`CRF run`', '`TTC run/skip + reason`', '`SEC run/skip + reason`',
+    'mutation-safe verification rules in `references/pr-review.md`',
+    'shared `review_tmp` convention in `references/github-operations.md`',
+]
+for required in REVIEW_MARKERS:
+    if required not in review_raw: err(f'flow-review missing machine-read marker or pointer target: {required!r}')
 
 pr_review=(ROOT/'agent/skills/flow-review/references/pr-review.md').read_text().lower()
 for required in [
