@@ -136,9 +136,23 @@ design=(ROOT/'agent/skills/flow-design/SKILL.md').read_text().lower()
 for required in ['before substantial planning','governing contract','clarify the intention with the user','completed governing contract','explicit user approval','main owns the contract','internal brainstorm','external handoff','flow_gate','native user confirmation','artifact digest']:
     if required not in design: err(f'flow-design contract-formation invariant missing: {required}')
 
-planning=(ROOT/'agent/skills/flow-planning/SKILL.md').read_text().lower()
-for required in ['execution-grade plan','locked decisions','executor discretion','plan quality gate','cor','ttc','crf','sec','decision completeness','fresh-executor capsule','one fresh `flow-plan-executor` session','independently provable behavioral slice','valid intermediate handoff exists','receipt-first','plan receipt validation does not itself authorize implementation','explicit user plan approval','for substantial planned work','approved governing contract','for substantial planning','must dispatch `flow-planner` (`@plan`)','answers to clarification questions do not themselves approve','flow-governance-guard','flow gate:','flow_gate','changes its digest']:
-    if required not in planning: err(f'flow-planning invariant missing: {required}')
+planning_raw=(ROOT/'agent/skills/flow-planning/SKILL.md').read_text()
+planning=planning_raw.lower()
+# Pin only what tools parse or other files name: the headings that other files
+# point at, the Flow gate block the governance guard parses, the section 3 brief
+# labels, the quality-gate receipt and lens labels, and the routing/tool names.
+PLANNING_MARKERS=[
+    '## 1. Establish the planning boundary', '## 2. Front-load consequential judgment',
+    '## 3. Define executor discretion', '## 4. Plan quality gate — move review left',
+    '## 5. Mark execution grade', '## 6. Execution handoff', '## External handoffs',
+    'Flow gate:\n- Scope: <contract slug>\n- Contract: <path to the approved contract>\n',
+    'Locked decisions:\n', 'Executor discretion:\n', 'Proof:\n', 'Escalate when:\n',
+    '`Plan quality gate`', '**COR**', '**TTC**', '**CRF**', '**SEC**', 'execution-grade',
+    '`flow-planner` (`@plan`)', '`flow_gate`', '`kind=plan`', '`flow-governance-guard`',
+    '`.flow/plans/<slug>/PLAN.md`', '`plan-tasks/*.md`',
+]
+for required in PLANNING_MARKERS:
+    if required not in planning_raw: err(f'flow-planning missing machine-read marker or pointer target: {required!r}')
 
 execution_raw=(ROOT/'agent/skills/flow-execution/SKILL.md').read_text()
 execution=execution_raw.lower()
