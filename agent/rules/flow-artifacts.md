@@ -25,13 +25,14 @@ Durable artifacts record the head they were derived from where applicable; runti
 
 ## Exclude guard
 
-Run this before the first write under `.flow/` in a checkout. The entry lives in the git common directory, so linked worktrees share it; a fresh clone does not carry it, so the guard runs per checkout, not once per project. It is idempotent, only appends, and is a no-op outside a git repository. Never edit `.gitignore` for this and never remove the entry.
+Run this before the first write under `.flow/` in a checkout. The entry lives in the git common directory, so linked worktrees share it; a fresh clone does not carry it, so the guard runs per checkout. It only appends and is a no-op outside a git repository. Never edit `.gitignore` for this and never remove the entry.
 
 <!-- flow-exclude-guard -->
 ```sh
 flow_exclude_guard() {
   ex=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/info/exclude || return 0
   grep -qxF '/.flow/' "$ex" 2>/dev/null && return 0
+  [ -s "$ex" ] && [ "$(tail -c 1 "$ex")" ] && echo >>"$ex"
   mkdir -p "${ex%/*}" && printf '/.flow/\n' >>"$ex"
 }
 ```
@@ -52,4 +53,4 @@ A worker in another checkout, worktree or isolated workspace does not see this c
 
 ## Lifecycle
 
-`flow-integrating` clears the integrated scope's runtime gate state, then removes what `flow-integrating` section 5 names, after integration is confirmed, and reports what it removed. It never touches a frozen ledger. Content under `.flow/` is Flow working state, not the user-owned working-tree state that `flow-safety` protects; still, delete only what the lifecycle names.
+`flow-integrating` clears the integrated scope's runtime gate state, then removes what `flow-integrating` section 5 names, after integration is confirmed, and reports what it removed. Content under `.flow/` is Flow working state, not the user-owned working-tree state that `flow-safety` protects; still, delete only what the lifecycle names.

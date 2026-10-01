@@ -101,7 +101,8 @@ function ensureFlowExcluded(root: string): void {
 	const current = existsSync(exclude) ? readFileSync(exclude, "utf8") : "";
 	if (current.split(/\r?\n/).includes("/.flow/")) return;
 	mkdirSync(dirname(exclude), { recursive: true });
-	appendFileSync(exclude, "/.flow/\n", "utf8");
+	const separator = current === "" || current.endsWith("\n") ? "" : "\n";
+	appendFileSync(exclude, `${separator}/.flow/\n`, "utf8");
 }
 
 function writeState(root: string, state: GateState): void {

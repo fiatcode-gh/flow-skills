@@ -46,4 +46,12 @@ mkdir -p .flow; echo z > .flow/z
 flow_exclude_guard
 [ -z "$(git status --porcelain)" ] || fail 'clone must hide .flow after the guard runs'
 
+# Exclude file without a trailing newline: the user's last rule stays intact.
+git init -q "$TMP/nonl"; cd "$TMP/nonl"
+printf 'build/' > .git/info/exclude
+flow_exclude_guard
+[ "$(cat .git/info/exclude)" = "$(printf 'build/\n/.flow/')" ] || fail 'guard must add a newline before its entry'
+mkdir -p build .flow; echo b > build/out; echo f > .flow/f
+[ -z "$(git status --porcelain)" ] || fail 'both the user rule and .flow must stay ignored'
+
 echo 'ok: flow exclude guard'

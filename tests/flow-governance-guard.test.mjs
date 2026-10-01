@@ -329,6 +329,19 @@ try {
 		assert.equal(await verifyIn(dir, "first-accept"), undefined, "the verifier after a first accept on an unchanged tree must pass");
 	}
 
+	// An exclude file without a trailing newline keeps its last rule intact.
+	{
+		const { dir, run } = caseRepo();
+		writeFileSync(join(dir, ".git/info/exclude"), "build/");
+		mkdirSync(join(dir, "build"));
+		writeFileSync(join(dir, "build/out.txt"), "artifact\n");
+		mkdirSync(join(dir, ".flow"));
+		writeFileSync(join(dir, ".flow/note.md"), "note\n");
+		await gateIn(dir, { action: "accept", scope: "no-newline", source: "test" });
+		assert.equal(readFileSync(join(dir, ".git/info/exclude"), "utf8"), "build/\n/.flow/\n", "the guard must add a newline before its entry");
+		assert.equal(run("status", "--porcelain"), "", "both the user rule and .flow/ must stay ignored");
+	}
+
 	const savedCeiling = process.env.GIT_CEILING_DIRECTORIES;
 	try {
 		process.env.GIT_CEILING_DIRECTORIES = tmpdir();
