@@ -594,6 +594,11 @@ try {
 			[[`file://${dir}/%2Eflow`], dir],
 			[[`file://${dir}/%2Eflow/**/*.json`], dir],
 			[["file://example.invalid/tmp"], dir],
+			// OMP splits the raw URL at its first glob segment, so a `?` glob is not the start of a URL query.
+			[[`file://${dir}/.flow/r?ntime/gates.json`], dir],
+			[[`file://${dir}/.fl?w/runtime/*`], dir],
+			[[`file://localhost${dir}/.f*/runtime/*.json`], dir],
+			[[`file://${dir}/.flow#frag`], dir],
 		]) {
 			result = await callAst(paths, cwd);
 			assert.equal(result?.block, true, `ast_edit ${JSON.stringify(paths)} from ${cwd} must be blocked`);

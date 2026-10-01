@@ -546,11 +546,11 @@ function reachableRuntimeFiles(base: string, cwd: string, root: string): string[
 }
 
 function targetCoversRuntime(cwd: string, root: string, target: string): boolean {
-	// Throws on a file URL OMP would not read as written; the caller treats that as covering.
-	let spec = expandToolPath(target);
+	// OMP splits the raw target at its first glob segment (`parseSearchPath`) and only then expands the base
+	// (`expandPath`); the glob stays raw. Expanding first would let `fileURLToPath` read a `?` glob character as a URL query.
 	// Other URL schemes address OMP's own stores or remote hosts, never this checkout's `.flow/`.
-	if (/^[a-z][a-z0-9+.-]*:\/\//i.test(spec)) return false;
-	spec = spec.replace(/\\/g, "/");
+	if (/^[a-z][a-z0-9+.-]*:\/\//i.test(target) && !/^file:\/\//i.test(target)) return false;
+	const spec = target.replace(/\\/g, "/");
 	const segments = spec.split("/");
 	const globAt = segments.findIndex((segment) => GLOB_CHARS.test(segment));
 	let base = spec;
@@ -562,6 +562,10 @@ function targetCoversRuntime(cwd: string, root: string, target: string): boolean
 		base = segments.slice(0, globAt).join("/") || "/";
 		glob = segments.slice(globAt).join("/");
 	}
+	// A query or fragment would be dropped by the URL decoder, so what OMP reads is not what the guard would see.
+	if (/^file:/i.test(base) && /[?#]/.test(base)) return true;
+	// Throws on a file URL OMP would not read as written; the caller treats that as covering.
+	base = expandToolPath(base);
 	const baseAbsolute = resolve(cwd, base);
 	const baseCanonical = canonicalWritePath(baseAbsolute) ?? baseAbsolute;
 	if (hasRuntimeSegment(baseAbsolute) || hasRuntimeSegment(baseCanonical)) return true;
