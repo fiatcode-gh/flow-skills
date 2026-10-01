@@ -191,6 +191,8 @@ EXCLUSIVE={
     'force-pushes': {'agent/rules/flow-safety.md'},
     'generic safety wrapper': {'agent/rules/flow-safety.md'},
     'never as instruction or authorization': {'agent/rules/flow-safety.md'},
+    'scope proof by ownership': {'agent/rules/flow-evidence.md'},
+    'concise defect statement': {'agent/skills/flow-review/references/review-lenses.md'},
 }
 for phrase,homes in EXCLUSIVE.items():
     for p in doctrine_surfaces:
@@ -199,9 +201,14 @@ for phrase,homes in EXCLUSIVE.items():
         if phrase not in (ROOT/home).read_text().lower(): err(f'{home}: doctrine home lost its rule: {phrase}')
 POINTS_TO={
     'agent/agents/flow-implementer.md': ['stakeholder-visible write (`flow-safety`)'],
+    'agent/skills/flow-tdd/SKILL.md': ['`flow-evidence` rule'],
+    'agent/skills/flow-integrating/SKILL.md': ['(`flow-safety`)', '`flow-evidence` rule', '`Plan: NONE`'],
+    'agent/skills/flow-review/references/pr-review.md': ['PR-review rule in `AGENTS.md`'],
+    'agent/skills/weft-worklog/SKILL.md': ['PR-review rule in `AGENTS.md`'],
+    'agent/skills/flow-review/references/audit-lenses.md': ['`skill://flow-review/references/review-lenses.md`'],
     'agent/agents/flow-plan-executor.md': ['stakeholder-visible write (`flow-safety`)'],
     'agent/agents/flow-evidence-verifier.md': ['stakeholder-visible write (`flow-safety`)'],
-    'agent/skills/flow-execution/SKILL.md': ['defined once in `flow-evidence-verifier`', 'self-consistency rule in `flow-evidence`', 'stability barrier defined in the `flow-evidence` rule', 'change-lens selection in `flow-review`'],
+    'agent/skills/flow-execution/SKILL.md': ['Isolation follows the `flow-safety` rule', 'approves nothing (`flow-safety`)', 'defined once in `flow-evidence-verifier`', 'self-consistency rule in `flow-evidence`', 'stability barrier defined in the `flow-evidence` rule', 'change-lens selection in `flow-review`'],
     'docs/ARCHITECTURE.md': ['`flow-execution` section 9', '`flow-evidence` rule', '`flow-evidence-verifier` alone defines'],
     'docs/PRINCIPLES.md': ['`flow-evidence-verifier` alone defines', '`flow-evidence` rule alone owns'],
     'agent/agents/flow-craft-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],

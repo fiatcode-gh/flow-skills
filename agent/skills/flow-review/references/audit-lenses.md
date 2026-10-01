@@ -25,22 +25,9 @@ code; they never edit the audited tree.
 - Report strengths and Cannot verify items. Do not present a concern as
   a defect without concrete evidence.
 
-Return each finding in this form:
-
-```text
-ID: <PREFIX>-N
-Severity: Critical | Important | Minor
-Confidence: 0-100
-Location: file:line
-Title: concise defect statement
-Evidence: violated rule or reproducible failure path
-Impact: current risk to correctness, security, or maintenance
-Remedy: specific direction, not a full patch
-Verification: code traced and command run, or static evidence only
-```
-
-`<PREFIX>` is the prefix in your lens heading:
-CDH, TTC, DST, or SEC.
+Return each finding in the finding shape in
+`skill://flow-review/references/review-lenses.md`. `<PREFIX>` is the
+prefix in your lens heading: CDH, TTC, DST, or SEC.
 
 `Critical` means security compromise, data loss, outage, destructive
 behavior, or broken primary functionality. `Important` means a verified

@@ -69,4 +69,4 @@ When `${WEFT_GRAPH}` exists, substantive Flow work invokes this mode automatical
 
 **PR reviewer ownership exception**
 
-In `flow-review` PR reviewer mode for someone else's PR, findings are the author's work, not the user's backlog. The lifecycle may log the review and may advance/close an existing user-owned task whose job was to perform that review, but it must not create, pull into today, or promote `TODO` / `LATER` items from review findings. Author-feedback mode on the user's own PR follows the normal ownership rules above.
+In `flow-review` PR reviewer mode for someone else's PR, follow the PR-review rule in `AGENTS.md` (Weft graph section). Author-feedback mode on the user's own PR follows the normal ownership rules above.

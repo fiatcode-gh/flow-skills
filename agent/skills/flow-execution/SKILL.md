@@ -12,8 +12,8 @@ description: Use when local implementation is authorized; prefer constrained exe
 - Read the governing contract, the plan and the project rules. Check branch and dirty state per the `flow-safety` rule.
 - Require two recorded approvals before the first production-writing worker on substantial work: the contract, then the plan (`flow_gate` `present`, then `approve`).
 - Treat a start or resume command as no approval. Example: the user says "go ahead" after you show the plan. Call `flow_gate` for `kind=plan` first. Dispatch after the approval is recorded.
-- Treat an external handoff (external chat or harness) as evidence. It approves nothing: validate it locally, then record the contract and plan approvals here.
-- Read `flow-planning` for what counts as an execution-grade plan. A detailed strategy is not one. Do not re-plan a validated current plan that already meets it.
+- An external handoff approves nothing (`flow-safety`): validate it locally, then record the contract and plan approvals here.
+- `flow-planning` section 5 and "External handoffs" decide whether a plan is execution-grade. Do not re-plan a validated current plan that meets them.
 - Carry this block (the Flow gate block) in every `flow-plan-executor` and `flow-implementer` brief. The guard checks both artifact digests at spawn and blocks a missing or stale approval.
 
 ```text
@@ -46,9 +46,8 @@ Rules:
 - You may run independent units on the same base concurrently.
 - Run dependent units in order, starting each from the verified updated base.
 - Give one writer at a time to units that touch the same files, even in isolated workspaces.
-- Give each plan task one fresh non-isolated `flow-plan-executor`, in order, in the same feature checkout. Never reuse an executor across plan tasks.
-- Keep a semantic owner (`flow-implementer`) non-isolated and keep its id, so you can revive it for follow-ups.
-- Isolate only independent concurrent writers or disposable experiments. A completed isolated workspace may not be revivable.
+- Give each plan task one fresh `flow-plan-executor`, in order. Never reuse an executor across plan tasks.
+- Keep a `flow-implementer`'s id, so you can revive it for follow-ups. Isolation follows the `flow-safety` rule.
 - You may write a short resume handoff at a clean boundary under context pressure. It is optional and never a gate, unlike the section 9 checkpoint. Keep working in the current session.
 
 ## 4. Write the brief
@@ -77,7 +76,7 @@ Verification ownership:
 - Do independent work while children run.
 - Use one `hub wait` when you need that result next. User steering can interrupt it.
 - Do not poll. Repeated short `hub wait` calls or repeated `hub jobs` snapshots are polling.
-- Wait on a completed owner revived with `hub send` using `await: true`, or a peer-filtered reply wait, never on its old job id. It is a live agent.
+- Never wait on a revived owner's old job id. It is a live agent again: wait for its reply.
 
 ## 6. Accept work
 

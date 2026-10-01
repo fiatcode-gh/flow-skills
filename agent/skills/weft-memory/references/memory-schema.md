@@ -12,7 +12,7 @@ Agent-facing memory lives in four homes. The home is chosen by **how the memory
 gets retrieved**, not by what it is about:
 
 - **Doctrine** (`agent/AGENTS.md` or an always-apply Flow rule in omp-stack) — standing rules
-  the user follows on every machine. Hand-authored, loaded natively by OMP, highest instruction authority, no size cap. **Not written by this
+  the user follows on every machine. Hand-authored, loaded natively by OMP, highest instruction authority. **Not written by this
   skill:** propose the exact text and let the user apply it.
 - **The injected hub** (`${WEFT_GRAPH}/pages/AI Memory.md`) — only what the user
   would regret not knowing *before they thought to ask*. Small and slow-growing
@@ -35,7 +35,7 @@ per-bullet scope property:
   what is known about a project belongs on its page.
 - `## Harness: [[Name]]` — memories true only inside one AI harness: a tool
   quirk, a plugin that only exists there, a setting in that tool's own config.
-  The header is a wiki-link to that harness's page (`[[Claude]]`, `[[pi]]`).
+  The header is a wiki-link to that harness's page (`[[OMP]]`).
   Injected only when that harness is the one running.
 - `## Other` — recall-only catch-all for orphans that are neither global nor tied
   to a project. It matches no project key, so injection never emits it; it's
@@ -72,9 +72,8 @@ Each memory is one top-level bullet, one line, in the user's terse register (see
 
 ## Scope-sliced injection
 
-Every harness's session-start memory injection (the Claude hook adapter, the
-Pi extension) doesn't inject the whole hub — it slices it on **two flat,
-independent axes**:
+OMP's session-start memory injection (omp-stack's `ai-memory` extension)
+doesn't inject the whole hub — it slices it on **two flat, independent axes**:
 
 - always the intro + the `## Global` section;
 - plus the one `## [[Project]]` section matching the working directory

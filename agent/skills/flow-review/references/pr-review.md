@@ -16,6 +16,6 @@ Treat verification commands as writes when they can rewrite tracked files as a s
    Example: the only finding is dead code and required checks are green → approve, with one non-blocking comment on the dead code.
 6. Draft one concise summary and only valuable changed-line inline comments. Show exact action/text/inline set to the user.
 7. After approval, re-query head. Head moved → publish nothing and rebuild. Use GitHub's batched review submission. Partial write → report exactly what posted; never retry blindly.
-8. Apply the shared Weft lifecycle when `${WEFT_GRAPH}` exists: log the review and close an existing user-owned review task when appropriate, but never create/pull/promote `TODO` / `LATER` work from findings in someone else's PR.
+8. When `${WEFT_GRAPH}` exists, apply `weft-worklog` Mode C and the PR-review rule in `AGENTS.md` (Weft graph section).
 
 For retrieval, authentication, temporary-workspace and publication mechanics use `references/github-operations.md`; prefer OMP's native GitHub/PR surfaces for reads.

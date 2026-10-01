@@ -19,7 +19,7 @@ For executable behavior: **no production behavior without a failing proof first*
 
 Repeat per behavior.
 
-A leaf child need not run the whole repository after every mechanical edit. A unit owner must integrate leaf work and prove the unit. Main/final integration owns the full repository gate when concurrent or cross-unit state makes that the correct layer. Never use higher-layer verification as a reason to skip the focused proof available to the writer.
+Proof layers follow the `flow-evidence` rule. Never skip the focused proof you can run because a higher layer verifies later.
 
 ## Test philosophy
 

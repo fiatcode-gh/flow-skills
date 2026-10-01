@@ -11,13 +11,13 @@ Integration belongs to the user.
 
 Ensure the appropriate final test/build/lint/format/static gates cover the **current final tree/head** and inspect the final diff/status.
 
-Do not rerun an expensive final command merely because control moved into this skill: a just-completed Main-owned result remains fresh if no relevant file/head/environment changed and its scope is sufficient.
+Do not rerun an expensive final command merely because control moved into this skill. Reuse fresh proof by the `flow-evidence` rule.
 
-Reconcile the result against the governing request/spec/approved plan. Name omissions/deviations rather than silently redefining done. For governed durable work, run `flow_gate action=status` for the scope before presenting integration choices; a stale contract/plan approval or acceptance binding is a blocker, not an integration-ready state.
+Reconcile the result against the governing request/spec/approved plan. Name omissions/deviations rather than silently redefining done. When the work has a Flow gate scope, run `flow_gate action=status` for it before presenting integration choices. Any `stale` line is a blocker. A `missing` line for a kind the work never used is expected: `plan` for `Plan: NONE` work, `implementation` for planned work.
 
 ## 2. Record the decisions
 
-For work with a governing contract (`.flow/contracts/<slug>.md`):
+For work with a governing contract (`.flow/contracts/<slug>.md`), except a unit finishing from a frozen `.flow/ldd/` ledger, which writes no record:
 
 - Write or update `docs/decisions/<slug>.md`. Keep only what the code and tests cannot show: decisions and why, rejected alternatives, traps, open questions, and a link to the work commit or PR. Leave out AI-process detail such as gate digests, agent names or quiz scores.
 - Commit it on the work's branch. Its commit message, and the PR description if any, carry a few lines from the contract: what the change is for and what it leaves out.
@@ -36,12 +36,12 @@ Present only choices that are actually available, for example:
 - keep the branch/worktree for later;
 - split into coherent units first.
 
-Do not push, open/update a PR, request reviewers, merge or release until the user chooses the exact action.
+Carry out none of these until the user chooses the exact action (`flow-safety`).
 
-Do not end a locally-complete integration checkpoint with only a status summary. Either ask the concrete integration decision now, or state the specific blocker that prevents presenting the choices and what happens next.
+Never end a locally complete integration checkpoint with only a status summary: ask for the integration decision now, or name the blocker and what happens next.
 
 ## 5. After integration
 
-Delete a local feature branch only when it is integrated and safe. For a user-owned external worktree, report it as removable; do not remove it yourself unless explicitly instructed.
+Delete a local feature branch only when it is integrated and safe. Report a user-owned external worktree as removable (`flow-safety`).
 
 After confirmed integration, call `flow_gate action=clear` for the integrated scope, then remove the integrated slug's `.flow/contracts`, `.flow/plans`, `.flow/checkpoints` and `.flow/evidence` entries per the `flow-artifacts` lifecycle and report what was removed. After the last unit, also for the parent. Never touch a frozen `.flow/ldd/` ledger.
