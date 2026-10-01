@@ -64,17 +64,22 @@ def parse_since(value):
 def summarize(path):
     session = None
     models, skills, agents, gates = (collections.Counter() for _ in range(4))
-    for _, row in rows(path):
+    for index, row in rows(path):
         kind = row.get("type")
+        message = row.get("message")
         if kind == "session":
             session = row
-        elif kind == "model_change":
+        elif kind == "model_change" and isinstance(row.get("model"), str):
             models[row["model"]] += 1
-        elif kind == "message" and row["message"].get("role") == "assistant":
-            for part in row["message"]["content"]:
-                if part.get("type") != "toolCall":
+        elif kind == "message" and isinstance(message, dict):
+            content = message.get("content")
+            if message.get("role") != "assistant" or not isinstance(content, list):
+                continue
+            for part in content:
+                if not isinstance(part, dict) or part.get("type") != "toolCall":
                     continue
-                args = part.get("arguments") or {}
+                args = part.get("arguments")
+                args = args if isinstance(args, dict) else {}
                 skills.update(re.findall(r"skill://([a-z0-9-]+)", json.dumps(args)))
                 if part.get("name") == "task":
                     if isinstance(args.get("tasks"), list):
@@ -83,6 +88,9 @@ def summarize(path):
                         agents[dispatched_agent(args)] += 1
                 if part.get("name") == "flow_gate":
                     gates[":".join(filter(None, [args.get("action"), args.get("kind")]))] += 1
+        elif kind in ("model_change", "message"):
+            # A decodable row with an unexpected shape: skip it and keep listing.
+            print(f"{path}#{index}: skipped malformed row", file=sys.stderr)
     return session, models, skills, agents, gates
 
 
@@ -121,28 +129,34 @@ def cmd_render(args):
             print(f"{tag} NOTICE[{row.get('customType')}] {cut(row.get('content', ''), limits['result'] * 2)}")
         elif kind == "custom" and row.get("customType") == "session_exit":
             print(f"{tag} EXIT {row.get('data')}")
-        elif kind == "message":
+        elif kind == "message" and isinstance(row.get("message"), dict):
             render_message(tag, row["message"], limits)
+        elif kind == "message":
+            print(f"{args.path}#{index}: skipped malformed row", file=sys.stderr)
+
+
+def dict_parts(content):
+    return [part for part in content if isinstance(part, dict)] if isinstance(content, list) else []
 
 
 def render_message(tag, message, limits):
     role = message.get("role")
+    content = message.get("content")
     if role == "user":
-        content = message["content"]
-        text = content if isinstance(content, str) else "\n".join(p.get("text", "") for p in content if p.get("type") == "text")
+        text = content if isinstance(content, str) else "\n".join(p.get("text", "") for p in dict_parts(content) if p.get("type") == "text")
         print(f"{tag} USER: {cut(text, limits['text'] * 3)}")
     elif role == "fileMention":
-        print(f"{tag} FILE-MENTION {[f.get('path') for f in message.get('files', [])]}")
+        print(f"{tag} FILE-MENTION {[f.get('path') for f in dict_parts(message.get('files'))]}")
     elif role == "assistant":
-        for part in message["content"]:
+        for part in dict_parts(content):
             if part.get("type") == "thinking":
                 print(f"{tag} THINK: {cut(part.get('thinking', ''), limits['think'])}")
             elif part.get("type") == "text":
                 print(f"{tag} ASSISTANT: {cut(part.get('text', ''), limits['text'])}")
             elif part.get("type") == "toolCall":
-                print(f"{tag} CALL {part['name']}: {cut(part.get('arguments'), limits['call'])}")
+                print(f"{tag} CALL {part.get('name')}: {cut(part.get('arguments'), limits['call'])}")
     elif role == "toolResult":
-        text = "\n".join(p.get("text", "") for p in message.get("content", []) if p.get("type") == "text")
+        text = "\n".join(p.get("text", "") for p in dict_parts(content) if p.get("type") == "text")
         error = " ERROR" if message.get("isError") else ""
         print(f"{tag} RESULT {message.get('toolName')}{error}: {cut(text, limits['result'])}")
 

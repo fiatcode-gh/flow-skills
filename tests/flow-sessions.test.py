@@ -51,6 +51,9 @@ with tempfile.TemporaryDirectory() as td:
         ),
         b"\xff\xfe{}",
         b'{"type": "message", "message": {"role": "user", "content": "trunc',
+        {"type": "message", "message": "oops"},
+        {"type": "model_change"},
+        {"type": "message", "message": {"role": "assistant", "content": ["not a part", tool_call("task", {"task": "late"})]}},
     ])
     write_session(sessions / "2026-10-01T03-00-00-000Z_bbbbbbbb-0000.jsonl", "clean one", [
         {"type": "message", "timestamp": "2026-10-01T03:00:01.000Z", "message": {"role": "user", "content": "hello"}},
@@ -63,7 +66,9 @@ with tempfile.TemporaryDirectory() as td:
     assert f"{broken}#2: skipped undecodable line" in listed.stderr, listed.stderr
     assert f"{broken}#4: skipped undecodable line" in listed.stderr, listed.stderr
     assert f"{broken}#5: skipped undecodable line" in listed.stderr, listed.stderr
-    assert "agents  {'flow-planner': 1, 'task': 2, 'scout': 1}" in listed.stdout, listed.stdout
+    for index in (6, 7):
+        assert f"{broken}#{index}: skipped malformed row" in listed.stderr, listed.stderr
+    assert "agents  {'flow-planner': 1, 'task': 3, 'scout': 1}" in listed.stdout, listed.stdout
     assert "skills  {'flow-planning': 1}" in listed.stdout, listed.stdout
     assert "gates {'approve:plan': 1}" in listed.stdout, listed.stdout
 
@@ -77,5 +82,7 @@ with tempfile.TemporaryDirectory() as td:
     assert "[#1 ] MODEL anthropic/m1" in rendered.stdout, rendered.stdout
     assert "[#3 02:00:05] CALL task:" in rendered.stdout, rendered.stdout
     assert f"{broken}#2: skipped undecodable line" in rendered.stderr, rendered.stderr
+    assert f"{broken}#6: skipped malformed row" in rendered.stderr, rendered.stderr
+    assert "[#8 ] CALL task:" in rendered.stdout, rendered.stdout
 
 print("ok: flow-sessions list/render")
