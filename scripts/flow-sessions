@@ -126,7 +126,7 @@ def cmd_render(args):
         kind = row.get("type")
         if kind == "session":
             print(f"{tag} SESSION cwd={row.get('cwd')} title={row.get('title')}")
-        elif kind == "model_change" and isinstance(row.get("model"), str):
+        elif kind == "model_change" and isinstance(row.get("model"), str) and row["model"]:
             print(f"{tag} MODEL {row['model']}")
         elif kind == "model_change":
             print(f"{args.path}#{index}: skipped malformed row", file=sys.stderr)

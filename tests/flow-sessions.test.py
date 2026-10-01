@@ -55,6 +55,7 @@ with tempfile.TemporaryDirectory() as td:
         {"type": "model_change"},
         {"type": "message", "message": {"role": "assistant", "content": ["not a part", tool_call("task", {"task": "late"})]}},
         {"type": "message", "message": {"role": "assistant", "content": "a plain string"}},
+        {"type": "model_change", "model": ""},
     ])
     write_session(sessions / "2026-10-01T03-00-00-000Z_bbbbbbbb-0000.jsonl", "clean one", [
         {"type": "message", "timestamp": "2026-10-01T03:00:01.000Z", "message": {"role": "user", "content": "hello"}},
@@ -88,7 +89,8 @@ with tempfile.TemporaryDirectory() as td:
     assert f"{broken}#2: skipped undecodable line" in rendered.stderr, rendered.stderr
     assert f"{broken}#6: skipped malformed row" in rendered.stderr, rendered.stderr
     assert f"{broken}#7: skipped malformed row" in rendered.stderr, rendered.stderr
-    assert "MODEL None" not in rendered.stdout, rendered.stdout
+    assert f"{broken}#10: skipped malformed row" in rendered.stderr, rendered.stderr
+    assert "MODEL None" not in rendered.stdout and "[#10" not in rendered.stdout, rendered.stdout
     assert "[#8 ] CALL task:" in rendered.stdout, rendered.stdout
 
 print("ok: flow-sessions list/render")
