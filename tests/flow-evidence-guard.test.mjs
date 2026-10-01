@@ -50,6 +50,11 @@ result = await call("task", {
 });
 assert.equal(result, undefined, "complete verifier capsule must be allowed");
 
+// Headless sessions dispatch verifiers too; the check does not depend on a UI.
+assert.equal(await call("task", { agent: "flow-evidence-verifier", task: completeCapsule }, false), undefined, "headless dispatch with a complete capsule must pass");
+result = await call("task", { agent: "flow-evidence-verifier", task: capsuleWithoutId }, false);
+assert.equal(result?.block, true, "headless dispatch without an ID must be blocked");
+
 result = await call("task", {
 	tasks: [
 		{ agent: "scout", task: "read only" },

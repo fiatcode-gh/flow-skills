@@ -1,7 +1,7 @@
 // Behavioral tests for Flow approval-revision and acceptance-state runtime gates.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import guardExtension from "../agent/extensions/flow-governance-guard.ts";
@@ -341,6 +341,110 @@ try {
 		assert.equal(readFileSync(join(dir, ".git/info/exclude"), "utf8"), "build/\n/.flow/\n", "the guard must add a newline before its entry");
 		assert.equal(run("status", "--porcelain"), "", "both the user rule and .flow/ must stay ignored");
 	}
+
+	// Fixture for the fail-closed cases below: a case repository with one contract and one plan.
+	const governedRepo = () => {
+		const repo = caseRepo();
+		mkdirSync(join(repo.dir, ".flow/contracts"), { recursive: true });
+		mkdirSync(join(repo.dir, ".flow/plans/c"), { recursive: true });
+		writeFileSync(join(repo.dir, ".flow/contracts/c.md"), "# Contract\n");
+		writeFileSync(join(repo.dir, ".flow/plans/c/PLAN.md"), "# Plan\n");
+		return repo;
+	};
+	const approveIn = async (dir, scope, kind, path) => {
+		await gateIn(dir, { action: "present", scope, kind, path, summary: `${kind} for ${scope}` });
+		await gateIn(dir, { action: "approve", scope, kind });
+	};
+	const dispatchIn = (dir, input) => toolCall({ toolName: "task", input }, { cwd: dir, hasUI: true });
+	const stateIn = (dir) => JSON.parse(readFileSync(join(dir, ".flow/runtime/gates.json"), "utf8"));
+	const writerIn = (scope, plan) => `# Implement\n\nFlow gate:\n- Scope: ${scope}\n- Contract: .flow/contracts/c.md\n- Plan: ${plan}`;
+
+	// Re-approving the contract drops the plan, implementation and acceptance records.
+	{
+		const { dir } = governedRepo();
+		await approveIn(dir, "cascade", "contract", ".flow/contracts/c.md");
+		await approveIn(dir, "cascade", "plan", ".flow/plans/c/PLAN.md");
+		await approveIn(dir, "cascade", "implementation", ".flow/contracts/c.md");
+		await gateIn(dir, { action: "accept", scope: "cascade", source: "test" });
+		assert.deepEqual(Object.keys(stateIn(dir).scopes.cascade.approvals).sort(), ["contract", "implementation", "plan"]);
+		assert.ok(stateIn(dir).scopes.cascade.acceptance, "precondition: acceptance recorded");
+		await approveIn(dir, "cascade", "contract", ".flow/contracts/c.md");
+		const scopeState = stateIn(dir).scopes.cascade;
+		assert.deepEqual(Object.keys(scopeState.approvals), ["contract"], "contract re-approval must drop plan and implementation approvals");
+		assert.equal(scopeState.acceptance, undefined, "contract re-approval must drop acceptance");
+		result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("cascade", ".flow/plans/c/PLAN.md") });
+		assert.equal(result?.block, true, "a writer must be blocked after the cascade dropped its plan approval");
+		assert.match(result.reason, /no recorded plan approval/i);
+	}
+
+	// A manifest that names a different artifact than the approved one is rejected.
+	{
+		const { dir } = governedRepo();
+		mkdirSync(join(dir, ".flow/plans/other"), { recursive: true });
+		writeFileSync(join(dir, ".flow/plans/other/PLAN.md"), "# Plan\n");
+		await approveIn(dir, "path", "contract", ".flow/contracts/c.md");
+		await approveIn(dir, "path", "plan", ".flow/plans/c/PLAN.md");
+		result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("path", ".flow/plans/other/PLAN.md") });
+		assert.equal(result?.block, true, "a writer naming an unapproved plan path must be blocked");
+		assert.match(result.reason, /plan path is not the approved artifact/i);
+	}
+
+	// Corrupt or unsupported gate state fails closed.
+	for (const [content, pattern] of [
+		["{", /failed closed/i],
+		[JSON.stringify({ version: 2, scopes: {} }), /Unsupported Flow gate state/],
+		[JSON.stringify({ version: 1 }), /Unsupported Flow gate state/],
+	]) {
+		const { dir } = governedRepo();
+		await approveIn(dir, "corrupt", "contract", ".flow/contracts/c.md");
+		writeFileSync(join(dir, ".flow/runtime/gates.json"), content);
+		result = await dispatchIn(dir, { agent: "flow-planner", task: "Flow gate:\n- Scope: corrupt\n- Contract: .flow/contracts/c.md" });
+		assert.equal(result?.block, true, `gate state ${JSON.stringify(content)} must block dispatch`);
+		assert.match(result.reason, pattern);
+		await assert.rejects(gateIn(dir, { action: "status", scope: "corrupt" }), Error, "status must fail on the same gate state");
+	}
+
+	// present accepts only artifacts that stay below .flow/.
+	{
+		const { dir } = governedRepo();
+		await assert.rejects(
+			gateIn(dir, { action: "present", scope: "outside", kind: "contract", path: "app.txt", summary: "s" }),
+			/must live below/,
+			"present must refuse an artifact outside .flow/",
+		);
+		symlinkSync("../app.txt", join(dir, ".flow/escape.md"));
+		await assert.rejects(
+			gateIn(dir, { action: "present", scope: "outside", kind: "contract", path: ".flow/escape.md", summary: "s" }),
+			/escapes/,
+			"present must refuse a .flow/ symlink that resolves outside .flow/",
+		);
+	}
+
+	// A new untracked file stales acceptance.
+	{
+		const { dir } = caseRepo();
+		await gateIn(dir, { action: "accept", scope: "untracked", source: "test" });
+		assert.equal(await verifyIn(dir, "untracked"), undefined, "precondition: acceptance current");
+		writeFileSync(join(dir, "new.txt"), "new\n");
+		result = await verifyIn(dir, "untracked");
+		assert.equal(result?.block, true, "an added untracked file must stale acceptance");
+		assert.match(result.reason, /repository state changed after acceptance\/closure/i);
+	}
+
+	// approve refuses a headless session and records nothing.
+	{
+		const { dir } = governedRepo();
+		await gateIn(dir, { action: "present", scope: "headless", kind: "contract", path: ".flow/contracts/c.md", summary: "s" });
+		await assert.rejects(
+			flowGate.execute("gate-case", { action: "approve", scope: "headless", kind: "contract" }, undefined, undefined, { cwd: dir, hasUI: false }),
+			/interactive parent session/i,
+			"headless agents must not record approvals",
+		);
+		assert.equal(existsSync(join(dir, ".flow/runtime/gates.json")), false, "a refused approve must write no gate state");
+	}
+
+	// Hub waits are OMP's; the guard passes them through untouched.
+	assert.equal(await toolCall({ toolName: "hub", input: { op: "wait", ids: ["job-1"] } }, ctx), undefined, "Flow must not intercept native hub waits");
 
 	const savedCeiling = process.env.GIT_CEILING_DIRECTORIES;
 	try {
