@@ -125,6 +125,9 @@ bash:
       approval: prompt
     - match: "gh api * --input*"
       approval: prompt
+    # Gate state is flow_gate's; a shell line that names it asks first. Eval is not covered.
+    - match: "*.flow/runtime*"
+      approval: prompt
 
 # Keep per-dispatch effort disabled so an orchestrator cannot silently turn a
 # cheap worker into the selected model's highest reasoning level.

@@ -86,6 +86,11 @@ const mustPrompt = [
 	"gh repo delete o/r --yes",
 	"gh secret set TOKEN < token.txt",
 	"gh workflow run ci.yml",
+	"echo {} > .flow/runtime/gates.json",
+	"cp x .flow/runtime/gates.json",
+	"cd /repo && printf '{}' | tee .flow/runtime/gates.json",
+	"rm -rf /repo/.flow/runtime",
+	"echo {} >.flow/runtime/gates.json",
 ];
 
 // Read-only commands the same references run; none may prompt.
@@ -114,6 +119,10 @@ const mustNotPrompt = [
 	"gh secret list",
 	"gh workflow list",
 	"gh workflow view ci.yml",
+	"ls .flow/plans",
+	"rm -rf .flow/contracts/x.md",
+	"cat .flow/contracts/audit-residuals.md",
+	"echo notes > .flow/plans/demo/PLAN.md",
 ];
 
 for (const command of mustPrompt) assert.ok(prompts(command), `must prompt: ${command}`);
