@@ -64,6 +64,9 @@ const GATE_HEADER = "flow gate:";
 const ACCEPT_ORDER_HINT =
 	"flow_gate accept must complete before the dependent flow-evidence-verifier dispatch; do not issue both in the same parallel tool batch";
 
+// Git output above this size fails closed instead of being truncated.
+const GIT_OUTPUT_LIMIT = 256 * 1024 * 1024;
+
 const sha256 = (data: string | Buffer) => createHash("sha256").update(data).digest("hex");
 
 function git(cwd: string, args: string[]): string {
@@ -131,34 +134,26 @@ function artifactIdentity(root: string, inputPath: string): { path: string; sha2
 	return { path, sha256: sha256(readFileSync(path)) };
 }
 
+function gitBytes(root: string, args: string[]): Buffer {
+	return execFileSync("git", args, { cwd: root, stdio: ["ignore", "pipe", "pipe"], maxBuffer: GIT_OUTPUT_LIMIT });
+}
+
+function headRevision(root: string): string {
+	try {
+		return git(root, ["rev-parse", "--verify", "--quiet", "HEAD"]);
+	} catch (error) {
+		// `--verify --quiet` exits 1 without output only when HEAD names no commit yet.
+		if ((error as { status?: unknown }).status === 1) return "UNBORN";
+		throw error;
+	}
+}
+
 function worktreeIdentity(root: string): { head: string; fingerprint: string } {
-	let head = "UNBORN";
-	try {
-		head = git(root, ["rev-parse", "HEAD"]);
-	} catch {
-		// An unborn repository is still fingerprintable from its working tree.
-	}
-
-	let diff = "";
-	try {
-		diff = execFileSync("git", ["diff", "--binary", "HEAD", "--", "."], {
-			cwd: root,
-			encoding: "utf8",
-			stdio: ["ignore", "pipe", "pipe"],
-		});
-	} catch {
-		diff = execFileSync("git", ["diff", "--binary", "--no-index", "/dev/null", "/dev/null"], {
-			cwd: root,
-			encoding: "utf8",
-			stdio: ["ignore", "pipe", "pipe"],
-		});
-	}
-
-	const untrackedRaw = execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], {
-		cwd: root,
-		encoding: "utf8",
-		stdio: ["ignore", "pipe", "pipe"],
-	});
+	const head = headRevision(root);
+	// An unborn repository diffs its tracked (staged) paths against the empty tree.
+	const base = head === "UNBORN" ? git(root, ["hash-object", "-t", "tree", "/dev/null"]) : "HEAD";
+	const diff = gitBytes(root, ["diff", "--binary", base, "--", "."]);
+	const untrackedRaw = gitBytes(root, ["ls-files", "--others", "--exclude-standard", "-z"]).toString("utf8");
 	const untracked = untrackedRaw.split("\0").filter(Boolean).sort();
 	const hash = createHash("sha256");
 	hash.update(`head\0${head}\0diff\0`);
@@ -438,6 +433,9 @@ export default function (pi: ExtensionAPI) {
 				if (!ctx.hasUI) throw new Error("Flow acceptance state must be recorded by the interactive parent session");
 				const source = getString(input, "source");
 				if (!source) throw new Error("Flow gate accept requires a source receipt identifier");
+				// Exclude .flow/ before fingerprinting, or the first accept on a new checkout
+				// hashes Flow's own state and the next verifier dispatch sees a change.
+				ensureFlowExcluded(root);
 				const identity = worktreeIdentity(root);
 				const state = readState(root);
 				const scopeState = (state.scopes[scope] ??= {});

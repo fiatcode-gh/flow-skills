@@ -38,6 +38,7 @@ assert.equal(flowGate.loadMode, "essential", "flow_gate must stay visible for go
 const root = mkdtempSync(join(tmpdir(), "flow-governance-test-"));
 const nonGit = mkdtempSync(join(tmpdir(), "flow-governance-nogit-"));
 const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+const caseRepos = [];
 try {
 	git("init", "-q");
 	git("config", "user.email", "flow-test@example.invalid");
@@ -261,6 +262,73 @@ try {
 	const exclude = readFileSync(join(root, ".git/info/exclude"), "utf8");
 	assert.match(exclude, /^\/\.flow\/$/m, "runtime state must enforce the normal .flow personal exclude guard");
 
+	// Fresh repositories for acceptance-fingerprint edge cases. Each uses its own scope.
+	const caseRepo = (commit = true) => {
+		const dir = mkdtempSync(join(tmpdir(), "flow-governance-case-"));
+		caseRepos.push(dir);
+		const run = (...args) => execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+		run("init", "-q");
+		run("config", "user.email", "flow-test@example.invalid");
+		run("config", "user.name", "Flow Test");
+		if (commit) {
+			writeFileSync(join(dir, "app.txt"), "v1\n");
+			run("add", "app.txt");
+			run("commit", "-qm", "case base");
+		}
+		return { dir, run };
+	};
+	const gateIn = (dir, input) => flowGate.execute("gate-case", input, undefined, undefined, { cwd: dir, hasUI: true });
+	const verifyIn = (dir, scope) =>
+		toolCall({ toolName: "task", input: { agent: "flow-evidence-verifier", task: verifierTask.replace("- Scope: demo", `- Scope: ${scope}`) } }, { cwd: dir, hasUI: true });
+
+	// A tracked diff larger than the default 1 MiB child-process buffer still counts.
+	{
+		const { dir } = caseRepo();
+		writeFileSync(join(dir, "app.txt"), "x".repeat(64).concat("\n").repeat(32 * 1024));
+		await gateIn(dir, { action: "accept", scope: "big-diff", source: "test" });
+		assert.equal(await verifyIn(dir, "big-diff"), undefined, "an unchanged tree with a large tracked diff must keep its acceptance");
+		writeFileSync(join(dir, "app.txt"), "y".repeat(64).concat("\n").repeat(32 * 1024));
+		result = await verifyIn(dir, "big-diff");
+		assert.equal(result?.block, true, "a change inside a >1 MiB tracked diff must stale acceptance");
+		assert.match(result.reason, /repository state changed after acceptance\/closure/i);
+	}
+
+	// On an unborn HEAD, staged content is part of the fingerprint.
+	{
+		const { dir, run } = caseRepo(false);
+		writeFileSync(join(dir, "a.txt"), "v1\n");
+		run("add", "a.txt");
+		await gateIn(dir, { action: "accept", scope: "unborn", source: "test" });
+		assert.equal(await verifyIn(dir, "unborn"), undefined, "an unchanged unborn tree must keep its acceptance");
+		writeFileSync(join(dir, "a.txt"), "v2\n");
+		run("add", "a.txt");
+		result = await verifyIn(dir, "unborn");
+		assert.equal(result?.block, true, "a staged change on an unborn HEAD must stale acceptance");
+		assert.match(result.reason, /repository state changed after acceptance\/closure/i);
+	}
+
+	// Any other git diff failure fails closed instead of hashing an empty diff.
+	{
+		const { dir, run } = caseRepo();
+		const branchRef = run("symbolic-ref", "HEAD");
+		writeFileSync(join(dir, ".git", branchRef), `${"1".repeat(40)}\n`);
+		await assert.rejects(
+			gateIn(dir, { action: "accept", scope: "bad-head", source: "test" }),
+			/bad object/i,
+			"accept must fail when git cannot diff against HEAD",
+		);
+	}
+
+	// The first accept on a checkout without the .flow/ exclude does not hash .flow/**.
+	{
+		const { dir } = caseRepo();
+		mkdirSync(join(dir, ".flow/contracts"), { recursive: true });
+		writeFileSync(join(dir, ".flow/contracts/c.md"), "# Contract\n");
+		assert.doesNotMatch(readFileSync(join(dir, ".git/info/exclude"), "utf8"), /^\/\.flow\/$/m, "precondition: no .flow exclude yet");
+		await gateIn(dir, { action: "accept", scope: "first-accept", source: "test" });
+		assert.equal(await verifyIn(dir, "first-accept"), undefined, "the verifier after a first accept on an unchanged tree must pass");
+	}
+
 	const savedCeiling = process.env.GIT_CEILING_DIRECTORIES;
 	try {
 		process.env.GIT_CEILING_DIRECTORIES = tmpdir();
@@ -302,6 +370,7 @@ try {
 } finally {
 	rmSync(root, { recursive: true, force: true });
 	rmSync(nonGit, { recursive: true, force: true });
+	for (const dir of caseRepos) rmSync(dir, { recursive: true, force: true });
 }
 
 console.log("ok: flow governance runtime gates");
