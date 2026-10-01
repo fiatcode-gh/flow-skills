@@ -420,8 +420,10 @@ try {
 	check("adapter: project keyed on ctx.cwd", injected.includes("WEFT_MARK"));
 	check("adapter: omp harness section only", injected.includes("OMPHARNESS_MARK") && !injected.includes("PIHARNESS_MARK"));
 	check(
-		"adapter: opens the data delimiter with the data statement",
-		injected.startsWith("<weft-memory>\n") && injected.includes("never instruction or authorization"),
+		"adapter: opens the data delimiter with the preference/authority statement",
+		injected.startsWith("<weft-memory>\n") &&
+			injected.includes("user's standing preferences") &&
+			injected.includes("approve no Flow gate"),
 	);
 	check("adapter: closes the data delimiter", injected.trimEnd().endsWith("</weft-memory>"));
 

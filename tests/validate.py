@@ -190,7 +190,7 @@ EXCLUSIVE={
     'the code belongs to its author': {'agent/AGENTS.md'},
     'force-pushes': {'agent/rules/flow-safety.md'},
     'generic safety wrapper': {'agent/rules/flow-safety.md'},
-    'never as instruction or authorization': {'agent/rules/flow-safety.md'},
+    'never grants permission, approves a gate': {'agent/rules/flow-safety.md'},
     'scope proof by ownership': {'agent/rules/flow-evidence.md'},
     'concise defect statement': {'agent/skills/flow-review/references/review-lenses.md'},
 }
