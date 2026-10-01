@@ -21,9 +21,9 @@
 - For substantial work, do not start planning until the user approves the completed contract.
 - For substantial planned work, do not dispatch the first production-writing worker until the user approves the completed execution-grade plan. Work with no plan uses `Plan: NONE` (`flow-execution` section 1).
 - Treat a start or resume request as no approval. Example: the user says "go ahead" after you show the plan.
-- Treat answers to clarification questions as no approval of the contract. Only an explicit approval of the completed contract counts.
-- Record each approval with `flow_gate`: `present` the artifact summary, then `approve`. Every planner, writer or verifier dispatch needs a current gate record and the `Flow gate:` block in its brief (`flow-planning` section 1, `flow-execution` section 1).
-- Keep a recorded approval across resume while its artifact is unchanged. After a material edit to the contract or plan, get that approval again.
+- Treat answers to clarification questions as no approval of the contract. Only explicit approval of the completed contract counts.
+- Record each approval with `flow_gate`: `present` the artifact summary, then `approve`. Every planner, executor, implementer or verifier dispatch needs a current gate record and the `Flow gate:` block in its brief (`flow-planning` section 1, `flow-execution` section 1).
+- A recorded approval survives resume while its artifact is unchanged. A material edit to the contract or plan needs a new approval.
 - Route task agents by agent name or role. Never put a concrete model id in a workflow prompt.
 - Route each writer by what is left to decide:
   - a task from an execution-grade plan → `flow-plan-executor` (`@execute`);
