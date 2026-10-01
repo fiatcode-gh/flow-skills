@@ -66,6 +66,24 @@ const mustPrompt = [
 	"gh release create v1.0",
 	"git push -u origin flow-v8-trial",
 	"git push --force-with-lease",
+	'git -C "$wt" push -u origin feat',
+	"git -C /tmp/wt push --force-with-lease",
+	"git -c credential.helper= push origin main",
+	"env GIT_TRACE=1 git push origin main",
+	"env GH_TOKEN=x gh api user",
+	"env GH_TOKEN=x gh pr create --fill",
+	"gh issue create --title t --body b",
+	"gh issue close 3",
+	"gh issue edit 3 --add-label bug",
+	"gh pr ready 12",
+	"gh pr reopen 12",
+	"gh release edit v1.0 --draft=false",
+	"gh release upload v1.0 dist.tar.gz",
+	"gh release delete v1.0 --yes",
+	"gh repo edit --visibility public",
+	"gh repo delete o/r --yes",
+	"gh secret set TOKEN < token.txt",
+	"gh workflow run ci.yml",
 ];
 
 // Read-only commands the same references run; none may prompt.
@@ -82,6 +100,18 @@ const mustNotPrompt = [
 	"gh auth status",
 	"git fetch --prune origin",
 	"git status --porcelain",
+	'git -C "$wt" status --porcelain',
+	"git -C /tmp/wt log --oneline -5",
+	"git -c core.pager=cat log -1",
+	"env LC_ALL=C git status",
+	"gh pr view 12",
+	"gh issue list",
+	"gh issue view 3",
+	"gh release view v1.0",
+	"gh release list",
+	"gh secret list",
+	"gh workflow list",
+	"gh workflow view ci.yml",
 ];
 
 for (const command of mustPrompt) assert.ok(prompts(command), `must prompt: ${command}`);

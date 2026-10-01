@@ -44,6 +44,14 @@ bash:
   patterns:
     - match: "git push*"
       approval: prompt
+    - match: "git -C * push*"
+      approval: prompt
+    - match: "git -c * push*"
+      approval: prompt
+    - match: "env * git push*"
+      approval: prompt
+    - match: "env * gh *"
+      approval: prompt
     - match: "gh pr create*"
       approval: prompt
     - match: "gh pr merge*"
@@ -56,9 +64,33 @@ bash:
       approval: prompt
     - match: "gh pr close*"
       approval: prompt
+    - match: "gh pr ready*"
+      approval: prompt
+    - match: "gh pr reopen*"
+      approval: prompt
     - match: "gh issue comment*"
       approval: prompt
+    - match: "gh issue create*"
+      approval: prompt
+    - match: "gh issue close*"
+      approval: prompt
+    - match: "gh issue edit*"
+      approval: prompt
     - match: "gh release create*"
+      approval: prompt
+    - match: "gh release edit*"
+      approval: prompt
+    - match: "gh release upload*"
+      approval: prompt
+    - match: "gh release delete*"
+      approval: prompt
+    - match: "gh repo edit*"
+      approval: prompt
+    - match: "gh repo delete*"
+      approval: prompt
+    - match: "gh secret set*"
+      approval: prompt
+    - match: "gh workflow run*"
       approval: prompt
     - match: "gh api -X*"
       approval: prompt
