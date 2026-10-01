@@ -431,6 +431,36 @@ try {
 		assert.match(result.reason, /repository state changed after acceptance\/closure/i);
 	}
 
+	// A textconv driver that prints constant text must not hide an edit from the fingerprint.
+	{
+		const { dir, run } = caseRepo();
+		writeFileSync(join(dir, ".gitattributes"), "*.txt diff=mask\n");
+		run("add", ".gitattributes");
+		run("commit", "-qm", "attributes");
+		run("config", "diff.mask.textconv", "echo constant; :");
+		writeFileSync(join(dir, "app.txt"), "edit one\n");
+		await gateIn(dir, { action: "accept", scope: "textconv", source: "test" });
+		assert.equal(await verifyIn(dir, "textconv"), undefined, "precondition: acceptance current");
+		writeFileSync(join(dir, "app.txt"), "edit two\n");
+		result = await verifyIn(dir, "textconv");
+		assert.equal(result?.block, true, "a textconv driver must not hide an edit from the fingerprint");
+		assert.match(result.reason, /repository state changed after acceptance\/closure/i);
+	}
+
+	// An external diff that prints nothing must not hide an edit from the fingerprint.
+	{
+		const { dir, run } = caseRepo();
+		run("config", "diff.external", "sh -c true");
+		writeFileSync(join(dir, "app.txt"), "edit one\n");
+		await gateIn(dir, { action: "accept", scope: "external", source: "test" });
+		assert.equal(await verifyIn(dir, "external"), undefined, "precondition: acceptance current");
+		writeFileSync(join(dir, "app.txt"), "edit two\n");
+		result = await verifyIn(dir, "external");
+		assert.equal(result?.block, true, "an external diff must not hide an edit from the fingerprint");
+		assert.match(result.reason, /repository state changed after acceptance\/closure/i);
+	}
+
+
 	// approve refuses a headless session and records nothing.
 	{
 		const { dir } = governedRepo();

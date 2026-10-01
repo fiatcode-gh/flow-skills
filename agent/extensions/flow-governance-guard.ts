@@ -177,7 +177,8 @@ function worktreeIdentity(root: string): { head: string; fingerprint: string } {
 	const head = headRevision(root);
 	// An unborn repository diffs its tracked (staged) paths against the empty tree.
 	const base = head === "UNBORN" ? git(root, ["hash-object", "-t", "tree", "/dev/null"]) : "HEAD";
-	const diff = gitBytes(root, ["diff", "--binary", base, "--", "."]);
+	// Raw bytes only: a configured external diff or textconv driver could print the same text for different edits.
+	const diff = gitBytes(root, ["diff", "--binary", "--no-ext-diff", "--no-textconv", base, "--", "."]);
 	const untrackedRaw = gitBytes(root, ["ls-files", "--others", "--exclude-standard", "-z"]).toString("utf8");
 	const untracked = untrackedRaw.split("\0").filter(Boolean).sort();
 	const hash = createHash("sha256");
