@@ -73,7 +73,10 @@ def summarize(path):
             models[row["model"]] += 1
         elif kind == "message" and isinstance(message, dict):
             content = message.get("content")
-            if message.get("role") != "assistant" or not isinstance(content, list):
+            if message.get("role") != "assistant":
+                continue
+            if not isinstance(content, list):
+                print(f"{path}#{index}: skipped malformed row", file=sys.stderr)
                 continue
             for part in content:
                 if not isinstance(part, dict) or part.get("type") != "toolCall":
@@ -123,8 +126,10 @@ def cmd_render(args):
         kind = row.get("type")
         if kind == "session":
             print(f"{tag} SESSION cwd={row.get('cwd')} title={row.get('title')}")
+        elif kind == "model_change" and isinstance(row.get("model"), str):
+            print(f"{tag} MODEL {row['model']}")
         elif kind == "model_change":
-            print(f"{tag} MODEL {row.get('model')}")
+            print(f"{args.path}#{index}: skipped malformed row", file=sys.stderr)
         elif kind == "custom_message" and row.get("customType") != "xdev-mount-notice":
             print(f"{tag} NOTICE[{row.get('customType')}] {cut(row.get('content', ''), limits['result'] * 2)}")
         elif kind == "custom" and row.get("customType") == "session_exit":
