@@ -245,6 +245,12 @@ else:
     schema=json.loads(schema_path.read_text())
     if schema.get('properties',{}).get('authorization',{}).get('const') != 'not-carried': err('planning-handoff schema authorization boundary missing')
     if schema.get('additionalProperties') is not False: err('planning-handoff schema must reject unknown fields')
+    # The reference restates each enum as a `- \`field\`: \`a\`, \`b\`` line; it must list exactly the schema's values.
+    for field in ('design_status', 'implementation_strategy'):
+        values=schema.get('properties',{}).get(field,{}).get('enum',[])
+        line=next((l for l in ph.splitlines() if l.startswith(f'- `{field}`:')), '')
+        listed=re.findall(r'`([^`]+)`', line)[1:]
+        if not values or listed!=values: err(f'planning-handoff.md `{field}` values {listed} differ from the schema enum {values}')
 for required in ['`flow-handoff.json`', '`handoff.md`', '`references/planning-handoff.schema.json`', '"flow_handoff": 2', '"authorization": "not-carried"', '`implementation_strategy: settled`', 'validate-planning-handoff.py', '## manifest schema v2', '## receiving-side validation', '## decide what happens next']:
     if required not in ph: err(f'planning-handoff missing machine-read marker or pointer target: {required!r}')
 

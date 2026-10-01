@@ -28,9 +28,14 @@ def assistant(*parts: dict) -> dict:
     return {"type": "message", "timestamp": "2026-10-01T02:00:05.000Z", "message": {"role": "assistant", "content": list(parts)}}
 
 
-def write_session(path: Path, title: str, lines: list[object]) -> None:
+_MISSING = object()
+
+
+def write_session(path: Path, title: str, lines: list[object], **header_overrides: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     header = {"type": "session", "id": "x", "timestamp": "2026-10-01T02:00:00.000Z", "cwd": "/work/demo", "title": title}
+    header.update(header_overrides)
+    header = {key: value for key, value in header.items() if value is not _MISSING}
     encoded = [line if isinstance(line, bytes) else json.dumps(line).encode() for line in [header, *lines]]
     path.write_bytes(b"\n".join(encoded) + b"\n")
 
@@ -60,11 +65,22 @@ with tempfile.TemporaryDirectory() as td:
     write_session(sessions / "2026-10-01T03-00-00-000Z_bbbbbbbb-0000.jsonl", "clean one", [
         {"type": "message", "timestamp": "2026-10-01T03:00:01.000Z", "message": {"role": "user", "content": "hello"}},
     ])
+    notimestamp = sessions / "2026-10-01T04-00-00-000Z_cccccccc-0000.jsonl"
+    write_session(notimestamp, "no timestamp", [], timestamp=_MISSING)
+    notiso = sessions / "2026-10-01T05-00-00-000Z_dddddddd-0000.jsonl"
+    write_session(notiso, "not iso", [], timestamp="yesterday-ish")
+    nonstring = sessions / "2026-10-01T06-00-00-000Z_eeeeeeee-0000.jsonl"
+    write_session(nonstring, "non string", [], timestamp=12345)
 
     listed = call("list", home=home, config_dir=".custom")
     assert listed.returncode == 0, listed.stderr
     assert "broken one" in listed.stdout and "clean one" in listed.stdout, listed.stdout
     assert "2 session(s)" in listed.stderr, listed.stderr
+    for bad, title in ((notimestamp, "no timestamp"), (notiso, "not iso"), (nonstring, "non string")):
+        assert f"{bad}: skipped session without a valid timestamp" in listed.stderr, listed.stderr
+        assert title not in listed.stdout, listed.stdout
+    assert "  models  {'anthropic/m1': 1}" in listed.stdout, "an empty model name must not be counted"
+    assert f"{broken}#10: skipped malformed row" in listed.stderr, listed.stderr
     assert f"{broken}#2: skipped undecodable line" in listed.stderr, listed.stderr
     assert f"{broken}#4: skipped undecodable line" in listed.stderr, listed.stderr
     assert f"{broken}#5: skipped undecodable line" in listed.stderr, listed.stderr
