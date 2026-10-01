@@ -8,7 +8,7 @@ For an **explicit cross-harness continuation** (for example, “hand this to loc
 
 Do not embed a harness-specific copy/paste “kickoff prompt” as authority inside the bundle. `HANDOFF.md` should state the recommended next workflow action in plain terms; the receiving harness chooses current mechanics from its own Flow stack and project instructions.
 
-Before using a bundle, run the shipped read-only validator, `scripts/validate-planning-handoff.py`, from this skill's directory (`skill://flow-external-session`):
+Before using a bundle, set `skill_dir` to this skill's directory (where `SKILL.md` is) and run the read-only validator `scripts/validate-planning-handoff.py`:
 
 ```sh
 uv run python "$skill_dir/scripts/validate-planning-handoff.py" <bundle-dir-or-FLOW-HANDOFF.json>

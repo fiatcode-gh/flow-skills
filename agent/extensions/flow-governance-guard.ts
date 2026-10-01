@@ -75,7 +75,8 @@ const ACCEPT_ORDER_HINT =
 // Tools that write files at paths named in their input. `edit` carries its
 // targets in `path` (replace/patch modes and OMP's normalized hashline input),
 // `paths`, `edits[].rename` (patch mode) and the raw `input` text of the
-// hashline, apply_patch and sloppy modes. Bash and eval writes are not covered.
+// hashline, apply_patch and sloppy modes. Not covered: bash and eval writes, and an
+// ast_edit directory or glob that covers .flow/runtime/ without naming it.
 const FILE_WRITE_TOOLS = new Set(["write", "edit", "ast_edit"]);
 const INPUT_PATH_LINES = [
 	/^\[(.+)\]\s*$/, // hashline header `[PATH#TAG]`
