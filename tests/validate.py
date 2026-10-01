@@ -243,18 +243,32 @@ else:
     schema=json.loads(schema_path.read_text())
     if schema.get('properties',{}).get('authorization',{}).get('const') != 'not-carried': err('planning-handoff schema authorization boundary missing')
     if schema.get('additionalProperties') is not False: err('planning-handoff schema must reject unknown fields')
-    # The reference restates each enum as a `- \`field\`: \`a\`, \`b\`` line; it must list exactly the schema's values.
+    props=schema.get('properties',{})
+    enum_fields=[field for field,spec in props.items() if spec.get('enum')]
+    if not enum_fields: err('planning-handoff schema has no enum fields')
     for field in ('design_status', 'implementation_strategy'):
-        values=schema.get('properties',{}).get(field,{}).get('enum',[])
-        line=next((l for l in ph.splitlines() if l.startswith(f'- `{field}`:')), '')
-        listed=re.findall(r'`([^`]+)`', line)[1:]
-        if not values or listed!=values: err(f'planning-handoff.md `{field}` values {listed} differ from the schema enum {values}')
+        if field not in enum_fields: err(f'planning-handoff schema lost the enum for {field}')
+    emitter_path=ROOT/'ports/open-webui/flow-handoff.md'
+    emitter=emitter_path.read_text() if emitter_path.exists() else ''
+    if not emitter: err('ports/open-webui/flow-handoff.md: handoff emitter missing')
+    # The reference and the Open WebUI emitter restate each enum as a `- \`field\`: \`a\`, \`b\`` line; each must list exactly the schema's values.
+    for label,doc in (('planning-handoff.md', ph), ('ports/open-webui/flow-handoff.md', emitter)):
+        for field in enum_fields:
+            spec=props[field]
+            line=next((l for l in doc.splitlines() if l.startswith(f'- `{field}`:')), '')
+            listed=re.findall(r'`([^`]+)`', line)[1:]
+            if listed!=spec['enum']: err(f'{label} `{field}` values {listed} differ from the schema enum {spec["enum"]}')
+    # The emitter's manifest template names every required field and sets every schema constant.
+    for field in schema.get('required',[]):
+        if f'"{field}":' not in emitter: err(f'ports/open-webui/flow-handoff.md: manifest template missing required field {field}')
+    for field,spec in props.items():
+        if 'const' in spec and f'"{field}": {json.dumps(spec["const"])}' not in emitter: err(f'ports/open-webui/flow-handoff.md: manifest template must set {field} to {json.dumps(spec["const"])}')
 for required in ['`flow-handoff.json`', '`handoff.md`', '`references/planning-handoff.schema.json`', '"flow_handoff": 2', '"authorization": "not-carried"', '`implementation_strategy: settled`', 'validate-planning-handoff.py', '## manifest schema v2', '## receiving-side validation', '## decide what happens next']:
     if required not in ph: err(f'planning-handoff missing machine-read marker or pointer target: {required!r}')
 
 
 interop=(ROOT/'docs/EXTERNAL-INTEROP.md').read_text().lower()
-for required in ['`flow-planning`', '`flow-design`', '`flow-handoff.json`', '## synchronization discipline']:
+for required in ['`flow-planning`', '`flow-design`', '`flow-handoff.json`', '`ports/open-webui/`', '## synchronization discipline']:
     if required not in interop: err(f'docs/EXTERNAL-INTEROP.md missing marker: {required!r}')
 
 compat=(ROOT/'docs/OMP-COMPATIBILITY.md').read_text().lower()

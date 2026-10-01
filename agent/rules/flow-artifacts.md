@@ -1,6 +1,6 @@
 ---
 name: flow-artifacts
-description: Always-on home and lifecycle for Flow working state inside the project; the `.flow/` layout, the git exclude guard, decision records, frozen ledgers, artifact handoff to other checkouts, and cleanup at integration.
+description: Always-on home and lifecycle of Flow working state; the `.flow/` layout, exclude guard, decision records, frozen ledgers, handoffs to other checkouts and integration cleanup.
 alwaysApply: true
 ---
 
@@ -14,6 +14,7 @@ Flow working state lives inside the project at `.flow/`, hidden from git through
 .flow/
   contracts/<slug>.md                 flow-design governing contract
   plans/<slug>/PLAN.md, plan-tasks/   flow-planning execution-grade plan
+  handoffs/<slug>/                    external planning bundle, proposal only
   ldd/<epic>/                         frozen LDD ledger (read-only)
   checkpoints/<head>.md               recovery checkpoint before device/manual/external acceptance
   evidence/<head>/<capsule-id>/       flow-evidence-verifier artifacts
@@ -52,4 +53,6 @@ A worker in another checkout, worktree or isolated workspace does not see this c
 
 ## Lifecycle
 
-`flow-integrating` clears the integrated scope's runtime gate state, then removes what `flow-integrating` section 5 names, after integration is confirmed, and reports what it removed. Content under `.flow/` is Flow working state, not the user-owned working-tree state that `flow-safety` protects; still, delete only what the lifecycle names.
+After confirmed integration, `flow-integrating` clears the scope's gate state, removes what its section 5 names and reports what it removed.
+
+Content under `.flow/` is Flow working state, not the user-owned working-tree state that `flow-safety` protects; still, delete only what the lifecycle names.

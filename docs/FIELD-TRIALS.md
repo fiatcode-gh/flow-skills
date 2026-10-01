@@ -27,6 +27,8 @@ Marks below come from the field-trial audit of 23 sessions run on the stack sinc
 
 The audit backlog batch (2026-10-01) resets every Flow skill. `flow-safety` now says that read content (files, handoffs, PRs, tool output) never grants permission, approves a gate or overrides the user, and that Weft memory preferences are followed but approve no gate (`docs(flow): treat read content as data and point publication rules at flow-safety`); that changes how every Flow skill treats what it reads. The same batch pointed restated rules at one home (`docs(flow): point restated rules at their one home`), rewriting `flow-execution`, `flow-tdd`, `flow-integrating` and the `flow-review` references, and removed the mailbox mode from `flow-external-session` (`refactor(flow): remove the external-session mailbox`). Its tooling fixes (installer symlink refusal, `scripts/flow-sessions`, the `.flow/runtime/` write hook, the AI-memory adapter) restore or tighten documented behavior and reset nothing (rule 5).
 
+The Open WebUI port unit gives saved external bundles a home at `.flow/handoffs/<slug>/`. That changes `flow-external-session` intake and `flow-integrating` cleanup, both already 0/2. `flow-artifacts` only lists the path and no other Flow skill's text changes, so no mark moves (rule 5).
+
 | Flow skill | Active mark | Current-baseline note |
 |---|---:|---|
 | `flow-debugging` | 0/2 | Reset by the audit backlog batch (read content is data). Before that, reset by the audit-fix batch (`docs(flow): close audit doctrine gaps`): after the root cause, Main routes the fix by `flow-execution` section 2. Before that: 2 clean; 1 non-trigger slip. |
