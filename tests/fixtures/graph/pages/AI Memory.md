@@ -9,6 +9,9 @@ AI memory hub — fixture graph for load-ai-memory tests. Not real memories.
 ## Harness: [[pi]]
 - PIHARNESS_MARK memory true only in another harness
 
+## Harness: [[OMP]]
+- OMPHARNESS_MARK memory true only in the OMP harness
+
 ## [[weft]]
 - WEFT_MARK weft-scoped memory (via [[weft]])
 
