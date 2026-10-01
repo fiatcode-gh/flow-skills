@@ -80,6 +80,25 @@ if HOME="$TMP2" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/nul
 fi
 rm -rf "$TMP2"
 
+# A managed destination that is a symlink outside this repository is refused
+# and left as it was; a symlink into the repository is relinked.
+TMP_LINK="$TMP/link-home"
+mkdir -p "$TMP_LINK/.omp/profiles/anthropic/agent" "$TMP_LINK/elsewhere"
+foreign="$TMP_LINK/.omp/profiles/anthropic/agent/skills"
+ln -s "$TMP_LINK/elsewhere" "$foreign"
+if out=$(HOME="$TMP_LINK" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install 2>&1); then
+  echo 'FAIL: installer replaced a symlink that points outside the repository' >&2
+  exit 1
+fi
+[ "$(readlink "$foreign")" = "$TMP_LINK/elsewhere" ] || { echo 'FAIL: installer changed a foreign symlink' >&2; exit 1; }
+case $out in
+  *"$foreign is a symlink to $TMP_LINK/elsewhere"*) ;;
+  *) echo "FAIL: refusal did not name the link and its target: $out" >&2; exit 1 ;;
+esac
+rm "$foreign"
+ln -s "$ROOT/agent/rules" "$foreign"
+HOME="$TMP_LINK" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null
+[ "$(readlink -f "$foreign")" = "$(readlink -f "$ROOT/agent/skills")" ] || { echo 'FAIL: installer did not relink a symlink into the repository' >&2; exit 1; }
 
 # An unresolvable profile, at any position, must make every command fail before
 # anything is linked: no link at all, and no `linked` line.

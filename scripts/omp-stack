@@ -49,9 +49,16 @@ shared_agent_dir() { # profile agent dir; sets $shared to <config-root>/agent
   esac
 }
 
+# Replaces only a missing destination or a symlink into this repository.
 link_owned() { # source dest
   src=$1 dst=$2
-  if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+  if [ -L "$dst" ]; then
+    target=$(readlink -f "$dst" 2>/dev/null || readlink "$dst")
+    case $target in
+      "$ROOT" | "$ROOT"/*) ;;
+      *) fail "$dst is a symlink to $target, outside $ROOT; move or remove it manually" ;;
+    esac
+  elif [ -e "$dst" ]; then
     fail "$dst exists and is not a symlink; move/merge it manually"
   fi
   ln -sfn "$src" "$dst" || fail "could not link $dst -> $src"
