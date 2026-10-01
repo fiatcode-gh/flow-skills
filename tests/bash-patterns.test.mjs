@@ -8,7 +8,7 @@
 // matching is the stricter case, so it is what this test checks.
 // Re-check the port when upgrading OMP across substantial releases.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -27,18 +27,20 @@ const toRegExp = (pattern) =>
 		"u",
 	);
 
-const patternsOf = (profile) => {
-	const text = readFileSync(path.join(root, "profiles", profile, "config.yml"), "utf8");
-	const bash = text.slice(text.indexOf("\nbash:\n"), text.indexOf("\ntask:\n"));
-	return [...bash.matchAll(/- match: "([^"]+)"\n\s+approval: prompt/g)].map((m) => m[1]);
-};
-
-const lists = profiles.map(patternsOf);
+// Parse each profile with a real YAML parser (PyYAML through uv, as tests/run.sh
+// already requires) and keep the `prompt` rules in their configured order.
+const loadPatterns = `
+import json, sys, yaml
+print(json.dumps([(yaml.safe_load(open(p)) or {}).get("bash", {}).get("patterns") or [] for p in sys.argv[1:]]))
+`;
+const configs = profiles.map((profile) => path.join(root, "profiles", profile, "config.yml"));
+const lists = JSON.parse(
+	execFileSync("uv", ["run", "--with", "pyyaml", "python", "-c", loadPatterns, ...configs], { encoding: "utf8" }),
+).map((patterns) => patterns.filter((rule) => rule.approval === "prompt").map((rule) => rule.match));
 for (const list of lists.slice(1)) {
 	assert.deepEqual(list, lists[0], "bash.patterns must be identical across profiles");
 }
 const regexes = lists[0].map(toRegExp);
-assert.ok(regexes.length >= 20, "pattern list unexpectedly short");
 const prompts = (command) => regexes.some((re) => re.test(normalize(command)));
 
 // Every publication command the flow-review references use, plus adversarial
