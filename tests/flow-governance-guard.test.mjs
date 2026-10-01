@@ -516,6 +516,10 @@ try {
 		}
 	}
 
+	// A percent-encoded file URL names the same gate state as the plain path.
+	result = await toolCall({ toolName: "write", input: { path: `file://${root}/%2Eflow/runtime/gates.json`, content: "{}" } }, ctx);
+	assert.equal(result?.block, true, "a write through a percent-encoded file URL must be blocked");
+
 	// ast_edit rewrites every file a directory or glob covers, so a call that could reach gate state is blocked.
 	{
 		const { dir } = caseRepo();
@@ -524,7 +528,7 @@ try {
 		writeFileSync(join(dir, "src/a.ts"), "const a = 1;\n");
 		writeFileSync(join(dir, "src/deep/b.ts"), "const b = 1;\n");
 		writeFileSync(join(dir, ".flow/plans/PLAN.md"), "# Plan\n");
-		const callAst = (paths) => toolCall({ toolName: "ast_edit", input: { ops: [{ pat: "a", out: "b" }], paths } }, { cwd: dir, hasUI: true });
+		const callAst = (paths, cwd = dir) => toolCall({ toolName: "ast_edit", input: { ops: [{ pat: "a", out: "b" }], paths } }, { cwd, hasUI: true });
 		const ordinary = [["."], ["src"], ["src/**/*.ts"], ["**/*.ts"], ["src", "src/deep/b.ts"]];
 
 		// Without gate state there is nothing to rewrite under the runtime directory.
@@ -579,6 +583,22 @@ try {
 			result = await callAst(paths);
 			assert.equal(result?.block, true, `ast_edit paths ${JSON.stringify(paths)} is malformed and must fail closed`);
 		}
+
+		// OMP's expandPath accepts these spellings of a directory, so the check must see through them.
+		for (const [paths, cwd] of [
+			[[`@${dir}`], dir],
+			[[`:${dir}`], dir],
+			[[":./"], dir],
+			[[":../"], join(dir, "src")],
+			[[`file://localhost${dir}`], dir],
+			[[`file://${dir}/%2Eflow`], dir],
+			[[`file://${dir}/%2Eflow/**/*.json`], dir],
+			[["file://example.invalid/tmp"], dir],
+		]) {
+			result = await callAst(paths, cwd);
+			assert.equal(result?.block, true, `ast_edit ${JSON.stringify(paths)} from ${cwd} must be blocked`);
+		}
+		assert.equal(await callAst([":../src"], join(dir, "src")), undefined, "a decorated path that cannot reach gate state must pass");
 	}
 
 	// Hub waits are OMP's; the guard passes them through untouched.

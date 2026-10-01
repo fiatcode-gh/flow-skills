@@ -22,6 +22,7 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 import { agentName } from "../lib/agent-name.ts";
 
@@ -384,12 +385,31 @@ function hasRuntimeSegment(path: string): boolean {
 	return parts.some((part, index) => part === ".flow" && parts[index + 1] === "runtime");
 }
 
+// Mirrors OMP 18.4.5 `expandPath` (tools/path-utils.ts:72-130) for POSIX paths, so the guard reads a path as OMP does:
+// a stray leading `:` before `/`, `~`, `./` or `../` goes, `@` before `/` or `~` goes, a `file://` URL is decoded
+// (`localhost` and percent-escapes included), and `~` expands. OMP leaves an undecodable file URL as a literal path;
+// this throws instead, because a guard that cannot tell where a write lands must fail closed.
+function expandToolPath(raw: string): string {
+	let value = /^:(?=[/\\~]|\.\.?[/\\]|[A-Za-z]:)/.test(raw) ? raw.slice(1) : raw;
+	const unprefixed = value.slice(1);
+	if (value.startsWith("@") && (unprefixed.startsWith("/") || unprefixed === "~" || unprefixed.startsWith("~/"))) value = unprefixed;
+	if (value.toLowerCase().startsWith("file://")) value = fileURLToPath(value);
+	if (value === "~") return homedir();
+	if (value.startsWith("~/") || value.startsWith("~\\")) return homedir() + value.slice(1);
+	if (value.startsWith("~")) return join(homedir(), value.slice(1));
+	return value;
+}
+
 function writesFlowRuntime(cwd: string, input: ToolInput): boolean {
-	return writeTargets(input).some((target) => {
-		const absolute = resolve(cwd, target);
-		const canonical = canonicalWritePath(absolute);
-		return hasRuntimeSegment(absolute) || (canonical !== undefined && hasRuntimeSegment(canonical));
-	});
+	try {
+		return writeTargets(input).some((target) => {
+			const absolute = resolve(cwd, expandToolPath(target));
+			const canonical = canonicalWritePath(absolute);
+			return hasRuntimeSegment(absolute) || (canonical !== undefined && hasRuntimeSegment(canonical));
+		});
+	} catch {
+		return true;
+	}
 }
 
 // OMP 18.4.5 `ast_edit` (tools/ast-edit.ts, tools/path-utils.ts, native `astEdit`): each `paths` entry may pack
@@ -526,13 +546,10 @@ function reachableRuntimeFiles(base: string, cwd: string, root: string): string[
 }
 
 function targetCoversRuntime(cwd: string, root: string, target: string): boolean {
-	let spec = target;
-	if (/^[a-z][a-z0-9+.-]*:\/\//i.test(spec)) {
-		// Other URL schemes address OMP's own stores or remote hosts, never this checkout's `.flow/`.
-		if (!/^file:\/\//i.test(spec)) return false;
-		spec = spec.replace(/^file:\/\//i, "");
-	}
-	if (spec === "~" || spec.startsWith("~/")) spec = homedir() + spec.slice(1);
+	// Throws on a file URL OMP would not read as written; the caller treats that as covering.
+	let spec = expandToolPath(target);
+	// Other URL schemes address OMP's own stores or remote hosts, never this checkout's `.flow/`.
+	if (/^[a-z][a-z0-9+.-]*:\/\//i.test(spec)) return false;
 	spec = spec.replace(/\\/g, "/");
 	const segments = spec.split("/");
 	const globAt = segments.findIndex((segment) => GLOB_CHARS.test(segment));
