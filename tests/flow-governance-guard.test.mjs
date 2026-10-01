@@ -90,6 +90,11 @@ try {
 	assert.equal(contractDecision.policy, "prompt", "contract approval must force a native user prompt even under yolo");
 	assert.match(flowGate.formatApprovalDetails({ action: "approve", scope: "demo", kind: "contract" }).join("\n"), /SHA-256:/);
 	await callGate({ action: "approve", scope: "demo", kind: "contract" });
+	const acceptDecision = flowGate.approval({ action: "accept", scope: "demo", source: "closure-1" });
+	assert.equal(acceptDecision.policy, "prompt", "acceptance must force a native user prompt: it is user-attested, not controller-asserted");
+	assert.match(flowGate.formatApprovalDetails({ action: "accept", scope: "demo", source: "closure-1" }).join("\n"), /Source: closure-1/);
+	assert.equal(flowGate.approval({ action: "accept", scope: "demo" }).policy, "deny", "acceptance without a source receipt must fail closed");
+	assert.equal(flowGate.approval({ action: "clear", scope: "demo" }), "write", "clear stays a plain write");
 
 	result = await callTask({ agent: "flow-planner", task: plannerTask });
 	assert.equal(result, undefined, "planner dispatch must pass for the approved current contract revision");
