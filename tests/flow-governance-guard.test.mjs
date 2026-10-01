@@ -500,6 +500,13 @@ try {
 			["edit", { input: "*** Begin Patch\n*** Update File: .flow/runtime/gates.json\n@@\n-a\n+b\n*** End Patch" }],
 			["edit", { input: "*** Begin Patch\n*** Update File: .flow/plans/demo/PLAN.md\n*** Move to: .flow/runtime/gates.json\n*** End Patch" }],
 			["edit", { path: ".flow/plans/demo/PLAN.md", edits: [{ op: "update", rename: ".flow/runtime/gates.json" }] }],
+			["edit", { input: "*** Begin Patch\n*** Add File: .flow/runtime/gates.json\n+{}\n*** End Patch" }],
+			["edit", { input: "*** Begin Patch\n*** Delete File: .flow/runtime/gates.json\n*** End Patch" }],
+			["edit", { input: "*** Begin Patch\n*** Edit File: .flow/runtime/gates.json\n@@\n-a\n+b\n*** End Patch" }],
+			["edit", { input: "¶.flow/runtime/gates.json\nPUT 1.=1:\n+{}" }],
+			["edit", { _input: "[.flow/runtime/gates.json#ABCD]\nPUT 1.=1:\n+{}" }],
+			["edit", { _input: "*** Begin Patch\n*** Update File: .flow/runtime/gates.json\n@@\n-a\n+b\n*** End Patch" }],
+			["write", { _path: ".flow/runtime/gates.json", content: "{}" }],
 			["ast_edit", { ops: [{ pat: "a", out: "b" }], paths: [".flow/runtime/gates.json"] }],
 		]) {
 			result = await callTool(toolName, input);
@@ -511,6 +518,8 @@ try {
 			["write", { path: ".flow/runtime-notes.md", content: "notes\n" }],
 			["edit", { input: "[.flow/plans/demo/PLAN.md#ABCD]\nPUT 1.=1:\n++ .flow/runtime/gates.json is flow_gate's" }],
 			["edit", { path: "app.txt", old_string: "v2", new_string: "v3" }],
+			["write", { path: ".flowx/runtime/x.json", content: "{}" }],
+			["write", { path: "my.flow/runtime/x.json", content: "{}" }],
 		]) {
 			assert.equal(await callTool(toolName, input), undefined, `${toolName} ${JSON.stringify(input)} must pass`);
 		}
@@ -519,6 +528,134 @@ try {
 	// A percent-encoded file URL names the same gate state as the plain path.
 	result = await toolCall({ toolName: "write", input: { path: `file://${root}/%2Eflow/runtime/gates.json`, content: "{}" } }, ctx);
 	assert.equal(result?.block, true, "a write through a percent-encoded file URL must be blocked");
+
+	// A non-file URL scheme still names a path: the percent-decoded path component is what a host sees.
+	{
+		const callTool = (toolName, input, cwd = root) => toolCall({ toolName, input }, { cwd, hasUI: true });
+		for (const path of [
+			`ssh://localhost${root}/%2Eflow/runtime/gates.json`,
+			`ssh://localhost${root}/.flow/runtime/gates.json`,
+			`ssh://localhost${root}/%2egit/config`,
+			"ssh://localhost/%E0%A4%A",
+		]) {
+			result = await callTool("write", { path, content: "{}" });
+			assert.equal(result?.block, true, `write ${path} must be blocked`);
+		}
+		assert.equal(await callTool("write", { path: `ssh://localhost${root}/app.txt`, content: "x" }), undefined, "an unrelated URL write must pass");
+	}
+
+	// bash matches its prompt rules on `command` only, yet runs in `cwd`: a cwd inside the runtime directory is the hook's to refuse.
+	{
+		const callBash = (input, cwd = root) => toolCall({ toolName: "bash", input }, { cwd, hasUI: true });
+		for (const cwd of [
+			".flow/runtime",
+			`${root}/.flow/runtime`,
+			".flow/runtime/sub",
+			".flow/runtime-link",
+			`file://${root}/%2Eflow/runtime`,
+			"file://localhost/%E0%A4%A",
+		]) {
+			result = await callBash({ command: "rm gates.json", cwd });
+			assert.equal(result?.block, true, `bash cwd ${cwd} must be blocked`);
+			assert.match(result.reason, /command/);
+		}
+		for (const input of [{ command: "ls", cwd: "." }, { command: "ls", cwd: ".flow/plans" }, { command: "ls", cwd: ".flow/runtime-notes" }, { command: "ls" }, { command: "ls", cwd: 7 }]) {
+			assert.equal(await callBash(input), undefined, `bash ${JSON.stringify(input)} must pass`);
+		}
+	}
+
+	// The acceptance fingerprint reads repo-local git config, attributes and excludes, so file tools stay out of `.git/`.
+	{
+		const { dir, run } = caseRepo();
+		mkdirSync(join(dir, "src"));
+		writeFileSync(join(dir, "src/a.ts"), "const a = 1;\n");
+		const callTool = (toolName, input, cwd = dir) => toolCall({ toolName, input }, { cwd, hasUI: true });
+		for (const [toolName, input, cwd] of [
+			["write", { path: ".git/config", content: "" }],
+			["write", { path: ".git/info/exclude", content: "" }],
+			["write", { path: ".git/info/attributes", content: "" }],
+			["write", { path: ".git/hooks/pre-commit", content: "" }],
+			["write", { path: join(dir, ".git/info/exclude"), content: "" }],
+			["write", { path: "../.git/config", content: "" }, join(dir, "src")],
+			["write", { path: "src/../.git/config", content: "" }],
+			["write", { path: `file://${dir}/%2Egit/config`, content: "" }],
+			["edit", { path: ".git/config", old_string: "a", new_string: "b" }],
+			["edit", { input: "[.git/info/attributes#ABCD]\nPUT 1.=1:\n+* filter=x" }],
+			["edit", { input: "*** Begin Patch\n*** Update File: .git/config\n@@\n-a\n+b\n*** End Patch" }],
+			["ast_edit", { ops: [{ pat: "a", out: "b" }], paths: [".git/config"] }],
+			["ast_edit", { ops: [{ pat: "a", out: "b" }], paths: [".git"] }],
+			["ast_edit", { ops: [{ pat: "a", out: "b" }], paths: [".git/info/**"] }],
+			["ast_edit", { ops: [{ pat: "a", out: "b" }], paths: ["src", ".git/info"] }],
+			["ast_edit", { ops: [{ pat: "a", out: "b" }], path: ".git/info" }],
+		]) {
+			result = await callTool(toolName, input, cwd);
+			assert.equal(result?.block, true, `${toolName} ${JSON.stringify(input)} must be blocked`);
+			assert.match(result.reason, /fingerprint/);
+		}
+		for (const [toolName, input] of [
+			["write", { path: ".gitignore", content: "x\n" }],
+			["write", { path: ".gitattributes", content: "x\n" }],
+			["write", { path: ".github/workflows/ci.yml", content: "x\n" }],
+			["write", { path: "x.git/config", content: "x\n" }],
+			["write", { path: "src/.gitkeep", content: "" }],
+			["edit", { path: "app.txt", old_string: "v1", new_string: "v2" }],
+			// OMP's walk skips every `.git` below its base, so a base above it never reaches git state.
+			["ast_edit", { ops: [{ pat: "a", out: "b" }], paths: ["."] }],
+			["ast_edit", { ops: [{ pat: "a", out: "b" }], paths: ["src"] }],
+			["ast_edit", { ops: [{ pat: "a", out: "b" }], paths: ["**/*.ts"] }],
+		]) {
+			assert.equal(await callTool(toolName, input), undefined, `${toolName} ${JSON.stringify(input)} must pass`);
+		}
+
+		// A linked worktree's `.git` is a file; the directory it points to lies outside the worktree root.
+		const linked = `${dir}-linked`;
+		caseRepos.push(linked);
+		run("worktree", "add", "-q", "-b", "linked", linked);
+		const common = join(dir, ".git");
+		const gitdir = readFileSync(join(linked, ".git"), "utf8").replace(/^gitdir: /, "").trim();
+		for (const [toolName, input] of [
+			["write", { path: ".git", content: "" }],
+			["write", { path: join(common, "config"), content: "" }],
+			["write", { path: join(common, "info/exclude"), content: "" }],
+			["write", { path: join(gitdir, "info/exclude"), content: "" }],
+			["ast_edit", { ops: [{ pat: "a", out: "b" }], paths: [join(common, "info")] }],
+		]) {
+			result = await callTool(toolName, input, linked);
+			assert.equal(result?.block, true, `${toolName} ${JSON.stringify(input)} from a linked worktree must be blocked`);
+			assert.match(result.reason, /fingerprint/);
+		}
+		assert.equal(await callTool("write", { path: "app.txt", content: "x\n" }, linked), undefined, "an ordinary write in a linked worktree must pass");
+
+		// A real directory behind a symlinked `.flow` or `.flow/runtime` is gate state however it is spelled.
+		mkdirSync(join(dir, "store/runtime"), { recursive: true });
+		symlinkSync("store", join(dir, ".flow"));
+		for (const path of ["store/runtime/gates.json", join(dir, "store/runtime/new.json"), "store/runtime"]) {
+			result = await callTool("write", { path, content: "{}" });
+			assert.equal(result?.block, true, `write ${path} behind a symlinked .flow must be blocked`);
+			assert.match(result.reason, /Only flow_gate writes \.flow\/runtime\//);
+		}
+		assert.equal(await callTool("write", { path: "store/notes.md", content: "x" }), undefined, "a sibling of the real runtime directory must pass");
+	}
+	{
+		const { dir } = caseRepo();
+		mkdirSync(join(dir, ".flow"));
+		mkdirSync(join(dir, "state"));
+		symlinkSync("../state", join(dir, ".flow/runtime"));
+		const callTool = (path) => toolCall({ toolName: "write", input: { path, content: "{}" } }, { cwd: dir, hasUI: true });
+		result = await callTool("state/gates.json");
+		assert.equal(result?.block, true, "write behind a symlinked .flow/runtime must be blocked");
+		assert.equal(await callTool("state-notes/x.json"), undefined, "a sibling directory must pass");
+	}
+	{
+		// No gate state yet: the link alone must anchor the real location, or the first forged record would pass.
+		const { dir } = caseRepo();
+		mkdirSync(join(dir, "store"));
+		symlinkSync("store", join(dir, ".flow"));
+		const callTool = (path) => toolCall({ toolName: "write", input: { path, content: "{}" } }, { cwd: dir, hasUI: true });
+		result = await callTool("store/runtime/gates.json");
+		assert.equal(result?.block, true, "write behind a symlinked .flow whose runtime directory does not exist yet must be blocked");
+		assert.equal(await callTool("store/other/x.json"), undefined, "an unrelated path behind the link must pass");
+	}
 
 	// ast_edit rewrites every file a directory or glob covers, so a call that could reach gate state is blocked.
 	{
@@ -583,6 +720,17 @@ try {
 			result = await callAst(paths);
 			assert.equal(result?.block, true, `ast_edit paths ${JSON.stringify(paths)} is malformed and must fail closed`);
 		}
+		result = await callAst(undefined);
+		assert.equal(result?.block, true, "ast_edit without a target walks the working directory and must be blocked");
+		result = await toolCall({ toolName: "ast_edit", input: { ops: [{ pat: "a", out: "b" }] } }, { cwd: dir, hasUI: true });
+		assert.equal(result?.block, true, "ast_edit with no path, _path or paths must be blocked");
+		result = await toolCall({ toolName: "ast_edit", input: { ops: [{ pat: "a", out: "b" }], path: "  ", paths: [] } }, { cwd: dir, hasUI: true });
+		assert.equal(result?.block, true, "ast_edit with only blank targets must be blocked");
+		assert.equal(
+			await toolCall({ toolName: "ast_edit", input: { ops: [{ pat: "a", out: "b" }], _path: "src" } }, { cwd: dir, hasUI: true }),
+			undefined,
+			"ast_edit naming a target through _path must pass when it cannot reach gate state",
+		);
 
 		// OMP's expandPath accepts these spellings of a directory, so the check must see through them.
 		for (const [paths, cwd] of [

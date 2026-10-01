@@ -76,10 +76,10 @@ const ACCEPT_ORDER_HINT =
 	"flow_gate accept must complete before the dependent flow-evidence-verifier dispatch; do not issue both in the same parallel tool batch";
 
 // Tools that write files at paths named in their input. `edit` carries its
-// targets in `path` (replace/patch modes and OMP's normalized hashline input),
-// `paths`, `edits[].rename` (patch mode) and the raw `input` text of the
+// targets in `path`/`_path` (replace/patch modes and OMP's normalized hashline input),
+// `paths`, `edits[].rename` (patch mode) and the raw `input`/`_input` text of the
 // hashline, apply_patch and sloppy modes. `ast_edit` also covers directories and
-// globs (astEditCoversRuntime). Not covered: bash (a prompt rule in the profiles) and eval writes.
+// globs (astEditBlock). Not covered: bash (a prompt rule in the profiles, plus the `cwd` check in the hook) and eval writes.
 const FILE_WRITE_TOOLS = new Set(["write", "edit", "ast_edit"]);
 const INPUT_PATH_LINES = [
 	/^\[(.+)\]\s*$/, // hashline header `[PATH#TAG]`
@@ -90,17 +90,26 @@ const INPUT_PATH_LINES = [
 ];
 const RUNTIME_WRITE_REASON =
 	"Only flow_gate writes .flow/runtime/; a hand-written record is not an approval. Use flow_gate present/approve, accept or clear instead.";
+const GIT_WRITE_REASON =
+	"File tools do not write under .git/: repo-local git config, attributes and excludes feed the acceptance fingerprint, so a change there would move or hide what flow_gate accept recorded.";
+const BASH_CWD_REASON =
+	"This bash cwd is inside .flow/runtime/. The profile prompt rule matches the command text only, so a relative path run from here would not prompt. Only flow_gate writes that directory.";
+const AST_NO_TARGET_REASON =
+	"ast_edit without a path, _path or paths target walks the working directory, which can reach .flow/runtime/ gate state; name a target.";
 
 // Git output above this size fails closed instead of being truncated.
 const GIT_OUTPUT_LIMIT = 256 * 1024 * 1024;
 
 const sha256 = (data: string | Buffer) => createHash("sha256").update(data).digest("hex");
 
+// Bounded so a stalled git (unreachable mount, remote GIT_DIR) cannot hold every file tool; callers treat a failure as
+// "outside git" and fall back to the working directory.
 function git(cwd: string, args: string[]): string {
 	return execFileSync("git", args, {
 		cwd,
 		encoding: "utf8",
 		stdio: ["ignore", "pipe", "pipe"],
+		timeout: 10_000,
 	}).trimEnd();
 }
 
@@ -385,28 +394,104 @@ function hasRuntimeSegment(path: string): boolean {
 	return parts.some((part, index) => part === ".flow" && parts[index + 1] === "runtime");
 }
 
+function isWithin(dir: string, path: string): boolean {
+	const rel = relative(dir, path);
+	return rel === "" || !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
+}
+
 // Mirrors OMP 18.4.5 `expandPath` (tools/path-utils.ts:72-130) for POSIX paths, so the guard reads a path as OMP does:
 // a stray leading `:` before `/`, `~`, `./` or `../` goes, `@` before `/` or `~` goes, a `file://` URL is decoded
 // (`localhost` and percent-escapes included), and `~` expands. OMP leaves an undecodable file URL as a literal path;
 // this throws instead, because a guard that cannot tell where a write lands must fail closed.
+// Deliberately omitted OMP steps, none of which can produce a `.flow` or `runtime` segment: Unicode-space
+// normalisation (it only swaps odd spaces for ASCII ones), the Windows extended-length prefix (`\\?\`, no POSIX
+// meaning) and the `InternalUrlRouter` `@` shorthand (it maps `@name` to OMP's own stores, not a checkout path).
 function expandToolPath(raw: string): string {
 	let value = /^:(?=[/\\~]|\.\.?[/\\]|[A-Za-z]:)/.test(raw) ? raw.slice(1) : raw;
 	const unprefixed = value.slice(1);
 	if (value.startsWith("@") && (unprefixed.startsWith("/") || unprefixed === "~" || unprefixed.startsWith("~/"))) value = unprefixed;
-	if (value.toLowerCase().startsWith("file://")) value = fileURLToPath(value);
+	if (value.toLowerCase().startsWith("file://")) {
+		// Bun's `fileURLToPath` keeps a malformed escape as written where Node throws; the guard must not depend on that.
+		decodeURIComponent(new URL(value).pathname);
+		value = fileURLToPath(value);
+	}
 	if (value === "~") return homedir();
 	if (value.startsWith("~/") || value.startsWith("~\\")) return homedir() + value.slice(1);
 	if (value.startsWith("~")) return join(homedir(), value.slice(1));
 	return value;
 }
 
+// A URL with a scheme other than `file:` (`ssh://host/path`): the percent-decoded path after the authority, which is
+// what a host that maps it onto this checkout would see. Throws on an undecodable escape; the caller fails closed.
+function nonFileUrlPath(target: string): string | undefined {
+	const match = target.match(/^([a-z][a-z0-9+.-]*):\/\/[^/]*([\s\S]*)$/i);
+	if (!match || match[1].toLowerCase() === "file") return undefined;
+	return decodeURIComponent(match[2]);
+}
+
+// Every path a write target can land on: as written and with symlinks resolved. Throws when a path cannot be read.
+function writeLocations(cwd: string, target: string): string[] {
+	const absolute = resolve(cwd, nonFileUrlPath(target) ?? expandToolPath(target));
+	const canonical = canonicalWritePath(absolute);
+	return canonical === undefined ? [absolute] : [absolute, canonical];
+}
+
+function nearestRepoRoot(cwd: string): string {
+	try {
+		return repoRoot(cwd);
+	} catch {
+		// Outside git, the working directory is the only anchor.
+		return canonicalWritePath(cwd) ?? cwd;
+	}
+}
+
+// `<root>/.flow/runtime` with symlinks resolved, at the repository root and at the working directory: a write below
+// it hits gate state even when `.flow` or `runtime` is a symlink and the written path names neither. The deepest
+// existing ancestor anchors it, so a symlinked `.flow` counts before any gate state has been written.
+function realRuntimeDirs(cwd: string): string[] {
+	const dirs: string[] = [];
+	for (const anchor of new Set([nearestRepoRoot(cwd), cwd])) {
+		const dir = canonicalWritePath(resolve(anchor, STATE_RELATIVE_PATH, ".."));
+		if (dir !== undefined) dirs.push(dir);
+	}
+	return dirs;
+}
+
 function writesFlowRuntime(cwd: string, input: ToolInput): boolean {
 	try {
-		return writeTargets(input).some((target) => {
-			const absolute = resolve(cwd, expandToolPath(target));
-			const canonical = canonicalWritePath(absolute);
-			return hasRuntimeSegment(absolute) || (canonical !== undefined && hasRuntimeSegment(canonical));
-		});
+		const runtimeDirs = realRuntimeDirs(cwd);
+		return writeTargets(input).some((target) =>
+			writeLocations(cwd, target).some((path) => hasRuntimeSegment(path) || runtimeDirs.some((dir) => isWithin(dir, path))),
+		);
+	} catch {
+		return true;
+	}
+}
+
+// The `.git` directory or gitfile under the repository root, and the common git directory. A linked worktree's `.git`
+// is a file and the directory it names (the common dir) lies outside the worktree root, so the common dir is protected
+// by its own path.
+type GitGuard = { root: string; commonDir: string | undefined };
+
+function gitGuard(cwd: string): GitGuard {
+	let commonDir: string | undefined;
+	try {
+		commonDir = realpathSync(git(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
+	} catch {
+		// Outside git there is no common dir; the root fallback below covers a `.git` under the working directory.
+	}
+	return { root: nearestRepoRoot(cwd), commonDir };
+}
+
+function isGitPath(guard: GitGuard, path: string): boolean {
+	if (guard.commonDir !== undefined && isWithin(guard.commonDir, path)) return true;
+	return isWithin(guard.root, path) && relative(guard.root, path).split(sep).includes(".git");
+}
+
+function writesGit(cwd: string, input: ToolInput): boolean {
+	try {
+		const guard = gitGuard(cwd);
+		return writeTargets(input).some((target) => writeLocations(cwd, target).some((path) => isGitPath(guard, path)));
 	} catch {
 		return true;
 	}
@@ -416,9 +501,12 @@ function writesFlowRuntime(cwd: string, input: ToolInput): boolean {
 // several targets with `;`, `,` or whitespace; each target splits at its first glob segment (`* ? [ {`) into a base
 // and a glob. The walk rewrites every file below the base, hidden directories included, whose path relative to the
 // base matches the glob (`*` stays inside one segment, `**` crosses them). It does not follow symlinks met inside the
-// walk, honours `.gitignore` but not `.git/info/exclude`, so the personal `.flow/` exclude never keeps it out of
-// `.flow/runtime/`; this check therefore never relies on an exclude entry. Language comes from each file's
-// extension, so a JSON gate state is reachable. Reachability is judged against the files that exist there now.
+// walk and honours `.gitignore`. It honours the primary checkout's `.git/info/exclude` but not the common-dir exclude
+// seen from a linked worktree, so the personal `.flow/` exclude cannot be relied on to keep it out of
+// `.flow/runtime/`; this check therefore never relies on an exclude entry. The walk skips every `.git` directory and
+// gitfile below its base (measured with a dryRun probe); it reaches git state only when the base is at or inside
+// `.git`, so only such a base counts as covering it. Language comes from each file's extension, or from `lang` for any
+// file, so a JSON gate state is reachable. Reachability is judged against the files that exist there now.
 const AST_RUNTIME_FILE_LIMIT = 10_000;
 const GLOB_CHARS = /[*?[{]/;
 
@@ -545,11 +633,15 @@ function reachableRuntimeFiles(base: string, cwd: string, root: string): string[
 	return files;
 }
 
-function targetCoversRuntime(cwd: string, root: string, target: string): boolean {
+type AstTarget = { base: string; canonical: string; glob: string | undefined };
+
+// A target split into base and glob, or undefined when its URL scheme addresses something other than this checkout.
+// Throws when OMP would read the target as something else than written; the caller treats that as covering.
+function astTarget(cwd: string, target: string): AstTarget | undefined {
 	// OMP splits the raw target at its first glob segment (`parseSearchPath`) and only then expands the base
 	// (`expandPath`); the glob stays raw. Expanding first would let `fileURLToPath` read a `?` glob character as a URL query.
 	// Other URL schemes address OMP's own stores or remote hosts, never this checkout's `.flow/`.
-	if (/^[a-z][a-z0-9+.-]*:\/\//i.test(target) && !/^file:\/\//i.test(target)) return false;
+	if (/^[a-z][a-z0-9+.-]*:\/\//i.test(target) && !/^file:\/\//i.test(target)) return undefined;
 	const spec = target.replace(/\\/g, "/");
 	const segments = spec.split("/");
 	const globAt = segments.findIndex((segment) => GLOB_CHARS.test(segment));
@@ -563,45 +655,58 @@ function targetCoversRuntime(cwd: string, root: string, target: string): boolean
 		glob = segments.slice(globAt).join("/");
 	}
 	// A query or fragment would be dropped by the URL decoder, so what OMP reads is not what the guard would see.
-	if (/^file:/i.test(base) && /[?#]/.test(base)) return true;
-	// Throws on a file URL OMP would not read as written; the caller treats that as covering.
-	base = expandToolPath(base);
-	const baseAbsolute = resolve(cwd, base);
-	const baseCanonical = canonicalWritePath(baseAbsolute) ?? baseAbsolute;
-	if (hasRuntimeSegment(baseAbsolute) || hasRuntimeSegment(baseCanonical)) return true;
-	const matcher = glob === undefined ? undefined : globToRegExp(glob);
-	for (const file of reachableRuntimeFiles(baseCanonical, cwd, root)) {
-		const rel = relative(baseCanonical, file);
+	if (/^file:/i.test(base) && /[?#]/.test(base)) throw new Error("file URL base carries a query or fragment");
+	const absolute = resolve(cwd, expandToolPath(base));
+	return { base: absolute, canonical: canonicalWritePath(absolute) ?? absolute, glob };
+}
+
+function targetCoversRuntime(cwd: string, root: string, target: AstTarget): boolean {
+	if (hasRuntimeSegment(target.base) || hasRuntimeSegment(target.canonical)) return true;
+	const matcher = target.glob === undefined ? undefined : globToRegExp(target.glob);
+	for (const file of reachableRuntimeFiles(target.canonical, cwd, root)) {
+		const rel = relative(target.canonical, file);
 		if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) continue;
 		// An unreadable glob matches everything: fail closed.
-		if (glob === undefined || matcher === undefined || matcher.test(rel.split(sep).join("/"))) return true;
+		if (target.glob === undefined || matcher === undefined || matcher.test(rel.split(sep).join("/"))) return true;
 	}
 	return false;
 }
 
-function astEditCoversRuntime(cwd: string, input: ToolInput): boolean {
+// The reason an `ast_edit` call must not run, or undefined. Anything unreadable blocks.
+function astEditBlock(cwd: string, input: ToolInput): string | undefined {
+	const entries: string[] = [];
 	try {
-		const entries: string[] = [];
 		for (const key of ["path", "_path"]) {
 			const value = input[key];
-			if (typeof value === "string") entries.push(value);
+			if (typeof value === "string" && value.trim()) entries.push(value);
 		}
 		if (input.paths !== undefined) {
-			if (!Array.isArray(input.paths)) return true;
+			if (!Array.isArray(input.paths)) throw new Error("paths is not an array");
 			for (const item of input.paths) {
-				if (typeof item !== "string") return true;
-				entries.push(item);
+				if (typeof item !== "string") throw new Error("paths entry is not a string");
+				if (item.trim()) entries.push(item);
 			}
 		}
-		let root = cwd;
-		try {
-			root = repoRoot(cwd);
-		} catch {
-			// Outside git, the working directory is the only anchor.
-		}
-		return entries.some((entry) => astEditCandidates(entry).some((target) => targetCoversRuntime(cwd, root, target)));
 	} catch {
-		return true;
+		return `${RUNTIME_WRITE_REASON} This ast_edit paths input is malformed; name narrower paths.`;
+	}
+	if (entries.length === 0) return AST_NO_TARGET_REASON;
+	const covers = `${RUNTIME_WRITE_REASON} This ast_edit path or glob covers a file there; name narrower paths.`;
+	try {
+		const root = nearestRepoRoot(cwd);
+		const guard = gitGuard(cwd);
+		let touchesGit = false;
+		for (const entry of entries) {
+			for (const candidate of astEditCandidates(entry)) {
+				const target = astTarget(cwd, candidate);
+				if (!target) continue;
+				if (targetCoversRuntime(cwd, root, target)) return covers;
+				if (isGitPath(guard, target.base) || isGitPath(guard, target.canonical)) touchesGit = true;
+			}
+		}
+		return touchesGit ? GIT_WRITE_REASON : undefined;
+	} catch {
+		return covers;
 	}
 }
 
@@ -795,14 +900,28 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("tool_call", async (event, ctx) => {
+		if (event.toolName === "bash") {
+			const cwd = (event.input as ToolInput).cwd;
+			if (typeof cwd !== "string") return;
+			try {
+				const absolute = resolve(ctx.cwd, expandToolPath(cwd));
+				const canonical = canonicalWritePath(absolute) ?? absolute;
+				const runtimeDirs = realRuntimeDirs(ctx.cwd);
+				if (hasRuntimeSegment(absolute) || hasRuntimeSegment(canonical) || runtimeDirs.some((dir) => isWithin(dir, canonical))) {
+					return { block: true, reason: BASH_CWD_REASON };
+				}
+			} catch {
+				return { block: true, reason: BASH_CWD_REASON };
+			}
+			return;
+		}
 		if (FILE_WRITE_TOOLS.has(event.toolName)) {
 			const input = event.input as ToolInput;
 			if (writesFlowRuntime(ctx.cwd, input)) return { block: true, reason: RUNTIME_WRITE_REASON };
-			if (event.toolName === "ast_edit" && astEditCoversRuntime(ctx.cwd, input)) {
-				return {
-					block: true,
-					reason: `${RUNTIME_WRITE_REASON} This ast_edit path or glob covers a file there; name narrower paths.`,
-				};
+			if (writesGit(ctx.cwd, input)) return { block: true, reason: GIT_WRITE_REASON };
+			if (event.toolName === "ast_edit") {
+				const reason = astEditBlock(ctx.cwd, input);
+				if (reason) return { block: true, reason };
 			}
 			return;
 		}
