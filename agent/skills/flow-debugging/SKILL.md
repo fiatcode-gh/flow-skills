@@ -34,7 +34,7 @@ Once root cause is supported:
 
 Urgent containment may be done first only when the user explicitly wants mitigation; label it as mitigation and continue root-cause work separately.
 
-Once the root cause and exact correction are settled, an orchestrating `flow-execution` session may delegate a strictly mechanical edit to `sonic`. Never hand `sonic` an open-ended "debug/fix this" task; diagnosis, hypothesis ownership and semantic verification remain with Main/the semantic unit owner.
+As Main, route the fix by `flow-execution` section 2: a tiny cohesive edit → the Main-direct lane under `flow-tdd`; an exact correction with one obvious result and existing proof → `sonic`; anything else → `flow-implementer` under an approved contract (`Plan: NONE`, `flow-execution` section 1).
 
 ## Stop/escalate
 

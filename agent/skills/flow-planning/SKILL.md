@@ -23,7 +23,7 @@ Who plans:
 - For substantial planning, Main must dispatch `flow-planner` (`@plan`) to own the consequential HOW recon and writing.
 - Skip that dispatch only when a current, validated external plan already meets this skill's execution-grade bar (section 5 and "External handoffs").
 - Dispatch the planner only after the user explicitly approves the completed governing contract (the WHAT boundary). `flow-design` step 7 says what counts as that approval.
-- For durable Flow work, put this block (the Flow gate block) in the planner's task brief.
+- Put this block (the Flow gate block) in every planner task brief.
 
 ```text
 Flow gate:

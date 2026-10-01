@@ -49,7 +49,7 @@ Rules:
 - Give each plan task one fresh non-isolated `flow-plan-executor`, in order, in the same feature checkout. Never reuse an executor across plan tasks.
 - Keep a semantic owner (`flow-implementer`) non-isolated and keep its id, so you can revive it for follow-ups.
 - Isolate only independent concurrent writers or disposable experiments. A completed isolated workspace may not be revivable.
-- You may write a checkpoint and a short resume handoff at a durable boundary under context pressure, since Main cannot rotate itself. It is optional and never a gate. Keep working in the current session.
+- You may write a short resume handoff at a clean boundary under context pressure. It is optional and never a gate, unlike the section 9 checkpoint. Keep working in the current session.
 
 ## 4. Write the brief
 

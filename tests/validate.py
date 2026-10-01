@@ -299,7 +299,7 @@ for required in EVIDENCE_MARKERS:
     if required not in evidence_raw: err(f'flow-evidence missing machine-read marker or pointer target: {required!r}')
 
 artifacts=(ROOT/'agent/rules/flow-artifacts.md').read_text()
-for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'mailbox/<channel>/', 'runtime/gates.json', 'docs/decisions/', 'read-only history', 'absolute path', 'docs/reports/', 'Never edit `.gitignore`']:
+for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'mailbox/<channel>/', 'runtime/gates.json', 'docs/decisions/', 'read-only history', 'absolute path', 'docs/reports/', 'Never edit `.gitignore`', '`.flow/runtime/`', '`flow_gate`']:
     if required not in artifacts: err(f'flow-artifacts invariant missing: {required}')
 for path,required in [
     ('agent/skills/flow-design/SKILL.md', '.flow/contracts/<slug>.md'),

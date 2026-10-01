@@ -6,7 +6,7 @@ alwaysApply: true
 
 # Flow artifacts
 
-Flow working state lives inside the project at `.flow/`, hidden from git through the repository's personal exclude file. Flow writes nowhere else in the working tree, except two tracked kinds: decision records under `docs/decisions/` and audit reports the user asked for under `docs/reports/`.
+Flow working state lives inside the project at `.flow/`, hidden from git through the repository's personal exclude file. Flow writes nowhere else in the working tree, except two tracked kinds: decision records under `docs/decisions/` and requested audit reports under `docs/reports/`.
 
 ## Layout
 
@@ -21,7 +21,7 @@ Flow working state lives inside the project at `.flow/`, hidden from git through
   runtime/gates.json                  flow-governance approval/acceptance bindings
 ```
 
-Durable artifacts record the head they were derived from where applicable; runtime gate state records exact artifact digests and accepted repository identity, so freshness is checked rather than remembered.
+Artifacts record their source head where applicable. `.flow/runtime/` holds artifact digests and the accepted repository identity, so freshness is checked, not remembered. Only `flow_gate` writes it; a hand-written record is not an approval.
 
 ## Exclude guard
 
@@ -49,7 +49,7 @@ flow_exclude_guard() {
 
 ## Other checkouts and workers
 
-A worker in another checkout, worktree or isolated workspace does not see this checkout's `.flow/`. Hand it artifacts by absolute path into the originating checkout. Do not paste plans into prompts to work around this.
+A worker in another checkout, worktree or isolated workspace does not see this checkout's `.flow/`. Hand it artifacts by absolute path into the originating checkout. Never paste plans into prompts instead.
 
 ## Lifecycle
 

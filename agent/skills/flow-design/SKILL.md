@@ -32,9 +32,9 @@ Resolve and record the **what/why** before implementation.
    - Keep consequential implementation HOW out of the contract.
 7. Present the completed contract and get explicit user approval of its WHAT/WHY boundary before substantial planning begins.
    - Answers to clarification questions do not themselves approve the resulting completed or materially amended contract.
-   - For durable substantial work, bind that approval to the exact artifact revision with the native `flow_gate` tool: call `present` for `kind=contract` with the stable Flow scope, the contract path and the user-facing behavior/boundary/acceptance summary, then call `approve`.
+   - Bind that approval to the exact revision with `flow_gate`: call `present` for `kind=contract` with the stable Flow scope, the contract path and the user-facing behavior/boundary/acceptance summary, then call `approve`.
    - `approve` forces OMP's native user confirmation, even under yolo, and records the approved artifact digest.
-8. After approval, keep the forward pointer to `flow-planning`.
+8. After the approval is recorded, keep the forward pointer to `flow-planning`.
    - A material WHAT/boundary/acceptance change later reopens contract approval. Present and approve the amended revision before planning resumes.
 
 ## Imported design context
