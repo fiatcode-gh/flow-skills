@@ -9,20 +9,44 @@ PROFILES="openai-codex ollama-cloud anthropic"
 info() { printf '%s\n' "$*"; }
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
+# Sets $dir to the profile's agent directory, or exits. A link destination
+# must never be empty or the filesystem root.
 profile_dir() { # profile
-  profile=$1
   if command -v omp >/dev/null 2>&1; then
-    omp --profile "$profile" config path 2>/dev/null || fail "could not resolve OMP profile '$profile'"
+    dir=$(omp --profile "$1" config path 2>/dev/null) || fail "could not resolve OMP profile '$1'"
   else
-    config_root=${PI_CONFIG_DIR:-.omp}
-    printf '%s/%s/profiles/%s/agent\n' "$HOME" "$config_root" "$profile"
+    dir="$HOME/${PI_CONFIG_DIR:-.omp}/profiles/$1/agent"
   fi
+  case $dir in
+    /?*) ;;
+    *) fail "OMP profile '$1' resolved to unusable directory '$dir'" ;;
+  esac
 }
 
-shared_agent_dir() { # <config-root>/agent, derived from a profile agent dir
-  set -- $PROFILES
-  dir=$(profile_dir "$1")
-  printf '%s/agent\n' "$(dirname -- "$(dirname -- "$(dirname -- "$dir")")")"
+# Resolves every profile before acting, so one unresolvable profile changes
+# nothing. Then runs <shared-step> <first-agent-dir> once and
+# <profile-step> <profile> <agent-dir> per profile; returns 1 if any step did.
+each_profile() { # shared-step profile-step
+  shared_step=$1 profile_step=$2 erc=0
+  set --
+  for profile in $PROFILES; do
+    profile_dir "$profile"
+    set -- "$@" "$profile" "$dir"
+  done
+  "$shared_step" "$2" || erc=1
+  while [ "$#" -gt 0 ]; do
+    "$profile_step" "$1" "$2" || erc=1
+    shift 2
+  done
+  return "$erc"
+}
+
+shared_agent_dir() { # profile agent dir; sets $shared to <config-root>/agent
+  config_root=$(dirname -- "$(dirname -- "$(dirname -- "$1")")")
+  case $config_root in
+    /?*) shared="$config_root/agent" ;;
+    *) fail "cannot derive the shared agent directory from '$1'" ;;
+  esac
 }
 
 link_owned() { # source dest
@@ -30,7 +54,8 @@ link_owned() { # source dest
   if [ -e "$dst" ] && [ ! -L "$dst" ]; then
     fail "$dst exists and is not a symlink; move/merge it manually"
   fi
-  ln -sfn "$src" "$dst"
+  ln -sfn "$src" "$dst" || fail "could not link $dst -> $src"
+  info "linked $dst -> $src"
 }
 
 link_config() { # profile dir
@@ -39,11 +64,10 @@ link_config() { # profile dir
   template="$ROOT/profiles/$profile/config.yml"
   if [ -L "$cfg" ] || [ ! -e "$cfg" ]; then
     link_owned "$template" "$cfg"
-    info "linked $cfg -> $template"
     return 0
   fi
   if cmp -s "$cfg" "$template"; then
-    ln -sfn "$template" "$cfg"
+    ln -sfn "$template" "$cfg" || fail "could not link $cfg -> $template"
     info "replaced identical copy: $cfg -> $template"
     return 0
   fi
@@ -51,33 +75,27 @@ link_config() { # profile dir
   return 1
 }
 
-install_profile() { # profile
-  profile=$1
-  dir=$(profile_dir "$profile")
-  mkdir -p "$dir"
+install_profile() { # profile dir
+  profile=$1 dir=$2
+  mkdir -p -- "$dir" || fail "could not create $dir"
   prc=0
   for name in AGENTS.md agents rules skills extensions lib; do
     link_owned "$ROOT/agent/$name" "$dir/$name"
-    info "linked $dir/$name -> $ROOT/agent/$name"
   done
   link_config "$profile" "$dir" || prc=1
   info "left $dir/mcp.json untouched; optional example: $ROOT/mcp.example.json"
   return "$prc"
 }
 
-install_shared() {
-  dir=$(shared_agent_dir)
-  mkdir -p "$dir"
-  link_owned "$ROOT/agent/keybindings.yml" "$dir/keybindings.yml"
-  info "linked $dir/keybindings.yml -> $ROOT/agent/keybindings.yml"
+install_shared() { # first profile agent dir
+  shared_agent_dir "$1"
+  mkdir -p -- "$shared" || fail "could not create $shared"
+  link_owned "$ROOT/agent/keybindings.yml" "$shared/keybindings.yml"
 }
 
 install() {
   rc=0
-  install_shared
-  for profile in $PROFILES; do
-    install_profile "$profile" || rc=1
-  done
+  each_profile install_shared install_profile || rc=1
   [ "$rc" -eq 0 ] || info "one or more profile configs diverge from their template; nothing was overwritten"
   return "$rc"
 }
@@ -90,9 +108,8 @@ verify_link() { # source dest
   info "ok: $2"
 }
 
-verify_profile() { # profile
-  profile=$1
-  dir=$(profile_dir "$profile")
+verify_profile() { # profile dir
+  profile=$1 dir=$2
   prc=0
   info "profile: $profile ($dir)"
   for name in AGENTS.md agents rules skills extensions lib; do
@@ -102,23 +119,17 @@ verify_profile() { # profile
   return "$prc"
 }
 
-verify_shared() {
-  dir=$(shared_agent_dir)
-  verify_link "$ROOT/agent/keybindings.yml" "$dir/keybindings.yml"
+verify_shared() { # first profile agent dir
+  shared_agent_dir "$1"
+  verify_link "$ROOT/agent/keybindings.yml" "$shared/keybindings.yml"
 }
 
 verify() {
-  rc=0
-  verify_shared || rc=1
-  for profile in $PROFILES; do
-    verify_profile "$profile" || rc=1
-  done
-  return "$rc"
+  each_profile verify_shared verify_profile
 }
 
-doctor_profile() { # profile
-  profile=$1
-  dir=$(profile_dir "$profile")
+doctor_profile() { # profile dir
+  profile=$1 dir=$2
   cfg="$dir/config.yml"
   [ -f "$cfg" ] || fail "$cfg not found"
 
@@ -155,9 +166,7 @@ doctor_profile() { # profile
 }
 
 doctor() {
-  for profile in $PROFILES; do
-    doctor_profile "$profile"
-  done
+  each_profile : doctor_profile
 }
 
 usage() {

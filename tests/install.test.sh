@@ -80,4 +80,43 @@ if HOME="$TMP2" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/nul
 fi
 rm -rf "$TMP2"
 
+
+# An unresolvable profile, at any position, must make every command fail before
+# anything is linked: no link at all, and no `linked` line.
+TMP_BAD=$(mktemp -d)
+mkdir -p "$TMP_BAD/bin"
+cat > "$TMP_BAD/bin/omp" <<'SH'
+#!/usr/bin/env sh
+if [ "$2" = "$BAD_PROFILE" ]; then
+  case $BAD_MODE in
+    fail) exit 1 ;;
+    empty) exit 0 ;;
+    root) printf '/\n'; exit 0 ;;
+  esac
+fi
+printf '%s/native/%s/agent\n' "$HOME" "$2"
+SH
+chmod +x "$TMP_BAD/bin/omp"
+for mode in fail empty root; do
+  for bad in openai-codex ollama-cloud anthropic; do
+    for cmd in install verify doctor; do
+      home="$TMP_BAD/home-$mode-$bad-$cmd"
+      mkdir -p "$home"
+      if out=$(BAD_MODE=$mode BAD_PROFILE=$bad HOME="$home" PATH="$TMP_BAD/bin:/usr/bin:/bin" "$ROOT/scripts/omp-stack" "$cmd" 2>&1); then
+        echo "FAIL: $cmd succeeded with unresolvable profile $bad ($mode)" >&2
+        exit 1
+      fi
+      case $out in
+        *linked*) echo "FAIL: $cmd printed a link line with unresolvable profile $bad ($mode)" >&2; exit 1 ;;
+        *"'$bad'"*) ;;
+        *) echo "FAIL: $cmd did not name unresolvable profile $bad ($mode): $out" >&2; exit 1 ;;
+      esac
+      if [ -n "$(find "$home" -type l)" ]; then
+        echo "FAIL: $cmd linked something with unresolvable profile $bad ($mode)" >&2
+        exit 1
+      fi
+    done
+  done
+done
+rm -rf "$TMP_BAD"
 echo 'ok: profile installer safety/idempotence'
