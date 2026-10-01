@@ -21,7 +21,7 @@ fi
 
 cmp -s "$TMP/ollama.before" "$TMP/.omp/profiles/ollama-cloud/agent/config.yml"
 test ! -L "$TMP/.omp/profiles/ollama-cloud/agent/config.yml"
-for profile in anthropic; do
+for profile in openai-codex anthropic; do
   test -L "$TMP/.omp/profiles/$profile/agent/config.yml"
 done
 grep -q 'default sentinel' "$TMP/.omp/agent/AGENTS.md"
@@ -32,7 +32,7 @@ cp "$ROOT/profiles/ollama-cloud/config.yml" "$TMP/.omp/profiles/ollama-cloud/age
 HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null
 HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null
 
-for profile in ollama-cloud anthropic; do
+for profile in openai-codex ollama-cloud anthropic; do
   for name in $LINKED config.yml; do
     test -L "$TMP/.omp/profiles/$profile/agent/$name"
   done
@@ -46,6 +46,7 @@ HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" verify >/dev/null
 TMP_CFG=$(mktemp -d)
 HOME="$TMP_CFG" PI_CONFIG_DIR=.custom PI_CODING_AGENT_DIR="$TMP_CFG/ignored" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null
 test -L "$TMP_CFG/.custom/profiles/ollama-cloud/agent/skills"
+test -L "$TMP_CFG/.custom/profiles/openai-codex/agent/skills"
 test -L "$TMP_CFG/.custom/profiles/anthropic/agent/skills"
 test ! -e "$TMP_CFG/ignored/skills"
 rm -rf "$TMP_CFG"
@@ -64,6 +65,7 @@ printf '%s/native/%s/agent\n' "$HOME" "$profile"
 SH
 chmod +x "$TMP_NATIVE/bin/omp"
 HOME="$TMP_NATIVE" PATH="$TMP_NATIVE/bin:/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null
+test -L "$TMP_NATIVE/native/openai-codex/agent/skills"
 test -L "$TMP_NATIVE/native/ollama-cloud/agent/skills"
 test -L "$TMP_NATIVE/native/anthropic/agent/skills"
 rm -rf "$TMP_NATIVE"

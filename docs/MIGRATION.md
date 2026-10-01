@@ -22,7 +22,7 @@ Why:
 ## Recommended sequence
 
 1. Extract/clone `omp-stack` somewhere stable.
-2. Run `./scripts/omp-stack install`. This provisions `ollama-cloud` and `anthropic` under OMP's native profile roots.
+2. Run `./scripts/omp-stack install`. This provisions `openai-codex`, `ollama-cloud`, and `anthropic` under OMP's native profile roots.
 3. If a profile already had a real `config.yml`, the installer links it only when it is byte-identical to `profiles/<name>/config.yml`. Otherwise it warns and leaves the file alone: merge the wanted settings into the repository template, delete the profile copy, and rerun `install` so the profile ends up pointing at the single source of truth.
 4. Remove any old `ai-stack` `extensions:` registrations and `skills.customDirectories` entries from the profile configs.
 5. Authenticate each profile/provider as needed. Named OMP profiles do not inherit runtime/auth state from the default profile or from each other. `OLLAMA_CLOUD_API_KEY` may instead be supplied through the environment. For the Anthropic Team profile, use OMP's Anthropic/Claude OAuth login inside `omp --profile anthropic`; never commit Team credentials.
@@ -31,6 +31,7 @@ Why:
 8. Launch with native OMP profile selection:
 
    ```sh
+   omp --profile openai-codex
    omp --profile ollama-cloud
    omp --profile anthropic
    ```
@@ -40,6 +41,13 @@ The old default `~/.omp/agent` tree is left untouched. Delete or retire it only 
 ## Routing changes
 
 The v8 trial changes routing because execution-grade planning separates judgment from plan-following:
+
+OpenAI Codex:
+
+- `smol` / `tiny` / `commit`: GPT-6 Luna low; `vision`: GPT-6 Luna medium; `execute`: GPT-6 Luna xhigh;
+- `default`: GPT-6 Luna auto;
+- `task`: GPT-6.1 Sol medium; `plan` / `slow` / `review_aux`: GPT-6.1 Sol high;
+- `critical`: GPT-6 Astra xhigh.
 
 Ollama Cloud:
 

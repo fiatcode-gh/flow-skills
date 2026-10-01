@@ -24,6 +24,7 @@ agent/
   lib/                      extension support code
   keybindings.yml           shared chord remaps (zellij-safe)
 profiles/
+  openai-codex/config.yml   first-install baseline for `omp --profile openai-codex`
   ollama-cloud/config.yml   first-install baseline for `omp --profile ollama-cloud`
   anthropic/config.yml      first-install baseline for `omp --profile anthropic`
 mcp.example.json            MCP server template, copied per profile (see below)
@@ -32,7 +33,7 @@ scripts/omp-stack           install / verify / doctor
 
 ## Install
 
-The installer provisions two native OMP profiles: `ollama-cloud` and `anthropic`. It links `agent/keybindings.yml` into the shared agent directory once — named profiles inherit it and can still override single actions — symlinks the shared Flow surfaces and that profile's `config.yml` into each profile, refuses to clobber real managed-surface files/directories, and never writes `mcp.json`.
+The installer provisions three native OMP profiles: `openai-codex`, `ollama-cloud`, and `anthropic`. It links `agent/keybindings.yml` into the shared agent directory once — named profiles inherit it and can still override single actions — symlinks the shared Flow surfaces and that profile's `config.yml` into each profile, refuses to clobber real managed-surface files/directories, and never writes `mcp.json`.
 
 `profiles/<name>/config.yml` is the single source of truth: each profile's `config.yml` is a symlink back to it, so a settings change belongs in this repository. An existing real file is replaced by the symlink only when it is already byte-identical to the template; otherwise the installer warns, leaves it alone, and exits non-zero so the divergence is visible. Merge it by hand, then rerun `install`. Editing settings through OMP's own settings UI rewrites the target file in this repository — review it with `git diff` like any other change.
 
@@ -44,6 +45,7 @@ The installer provisions two native OMP profiles: `ollama-cloud` and `anthropic`
 Launch OMP directly with the native profile selector:
 
 ```sh
+omp --profile openai-codex
 omp --profile ollama-cloud
 omp --profile anthropic
 ```
@@ -55,7 +57,7 @@ See `docs/MIGRATION.md` for moving an existing profile onto the linked config.
 MCP stays profile-owned: the installer never writes or links `mcp.json`, because the file carries credentials and per-profile enablement. Every profile is meant to see the **same** servers, so copy the template into each one and keep the copies identical:
 
 ```sh
-for p in ollama-cloud anthropic; do
+for p in openai-codex ollama-cloud anthropic; do
   cp mcp.example.json "$(omp --profile "$p" config path)/mcp.json"
 done
 ```
@@ -98,6 +100,8 @@ The old bootstrap (`flow-using-skills`), normal workspace ceremony and standalon
 ## Model philosophy
 
 Skills and agents use **roles**, never concrete models. Native OMP profiles provide provider-specific role maps while the Flow content stays shared.
+
+The OpenAI Codex profile follows OpenAI's GPT-6 model/effort ladder: GPT-6 Luna for Main (adaptive effort), cheap leaves (low), vision (medium) and constrained execution (xhigh); GPT-6.1 Sol for semantic implementation (medium) and planning/final acceptance/auxiliary review (high); and GPT-6 Astra xhigh for explicit critical escalation.
 
 The Ollama Cloud trial keeps DeepSeek V4 Pro as Main/planning/final acceptance, uses DeepSeek V4.1 Flash for cheap mechanical roles, GLM-5.3-Flash for constrained execution/semantic coding/vision and auxiliary review, and Kimi K3 for explicit critical escalation. The Anthropic v8 profile uses Haiku 4.5 for cheap leaves, Sonnet 5.5 for constrained execution/semantic implementation/vision/auxiliary review, Opus 5.5 for Main/planning/correctness reasoning, and Fable 5.1 high for explicit critical escalation.
 

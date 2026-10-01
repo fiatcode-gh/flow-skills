@@ -3,6 +3,7 @@
 The stack encodes **intent in roles**, not concrete model names. Native OMP profiles map the same role vocabulary to different providers:
 
 ```sh
+omp --profile openai-codex
 omp --profile ollama-cloud
 omp --profile anthropic
 ```
@@ -11,28 +12,38 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 
 ## Routing
 
-| Load | Role / agent | Ollama Cloud profile | Anthropic profile |
-|---|---|---|---|
-| tiny metadata/title/background | `@tiny` | DeepSeek V4.1 Flash low | Haiku 4.5 |
-| commit/changelog generation | `@commit` | DeepSeek V4.1 Flash low | Haiku 4.5 |
-| repo exploration | bundled `scout` / `@smol` | DeepSeek V4.1 Flash low | Haiku 4.5 |
-| behavior-preserving mechanical work / diagnosed exact correction | bundled `sonic` / `@smol` | DeepSeek V4.1 Flash low | Haiku 4.5 |
-| Main/controller | `@default` | **DeepSeek V4 Pro high (v8 trial)** | Opus 5.5 medium |
-| execution-grade plan follower | `flow-plan-executor` / `@execute` | **GLM-5.3-Flash high** | Sonnet 5.5 medium |
-| residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GLM-5.3-Flash high | Sonnet 5.5 high |
-| deliberate execution planning | `flow-planner` / `@plan` | DeepSeek V4 Pro high | Opus 5.5 medium |
-| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | DeepSeek V4 Pro high | Opus 5.5 medium |
-| TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GLM-5.3-Flash high | Sonnet 5.5 high |
-| vision / multimodal inspection | `@vision` | GLM-5.3-Flash high | Sonnet 5.5 medium |
-| exceptional security/concurrency/data-integrity escalation | `@critical` | Kimi K3 high | Fable 5.1 high |
+| Load | Role / agent | OpenAI Codex profile | Ollama Cloud profile | Anthropic profile |
+|---|---|---|---|---|
+| tiny metadata/title/background | `@tiny` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Haiku 4.5 |
+| commit/changelog generation | `@commit` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Haiku 4.5 |
+| repo exploration | bundled `scout` / `@smol` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Haiku 4.5 |
+| behavior-preserving mechanical work / diagnosed exact correction | bundled `sonic` / `@smol` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Haiku 4.5 |
+| Main/controller | `@default` | GPT-6 Luna auto | **DeepSeek V4 Pro high (v8 trial)** | Opus 5.5 medium |
+| execution-grade plan follower | `flow-plan-executor` / `@execute` | GPT-6 Luna xhigh | **GLM-5.3-Flash high** | Sonnet 5.5 medium |
+| residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GPT-6.1 Sol medium | GLM-5.3-Flash high | Sonnet 5.5 high |
+| deliberate execution planning | `flow-planner` / `@plan` | GPT-6.1 Sol high | DeepSeek V4 Pro high | Opus 5.5 medium |
+| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | DeepSeek V4 Pro high | Opus 5.5 medium |
+| TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GPT-6.1 Sol high | GLM-5.3-Flash high | Sonnet 5.5 high |
+| vision / multimodal inspection | `@vision` | GPT-6 Luna medium | GLM-5.3-Flash high | Sonnet 5.5 medium |
+| exceptional security/concurrency/data-integrity escalation | `@critical` | GPT-6 Astra xhigh | Kimi K3 high | Fable 5.1 high |
 
 `slow` intentionally stops below the most expensive explicit escalation. `critical` is the escape hatch; no automatic Flow agent binds `@critical` on purpose. Escalation should be a conscious model/session choice, not accidental fan-out.
 
 ## Provider profiles
 
-`profiles/ollama-cloud/config.yml` and `profiles/anthropic/config.yml` are the single source of truth for each profile's settings, not runtime overlays. `scripts/omp-stack install` symlinks each profile's `config.yml` to its template; a real file is replaced only when it is byte-identical, otherwise the installer warns, leaves it alone, and exits non-zero. Merge a divergent copy into the template, delete the copy, and rerun `install`.
+`profiles/openai-codex/config.yml`, `profiles/ollama-cloud/config.yml`, and `profiles/anthropic/config.yml` are the single source of truth for each profile's settings, not runtime overlays. `scripts/omp-stack install` symlinks each profile's `config.yml` to its template; a real file is replaced only when it is byte-identical, otherwise the installer warns, leaves it alone, and exits non-zero. Merge a divergent copy into the template, delete the copy, and rerun `install`.
 
 OMP named profiles isolate the full OMP-native user root, not merely model selection. The installer therefore links the same `AGENTS.md`, agents, rules, skills, extensions and support library into every managed profile root. MCP remains profile-owned and opt-in. Sessions, blobs, `agent.db` and provider authentication remain genuinely separate by design.
+
+## OpenAI Codex selection rationale
+
+Efforts follow OpenAI's GPT-6 model-selection ladder (Luna low → Luna xhigh → GPT-6.1 Sol medium → Sol xhigh → Astra low/medium/xhigh):
+
+- **GPT-6 Luna** owns `smol` / `tiny` / `commit` at low (well-scoped edits and extraction), `vision` at its default medium, and `execute` at xhigh (problems with clear constraints, which is what an execution-grade plan gives the executor). Main stays on Luna with OMP's adaptive `auto` effort, capped at `xhigh` by `providers.autoThinkingMaxEffort`.
+- **GPT-6.1 Sol** owns `task` at its default medium (complex technical work) and `plan` / `slow` / `review_aux` at high (deep planning and review). GPT-6.1 Sol replaces GPT-6 Sol; it does not accept `none` effort.
+- **GPT-6 Astra** owns `critical` at xhigh, reserved for explicit escalation.
+
+OMP discovers Codex models from the signed-in account, so a model newer than OMP's bundled catalog (GPT-6.1 Sol at OMP 18.4.5) still resolves once the account has access.
 
 ## Ollama Cloud selection rationale
 

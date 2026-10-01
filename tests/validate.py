@@ -460,6 +460,7 @@ for p in skills:
 # Every native provider profile must expose the same complete role vocabulary.
 required_roles={'default','smol','tiny','vision','execute','task','plan','slow','review_aux','critical','commit'}
 profile_cfgs={
+    'openai-codex': ROOT/'profiles/openai-codex/config.yml',
     'ollama-cloud': ROOT/'profiles/ollama-cloud/config.yml',
     'anthropic': ROOT/'profiles/anthropic/config.yml',
 }
@@ -478,6 +479,23 @@ for profile,path in profile_cfgs.items():
     for role,model in roles.items():
         if not isinstance(model,str) or not model.startswith(prefix):
             err(f'{path.relative_to(ROOT)}: modelRoles.{role} must use {prefix}*, got {model!r}')
+
+expected_openai={
+    'default':'openai-codex/gpt-6-luna:auto',
+    'smol':'openai-codex/gpt-6-luna:low',
+    'tiny':'openai-codex/gpt-6-luna:low',
+    'vision':'openai-codex/gpt-6-luna:medium',
+    'execute':'openai-codex/gpt-6-luna:xhigh',
+    'task':'openai-codex/gpt-6.1-sol:medium',
+    'plan':'openai-codex/gpt-6.1-sol:high',
+    'slow':'openai-codex/gpt-6.1-sol:high',
+    'review_aux':'openai-codex/gpt-6.1-sol:high',
+    'critical':'openai-codex/gpt-6-astra:xhigh',
+    'commit':'openai-codex/gpt-6-luna:low',
+}
+openai=yaml.safe_load(profile_cfgs['openai-codex'].read_text()).get('modelRoles',{})
+if openai != expected_openai:
+    err('profiles/openai-codex/config.yml: role mapping drifted from documented routing')
 
 expected_ollama={
     'default':'ollama-cloud/glm-5.3:high',
