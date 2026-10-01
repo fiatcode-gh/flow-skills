@@ -443,6 +443,37 @@ try {
 		assert.equal(existsSync(join(dir, ".flow/runtime/gates.json")), false, "a refused approve must write no gate state");
 	}
 
+	// Only flow_gate writes .flow/runtime/: file-writing tools are blocked there, in every input shape.
+	{
+		const callTool = (toolName, input) => toolCall({ toolName, input }, ctx);
+		symlinkSync("runtime", join(root, ".flow/runtime-link"));
+		for (const [toolName, input] of [
+			["write", { path: ".flow/runtime/gates.json", content: "{}" }],
+			["write", { path: join(root, ".flow/runtime/new.json"), content: "{}" }],
+			["write", { path: "[.flow/runtime/gates.json#ABCD]", content: "{}" }],
+			["write", { path: ".flow/runtime-link/gates.json", content: "{}" }],
+			["edit", { path: ".flow/runtime/gates.json", old_string: "a", new_string: "b" }],
+			["edit", { input: "[.flow/runtime/gates.json#ABCD]\nPUT 1.=1:\n+{}" }],
+			["edit", { input: "[.flow/plans/demo/PLAN.md#ABCD]\nMV .flow/runtime/gates.json" }],
+			["edit", { input: "*** Begin Patch\n*** Update File: .flow/runtime/gates.json\n@@\n-a\n+b\n*** End Patch" }],
+			["edit", { input: "*** Begin Patch\n*** Update File: .flow/plans/demo/PLAN.md\n*** Move to: .flow/runtime/gates.json\n*** End Patch" }],
+			["edit", { path: ".flow/plans/demo/PLAN.md", edits: [{ op: "update", rename: ".flow/runtime/gates.json" }] }],
+			["ast_edit", { ops: [{ pat: "a", out: "b" }], paths: [".flow/runtime/gates.json"] }],
+		]) {
+			result = await callTool(toolName, input);
+			assert.equal(result?.block, true, `${toolName} ${JSON.stringify(input)} must be blocked`);
+			assert.match(result.reason, /Only flow_gate writes \.flow\/runtime\//);
+		}
+		for (const [toolName, input] of [
+			["write", { path: ".flow/contracts/new.md", content: "# New\n" }],
+			["write", { path: ".flow/runtime-notes.md", content: "notes\n" }],
+			["edit", { input: "[.flow/plans/demo/PLAN.md#ABCD]\nPUT 1.=1:\n++ .flow/runtime/gates.json is flow_gate's" }],
+			["edit", { path: "app.txt", old_string: "v2", new_string: "v3" }],
+		]) {
+			assert.equal(await callTool(toolName, input), undefined, `${toolName} ${JSON.stringify(input)} must pass`);
+		}
+	}
+
 	// Hub waits are OMP's; the guard passes them through untouched.
 	assert.equal(await toolCall({ toolName: "hub", input: { op: "wait", ids: ["job-1"] } }, ctx), undefined, "Flow must not intercept native hub waits");
 

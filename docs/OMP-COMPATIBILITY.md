@@ -11,6 +11,7 @@ The design relies on these native behaviors:
 - user TypeScript/JavaScript extensions are auto-discovered from `extensions/`;
 - custom extension tools can declare explicit `policy: prompt` / `deny` approval decisions that remain authoritative under yolo, can add `formatApprovalDetails`, and can be kept `loadMode: essential`; Flow uses this for the interactive `flow_gate` artifact-approval boundary rather than transcript parsing;
 - extension `tool_call` interception is fail-closed and sees `task` inputs before execution, so Flow can reject stale/missing governance manifests without replacing OMP's task/Hub implementation;
+- `tool_call` events carry the tool input before execution; for a hashline `edit`, OMP adds the header targets as `path`/`paths` (`src/extensibility/tool-event-input.ts`, OMP 18.4.5). The governance guard blocks `write`, `edit` and `ast_edit` on any `.flow/runtime/` path, reading `path`, `paths`, patch-mode `edits[].rename` and the header lines of a raw hashline, apply_patch or sloppy `input`, after resolving symlinks. Writes through `bash`, `eval` or any other tool are not blocked: there only the `flow-artifacts` rule protects `.flow/runtime/`;
 - Plan mode is read-only and owns plan approval/execution semantics;
 - task batches support per-item agents and optional per-spawn isolation when `task.isolation.enabled` is on;
 - task model selection comes from agent overrides/frontmatter roles rather than a per-call model field;

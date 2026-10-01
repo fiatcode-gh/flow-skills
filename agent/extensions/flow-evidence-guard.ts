@@ -1,3 +1,9 @@
+/**
+ * omp-stack — Flow evidence-capsule guard.
+ *
+ * Invariant: every `flow-evidence-verifier` dispatch carries one complete
+ * `Evidence capsule:` manifest. Stateless: it reads only the task input.
+ */
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 import { agentName } from "../lib/agent-name.ts";
 

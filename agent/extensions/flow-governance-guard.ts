@@ -1,3 +1,11 @@
+/**
+ * omp-stack — Flow governance guard.
+ *
+ * Invariant: a planner, executor, implementer or verifier dispatch runs only
+ * against a current recorded approval or acceptance. State:
+ * `.flow/runtime/gates.json`, written only by the `flow_gate` tool registered
+ * here; the `tool_call` hook also blocks file-writing tools on `.flow/runtime/`.
+ */
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
@@ -11,7 +19,7 @@ import {
 	renameSync,
 	writeFileSync,
 } from "node:fs";
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 import { agentName } from "../lib/agent-name.ts";
 
@@ -63,6 +71,21 @@ const VERIFIER = "flow-evidence-verifier";
 const GATE_HEADER = "flow gate:";
 const ACCEPT_ORDER_HINT =
 	"flow_gate accept must complete before the dependent flow-evidence-verifier dispatch; do not issue both in the same parallel tool batch";
+
+// Tools that write files at paths named in their input. `edit` carries its
+// targets in `path` (replace/patch modes and OMP's normalized hashline input),
+// `paths`, `edits[].rename` (patch mode) and the raw `input` text of the
+// hashline, apply_patch and sloppy modes. Bash and eval writes are not covered.
+const FILE_WRITE_TOOLS = new Set(["write", "edit", "ast_edit"]);
+const INPUT_PATH_LINES = [
+	/^\[(.+)\]\s*$/, // hashline header `[PATH#TAG]`
+	/^\s*¶+(.+?)\s*$/, // legacy hashline header
+	/^\s*MV\s+(.+?)\s*$/, // hashline rename destination
+	/^\s*\*{3}\s+(?:Add|Update|Delete|Edit)\s+File:\s*(.+?)\s*$/i, // apply_patch and sloppy
+	/^\s*\*{3}\s+Move\s+to:\s*(.+?)\s*$/i, // apply_patch rename destination
+];
+const RUNTIME_WRITE_REASON =
+	"Only flow_gate writes .flow/runtime/; a hand-written record is not an approval. Use flow_gate present/approve, accept or clear instead.";
 
 // Git output above this size fails closed instead of being truncated.
 const GIT_OUTPUT_LIMIT = 256 * 1024 * 1024;
@@ -304,6 +327,63 @@ function taskGateErrors(root: string, input: ToolInput): string[] {
 	return errors;
 }
 
+function writeTargets(input: ToolInput): string[] {
+	const targets: string[] = [];
+	const add = (value: unknown) => {
+		if (typeof value === "string" && value.trim()) targets.push(value);
+	};
+	add(input.path);
+	add(input._path);
+	if (Array.isArray(input.paths)) input.paths.forEach(add);
+	if (Array.isArray(input.edits)) {
+		for (const entry of input.edits) if (entry && typeof entry === "object") add((entry as ToolInput).rename);
+	}
+	for (const key of ["input", "_input"]) {
+		const text = input[key];
+		if (typeof text !== "string") continue;
+		for (const line of text.split(/\r?\n/)) {
+			for (const pattern of INPUT_PATH_LINES) add(line.match(pattern)?.[1]);
+		}
+	}
+	return targets.map(stripPathDecoration);
+}
+
+// Unwraps `[PATH#TAG]`, drops a trailing `#TAG` and matching quotes.
+function stripPathDecoration(raw: string): string {
+	let value = raw.trim();
+	if (value.startsWith("[") && value.endsWith("]")) value = value.slice(1, -1).trim();
+	value = value.replace(/#[0-9A-Fa-f]{4}$/, "");
+	const first = value[0];
+	if (value.length >= 2 && (first === '"' || first === "'") && value.at(-1) === first) value = value.slice(1, -1);
+	return value;
+}
+
+// Where a write lands: the deepest existing ancestor realpathed, the missing tail re-appended.
+function canonicalWritePath(absolute: string): string | undefined {
+	const tail: string[] = [];
+	for (let current = absolute; ; current = dirname(current)) {
+		try {
+			return resolve(realpathSync(current), ...tail);
+		} catch {
+			if (dirname(current) === current) return undefined;
+			tail.unshift(basename(current));
+		}
+	}
+}
+
+function hasRuntimeSegment(path: string): boolean {
+	const parts = path.split(sep);
+	return parts.some((part, index) => part === ".flow" && parts[index + 1] === "runtime");
+}
+
+function writesFlowRuntime(cwd: string, input: ToolInput): boolean {
+	return writeTargets(input).some((target) => {
+		const absolute = resolve(cwd, target);
+		const canonical = canonicalWritePath(absolute);
+		return hasRuntimeSegment(absolute) || (canonical !== undefined && hasRuntimeSegment(canonical));
+	});
+}
+
 function resultText(text: string, details: Record<string, unknown> = {}) {
 	return {
 		content: [{ type: "text" as const, text }],
@@ -494,6 +574,10 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("tool_call", async (event, ctx) => {
+		if (FILE_WRITE_TOOLS.has(event.toolName)) {
+			if (writesFlowRuntime(ctx.cwd, event.input as ToolInput)) return { block: true, reason: RUNTIME_WRITE_REASON };
+			return;
+		}
 		if (event.toolName !== "task") return;
 		if (!requestsGatedRole(event.input as ToolInput)) return;
 		let root: string;
