@@ -63,13 +63,11 @@ for p in rules:
     if not fm.get('name') or not fm.get('description'): err(f'{rel(p)}: rule needs name+description')
 
 # Removed old workflow assumptions must not survive outside migration docs.
-check_paths=[ROOT/'agent']
-for base in check_paths:
-    for p in base.rglob('*'):
-        if not p.is_file() or p.suffix not in {'.md','.ts'}: continue
-        text=p.read_text()
-        for bad in ['never spawn an agent for work that writes', 'Never pick silently: ask the user which one', 'every new function has a test']:
-            if bad.lower() in text.lower(): err(f'{rel(p)}: legacy rule survived: {bad}')
+for p in (ROOT/'agent').rglob('*'):
+    if not p.is_file() or p.suffix not in {'.md','.ts'}: continue
+    text=p.read_text()
+    for bad in ['never spawn an agent for work that writes', 'Never pick silently: ask the user which one', 'every new function has a test']:
+        if bad.lower() in text.lower(): err(f'{rel(p)}: legacy rule survived: {bad}')
 
 # Nested delegation and live-clarification contract.
 impl_path=ROOT/'agent/agents/flow-implementer.md'
@@ -391,14 +389,15 @@ for other,names in [('weft-memory',['conventions.md','voice.md']),('weft-mainten
         if not b.exists(): err(f'missing Weft reference copy: {rel(b)}'); continue
         if a.read_bytes()!=b.read_bytes(): err(f'Weft reference copies differ: {rel(a)} vs {rel(b)}')
 
-# Asset references inside references/*.md must resolve from the reference directory or the skill directory.
-ref_asset_re=re.compile(r'`((?:\.\./)?(?:references|scripts)/[^`\s<>]+)`|\]\(([^)\s]+\.md)\)')
-for ref in (ROOT/'agent/skills').glob('*/references/*.md'):
-    text=ref.read_text()
-    for m in ref_asset_re.finditer(text):
+# Asset references in a SKILL.md resolve from the skill directory; in references/*.md from the reference
+# directory or the skill directory.
+asset_re=re.compile(r'`((?:\.\./)?(?:references|scripts)/[^`\s<>]+)`|\]\(([^)\s]+\.md)\)')
+for doc in skills+list((ROOT/'agent/skills').glob('*/references/*.md')):
+    bases=[doc.parent] if doc in skills else [doc.parent, doc.parent.parent]
+    for m in asset_re.finditer(doc.read_text()):
         asset=m.group(1) or m.group(2)
         if asset.startswith('http'): continue
-        if not ((ref.parent/asset).exists() or (ref.parent.parent/asset).exists()): err(f'{rel(ref)}: missing referenced asset {asset}')
+        if not any((base/asset).exists() for base in bases): err(f'{rel(doc)}: missing referenced asset {asset}')
 
 # Every authored text file ends with a newline.
 tracked=subprocess.run(['git','ls-files','-z'],cwd=ROOT,capture_output=True,text=True,check=True).stdout.split('\0')
@@ -409,12 +408,6 @@ for path in tracked:
         data=f.read_bytes()
         if data and not data.endswith(b'\n'): err(f'{path}: missing final newline')
 
-# Relative skill asset references must resolve from each skill directory.
-asset_re = re.compile(r'`((?:references|scripts)/[^`]+)`')
-for p in skills:
-    text=p.read_text()
-    for asset in asset_re.findall(text):
-        if not (p.parent/asset).exists(): err(f'{rel(p)}: missing referenced asset {asset}')
 
 # Every native provider profile must expose the same complete role vocabulary.
 required_roles={'default','smol','tiny','vision','execute','task','plan','slow','review_aux','critical','commit'}
@@ -432,9 +425,8 @@ for profile,path in profile_cfgs.items():
     # With consent granted, OMP stores tool-issue reports and pushes them to its collector.
     if (cfg.get('dev') or {}).get('autoqaConsent') != 'denied': err(f'{rel(path)}: dev.autoqaConsent must be denied')
     roles=cfg.get('modelRoles') or {}
-    expected_roles=required_roles
-    if set(roles) != expected_roles:
-        err(f'{rel(path)}: modelRoles mismatch: {sorted(set(roles)^expected_roles)}')
+    if set(roles) != required_roles:
+        err(f'{rel(path)}: modelRoles mismatch: {sorted(set(roles)^required_roles)}')
     profile_roles[profile]=set(roles)
     prefix=profile+'/'
     for role,model in roles.items():

@@ -99,6 +99,16 @@ rm "$foreign"
 ln -s "$ROOT/agent/rules" "$foreign"
 HOME="$TMP_LINK" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null
 [ "$(readlink -f "$foreign")" = "$(readlink -f "$ROOT/agent/skills")" ] || { echo 'FAIL: installer did not relink a symlink into the repository' >&2; exit 1; }
+# A relative link that climbs out of the repository and a dangling link are refused the same way.
+for target in "../../../../../elsewhere" "$TMP_LINK/missing-target"; do
+  rm "$foreign"
+  ln -s "$target" "$foreign"
+  if HOME="$TMP_LINK" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null 2>&1; then
+    echo "FAIL: installer replaced a symlink to $target" >&2
+    exit 1
+  fi
+  [ "$(readlink "$foreign")" = "$target" ] || { echo "FAIL: installer changed the symlink to $target" >&2; exit 1; }
+done
 
 # An unresolvable profile, at any position, must make every command fail before
 # anything is linked: no link at all, and no `linked` line.

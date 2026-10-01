@@ -740,6 +740,14 @@ export default function (pi: ExtensionAPI) {
 			const input = raw as ToolInput;
 			const action = gateAction(input);
 			if (action === "present" || action === "status") return "read";
+			if (action === "accept") {
+				// Acceptance is user-attested: the parent session must confirm an independent closure happened,
+				// not merely record one. Only the later staleness check is mechanical.
+				const scope = getString(input, "scope");
+				const source = getString(input, "source");
+				if (!scope || !source) return { tier: "write", policy: "deny", reason: "Flow acceptance requires scope and a source receipt." };
+				return { tier: "write", policy: "prompt", reason: `Record acceptance/closure for Flow scope ${scope} from ${source}.` };
+			}
 			if (action !== "approve") return "write";
 			const scope = getString(input, "scope");
 			const kind = gateKind(input);
@@ -774,8 +782,12 @@ export default function (pi: ExtensionAPI) {
 		},
 		formatApprovalDetails: (raw) => {
 			const input = raw as ToolInput;
-			if (gateAction(input) !== "approve") return undefined;
+			const action = gateAction(input);
 			const scope = getString(input, "scope");
+			if (action === "accept") {
+				return [`Scope: ${scope}`, `Source: ${getString(input, "source")}`, `Summary: ${getString(input, "summary") ?? ""}`];
+			}
+			if (action !== "approve") return undefined;
 			const kind = gateKind(input);
 			if (!scope || !kind) return undefined;
 			const presented = presentations.get(presentationKey(scope, kind));

@@ -10,7 +10,7 @@ Work: `8989e71`..`23b7568` on `fix/audit-backlog`, 2026-10-01. Findings: `docs/r
 - **The installer refuses a symlink that points outside the repository**, the same way it refuses a regular file. Links into the repository are relinked as before.
 - **Each restated rule has one home**, and the other files point at it: layered verification in `flow-evidence`; isolation and publication in `flow-safety`; the finding shape in `review-lenses.md`; and the PR-reviewer worklog exception in `agent/AGENTS.md`, as `agents-md-plain.md` settled.
 - **The three `weft-*` reference copies stay copies.** `conventions.md` keeps them self-contained for `skill://` reads, and `validate.py` now fails when they differ.
-- **`validate.py` pins names, markers, one-home relations and caps, not prose.** It caps every loaded `references/*.md`, numbers the `PRINCIPLES.md` invariants 1–42, and checks `dev.autoqaConsent: denied`.
+- **`validate.py` pins names, markers, pointer phrases, one-home relations and caps, not rule prose.** It caps every loaded `references/*.md`, numbers the `PRINCIPLES.md` invariants 1–42, and checks `dev.autoqaConsent: denied`. A pointer phrase such as "Isolation follows the `flow-safety` rule" is pinned as written, so rewording a pointer means editing its pin.
 - **The planning-handoff validator reads its required fields and enums from the schema**, so the two cannot drift apart.
 - **Every Flow skill is at 0/2.** The read-content rule and the one-home rewrite changed how each skill behaves; `flow-tdd`'s earlier clean passes moved to historical evidence.
 
