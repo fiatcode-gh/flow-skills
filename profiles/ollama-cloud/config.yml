@@ -170,4 +170,6 @@ cycleOrder:
   - default
   - slow
 dev:
-  autoqaConsent: granted
+  # Deny OMP's automated tool-issue reports: with consent granted they are
+  # stored locally and pushed to OMP's collector.
+  autoqaConsent: denied
