@@ -12,7 +12,7 @@ A session counts toward a skill only when it **started** after that skill's curr
 scripts/flow-sessions list --since <ISO timestamp>
 ```
 
-This lists every top-level session under `~/.omp/profiles/*/agent/sessions/` with its models, the Flow skills it read, the subagents it started and its `flow_gate` actions. Subagent transcripts and their final outputs (`<Name>.jsonl`, `<Name>.md`) sit in the directory named like the session file without `.jsonl`.
+This lists every top-level session under `$HOME/${PI_CONFIG_DIR:-.omp}/profiles/*/agent/sessions/` with its models, the Flow skills it read, the subagents it started and its `flow_gate` actions. A line that does not decode is skipped with a note on stderr. Subagent transcripts and their final outputs (`<Name>.jsonl`, `<Name>.md`) sit in the directory named like the session file without `.jsonl`.
 
 Skip this audit session itself and sessions that only chatted. Note sessions that crossed a baseline mid-way.
 

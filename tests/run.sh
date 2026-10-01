@@ -5,6 +5,7 @@ cd "$ROOT"
 
 uv run --with pyyaml python tests/validate.py
 uv run python tests/planning-handoff.test.py
+uv run python tests/flow-sessions.test.py
 node --no-warnings --experimental-strip-types tests/ai-memory.test.mjs
 node --no-warnings --experimental-strip-types tests/flow-evidence-guard.test.mjs
 node --no-warnings --experimental-strip-types tests/flow-governance-guard.test.mjs

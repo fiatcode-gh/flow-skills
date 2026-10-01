@@ -120,6 +120,6 @@ See `docs/MODEL-ROUTING.md`. Current OMP assumptions are recorded in `docs/OMP-C
 ./tests/run.sh
 ```
 
-The suite runs `tests/validate.py` (skill/agent/rule frontmatter, role references, removed legacy assumptions, machine-read markers, and the per-file byte caps in `tests/doctrine-budget.json`), behavioral tests for both Flow guards (`tests/flow-evidence-guard.test.mjs`, `tests/flow-governance-guard.test.mjs`), the bash approval patterns (`tests/bash-patterns.test.mjs`), the `.flow/` exclude guard (`tests/flow-exclude.test.sh`), the installer (`tests/install.test.sh`), the planning-handoff validator and AI-memory slicing, plus shell syntax checks.
+The suite runs `tests/validate.py` (skill/agent/rule frontmatter, role references, removed legacy assumptions, machine-read markers, and the per-file byte caps in `tests/doctrine-budget.json`), behavioral tests for both Flow guards (`tests/flow-evidence-guard.test.mjs`, `tests/flow-governance-guard.test.mjs`), the bash approval patterns (`tests/bash-patterns.test.mjs`), the `.flow/` exclude guard (`tests/flow-exclude.test.sh`), the installer (`tests/install.test.sh`), the planning-handoff validator, `scripts/flow-sessions` (`tests/flow-sessions.test.py`) and AI-memory slicing, plus shell syntax checks.
 
 CI (`.github/workflows/ci.yml`) runs the same suite on every pull request and on pushes to `main`, with Node 24 and `uv`.

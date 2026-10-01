@@ -7,8 +7,12 @@ usage:
 
 `list` prints one block per top-level session started at/after --since: start time,
 profile, project, short id, title, models, Flow skills read, subagents by role,
-flow_gate actions and the transcript path. Subagent transcripts live in the
-sibling directory named like the session file without `.jsonl`.
+flow_gate actions and the transcript path. The default sessions root is
+`$HOME/${PI_CONFIG_DIR:-.omp}/profiles`, as the installer uses. Subagent
+transcripts live in the sibling directory named like the session file without `.jsonl`.
+
+Both commands skip a line that is not a JSON object (an in-flight or truncated
+write) with a note on stderr, and keep going.
 
 `render` prints a compact transcript; every line is tagged `[#<jsonl-line> HH:MM:SS]`
 so findings can cite `<short-id>#<line>`.
@@ -17,17 +21,34 @@ import argparse
 import collections
 import datetime as dt
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
-DEFAULT_ROOT = Path.home() / ".omp" / "profiles"
+
+def default_sessions_root():
+    # Same join as the installer and OMP: $HOME/<config dir>, even for an absolute value.
+    return Path(f"{Path.home()}/{os.environ.get('PI_CONFIG_DIR') or '.omp'}") / "profiles"
 
 
 def rows(path):
-    with open(path) as fh:
-        for line in fh:
-            yield json.loads(line)
+    """Yield (jsonl line index, row) for every line that decodes to a JSON object."""
+    with open(path, "rb") as fh:
+        for index, line in enumerate(fh):
+            try:
+                row = json.loads(line)
+            except ValueError:
+                row = None
+            if isinstance(row, dict):
+                yield index, row
+            else:
+                print(f"{path}#{index}: skipped undecodable line", file=sys.stderr)
+
+
+def dispatched_agent(item):
+    agent = item.get("agent")
+    return agent.strip() if isinstance(agent, str) and agent.strip() else "task"
 
 
 def cut(value, limit):
@@ -43,8 +64,8 @@ def parse_since(value):
 def summarize(path):
     session = None
     models, skills, agents, gates = (collections.Counter() for _ in range(4))
-    for row in rows(path):
-        kind = row["type"]
+    for _, row in rows(path):
+        kind = row.get("type")
         if kind == "session":
             session = row
         elif kind == "model_change":
@@ -55,9 +76,12 @@ def summarize(path):
                     continue
                 args = part.get("arguments") or {}
                 skills.update(re.findall(r"skill://([a-z0-9-]+)", json.dumps(args)))
-                if part["name"] == "task" and isinstance(args.get("tasks"), list):
-                    agents.update((t.get("agent") or "task").strip() for t in args["tasks"])
-                if part["name"] == "flow_gate":
+                if part.get("name") == "task":
+                    if isinstance(args.get("tasks"), list):
+                        agents.update(dispatched_agent(t) for t in args["tasks"] if isinstance(t, dict))
+                    elif "task" in args:
+                        agents[dispatched_agent(args)] += 1
+                if part.get("name") == "flow_gate":
                     gates[":".join(filter(None, [args.get("action"), args.get("kind")]))] += 1
     return session, models, skills, agents, gates
 
@@ -86,9 +110,9 @@ def cmd_list(args):
 
 def cmd_render(args):
     limits = {name: 10**9 if args.full else getattr(args, name) for name in ("think", "call", "result", "text")}
-    for index, row in enumerate(rows(args.path)):
+    for index, row in rows(args.path):
         tag = f"[#{index} {(row.get('timestamp') or '')[11:19]}]"
-        kind = row["type"]
+        kind = row.get("type")
         if kind == "session":
             print(f"{tag} SESSION cwd={row.get('cwd')} title={row.get('title')}")
         elif kind == "model_change":
@@ -128,7 +152,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     listing = sub.add_parser("list", help="list top-level sessions")
     listing.add_argument("--since", help="ISO timestamp; naive values use local time")
-    listing.add_argument("--sessions-root", type=Path, default=DEFAULT_ROOT, help="directory holding <profile>/agent/sessions")
+    listing.add_argument("--sessions-root", type=Path, default=default_sessions_root(), help="directory holding <profile>/agent/sessions")
     listing.set_defaults(run=cmd_list)
     render = sub.add_parser("render", help="render one transcript")
     render.add_argument("path", type=Path)
