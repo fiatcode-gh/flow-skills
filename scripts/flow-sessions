@@ -51,6 +51,16 @@ def dispatched_agent(item):
     return agent.strip() if isinstance(agent, str) and agent.strip() else "task"
 
 
+def model_name(row):
+    """The model a `model_change` row names, or None when it carries no usable one."""
+    model = row.get("model")
+    return model if isinstance(model, str) and model else None
+
+
+def skip_malformed(path, index):
+    print(f"{path}#{index}: skipped malformed row", file=sys.stderr)
+
+
 def cut(value, limit):
     text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
     return text if len(text) <= limit else f"{text[:limit]} …[+{len(text) - limit} chars]"
@@ -69,14 +79,18 @@ def summarize(path):
         message = row.get("message")
         if kind == "session":
             session = row
-        elif kind == "model_change" and isinstance(row.get("model"), str):
-            models[row["model"]] += 1
+        elif kind == "model_change":
+            model = model_name(row)
+            if model:
+                models[model] += 1
+            else:
+                skip_malformed(path, index)
         elif kind == "message" and isinstance(message, dict):
             content = message.get("content")
             if message.get("role") != "assistant":
                 continue
             if not isinstance(content, list):
-                print(f"{path}#{index}: skipped malformed row", file=sys.stderr)
+                skip_malformed(path, index)
                 continue
             for part in content:
                 if not isinstance(part, dict) or part.get("type") != "toolCall":
@@ -91,10 +105,22 @@ def summarize(path):
                         agents[dispatched_agent(args)] += 1
                 if part.get("name") == "flow_gate":
                     gates[":".join(filter(None, [args.get("action"), args.get("kind")]))] += 1
-        elif kind in ("model_change", "message"):
+        elif kind == "message":
             # A decodable row with an unexpected shape: skip it and keep listing.
-            print(f"{path}#{index}: skipped malformed row", file=sys.stderr)
+            skip_malformed(path, index)
     return session, models, skills, agents, gates
+
+
+def session_start(session):
+    stamp = session.get("timestamp")
+    if not isinstance(stamp, str):
+        return None
+    try:
+        start = dt.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    # Same rule as --since: a naive stamp is local time, so aware and naive sessions sort together.
+    return start if start.tzinfo else start.astimezone()
 
 
 def cmd_list(args):
@@ -104,7 +130,10 @@ def cmd_list(args):
         session, models, skills, agents, gates = summarize(path)
         if session is None:
             continue
-        start = dt.datetime.fromisoformat(session["timestamp"].replace("Z", "+00:00"))
+        start = session_start(session)
+        if start is None:
+            print(f"{path}: skipped session without a valid timestamp", file=sys.stderr)
+            continue
         if since and start < since:
             continue
         found.append((start, path, session, models, skills, agents, gates))
@@ -126,10 +155,12 @@ def cmd_render(args):
         kind = row.get("type")
         if kind == "session":
             print(f"{tag} SESSION cwd={row.get('cwd')} title={row.get('title')}")
-        elif kind == "model_change" and isinstance(row.get("model"), str) and row["model"]:
-            print(f"{tag} MODEL {row['model']}")
         elif kind == "model_change":
-            print(f"{args.path}#{index}: skipped malformed row", file=sys.stderr)
+            model = model_name(row)
+            if model:
+                print(f"{tag} MODEL {model}")
+            else:
+                skip_malformed(args.path, index)
         elif kind == "custom_message" and row.get("customType") != "xdev-mount-notice":
             print(f"{tag} NOTICE[{row.get('customType')}] {cut(row.get('content', ''), limits['result'] * 2)}")
         elif kind == "custom" and row.get("customType") == "session_exit":
@@ -137,7 +168,7 @@ def cmd_render(args):
         elif kind == "message" and isinstance(row.get("message"), dict):
             render_message(tag, row["message"], limits)
         elif kind == "message":
-            print(f"{args.path}#{index}: skipped malformed row", file=sys.stderr)
+            skip_malformed(args.path, index)
 
 
 def dict_parts(content):
