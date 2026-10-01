@@ -28,7 +28,14 @@ profiles/
   ollama-cloud/config.yml   first-install baseline for `omp --profile ollama-cloud`
   anthropic/config.yml      first-install baseline for `omp --profile anthropic`
 mcp.example.json            MCP server template, copied per profile (see below)
-scripts/omp-stack           install / verify / doctor
+scripts/
+  omp-stack                 install / verify / doctor
+  flow-sessions             list and render OMP sessions for field-trial audits
+tests/                      validation suite; entry point tests/run.sh
+docs/
+  decisions/                committed decision records
+  FIELD-TRIALS.md           per-skill field-trial marks and rules
+  FIELD-TRIAL-AUDIT.md      how to run a field-trial audit
 ```
 
 ## Install
@@ -103,7 +110,7 @@ Skills and agents use **roles**, never concrete models. Native OMP profiles prov
 
 The OpenAI Codex profile follows OpenAI's GPT-6 model/effort ladder: GPT-6 Luna for Main (adaptive effort), cheap leaves (low), vision (medium) and constrained execution (xhigh); GPT-6.1 Sol for semantic implementation (medium), planning/final acceptance/auxiliary review (high) and explicit critical escalation (xhigh). GPT-6 Astra is left out to protect the ChatGPT Plus allowance.
 
-The Ollama Cloud trial keeps DeepSeek V4 Pro as Main/planning/final acceptance, uses DeepSeek V4.1 Flash for cheap mechanical roles, GLM-5.3-Flash for constrained execution/semantic coding/vision and auxiliary review, and Kimi K3 for explicit critical escalation. The Anthropic v8 profile uses Haiku 4.5 for cheap leaves, Sonnet 5.5 for constrained execution/semantic implementation/vision/auxiliary review, Opus 5.5 for Main/planning/correctness reasoning, and Fable 5.1 high for explicit critical escalation.
+The Ollama Cloud profile uses GLM-5.3 high for Main/planning/final acceptance, DeepSeek V4.1 Flash low for cheap mechanical roles, DeepSeek V4.1 Flash high for constrained execution/semantic coding/vision and auxiliary review, and Kimi K3 for explicit critical escalation. The Anthropic v8 profile uses Haiku 4.5 for cheap leaves, Sonnet 5.5 for constrained execution/semantic implementation/vision/auxiliary review, Opus 5.5 for Main/planning/correctness reasoning, and Fable 5.1 high for explicit critical escalation.
 
 See `docs/MODEL-ROUTING.md`. Current OMP assumptions are recorded in `docs/OMP-COMPATIBILITY.md`.
 
@@ -113,6 +120,6 @@ See `docs/MODEL-ROUTING.md`. Current OMP assumptions are recorded in `docs/OMP-C
 ./tests/run.sh
 ```
 
-The suite validates skill/agent/rule frontmatter, role references, removed legacy assumptions, shell syntax, installer safety shape, and AI-memory slicing behavior.
+The suite runs `tests/validate.py` (skill/agent/rule frontmatter, role references, removed legacy assumptions, machine-read markers, and the per-file byte caps in `tests/doctrine-budget.json`), behavioral tests for both Flow guards (`tests/flow-evidence-guard.test.mjs`, `tests/flow-governance-guard.test.mjs`), the bash approval patterns (`tests/bash-patterns.test.mjs`), the `.flow/` exclude guard (`tests/flow-exclude.test.sh`), the installer (`tests/install.test.sh`), the planning-handoff validator and AI-memory slicing, plus shell syntax checks.
 
 CI (`.github/workflows/ci.yml`) runs the same suite on every pull request and on pushes to `main`, with Node 24 and `uv`.

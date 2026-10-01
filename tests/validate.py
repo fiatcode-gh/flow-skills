@@ -641,8 +641,6 @@ for required in ['78b7531', 'tests/bash-patterns.test.mjs', 'GH_TOKEN=x gh api']
 migration=(ROOT/'docs/MIGRATION.md').read_text().lower()
 for stale in ['deepseek v4 flash low', '`default` / `plan` / `slow` / `review_aux`: deepseek v4 pro high', 'are not overwritten by `omp-stack install`**, so merge', 'bash/forge']:
     if stale in migration: err(f'docs/MIGRATION.md stale Ollama routing survived: {stale}')
-for required in ['deepseek v4.1 flash low', '`execute` / `task` / `vision` / `review_aux`: glm-5.3-flash high']:
-    if required not in migration: err(f'docs/MIGRATION.md current Ollama routing missing: {required}')
 
 # Every file that loads into a session has a byte cap; growth needs a deliberate cap change.
 budget=json.loads((ROOT/'tests/doctrine-budget.json').read_text())

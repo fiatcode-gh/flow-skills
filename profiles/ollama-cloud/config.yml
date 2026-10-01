@@ -18,8 +18,7 @@ modelRoles:
   tiny: ollama-cloud/deepseek-v4.1-flash:low
   commit: ollama-cloud/deepseek-v4.1-flash:low
 
-  # Controller + deliberate judgment. Unit 2 showed GLM was capable at coding
-  # but less reliable at orchestration, so v8 keeps DeepSeek V4 Pro as Main.
+  # Controller + deliberate judgment.
   default: ollama-cloud/glm-5.3:high
   plan: ollama-cloud/glm-5.3:high
   slow: ollama-cloud/glm-5.3:high

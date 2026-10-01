@@ -51,8 +51,8 @@ OpenAI Codex:
 
 Ollama Cloud:
 
-- `default` / `plan` / `slow`: DeepSeek V4 Pro high (controller trial);
-- `execute` / `task` / `vision` / `review_aux`: GLM-5.3-Flash high;
+- `default` / `plan` / `slow`: GLM-5.3 high;
+- `execute` / `task` / `vision` / `review_aux`: DeepSeek V4.1 Flash high;
 - `smol` / `tiny` / `commit`: DeepSeek V4.1 Flash low;
 - `critical`: Kimi K3 high.
 

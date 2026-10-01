@@ -18,13 +18,13 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 | commit/changelog generation | `@commit` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Haiku 4.5 |
 | repo exploration | bundled `scout` / `@smol` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Haiku 4.5 |
 | behavior-preserving mechanical work / diagnosed exact correction | bundled `sonic` / `@smol` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Haiku 4.5 |
-| Main/controller | `@default` | GPT-6 Luna auto | **DeepSeek V4 Pro high (v8 trial)** | Opus 5.5 medium |
-| execution-grade plan follower | `flow-plan-executor` / `@execute` | GPT-6 Luna xhigh | **GLM-5.3-Flash high** | Sonnet 5.5 medium |
-| residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GPT-6.1 Sol medium | GLM-5.3-Flash high | Sonnet 5.5 high |
-| deliberate execution planning | `flow-planner` / `@plan` | GPT-6.1 Sol high | DeepSeek V4 Pro high | Opus 5.5 medium |
-| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | DeepSeek V4 Pro high | Opus 5.5 medium |
-| TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GPT-6.1 Sol high | GLM-5.3-Flash high | Sonnet 5.5 high |
-| vision / multimodal inspection | `@vision` | GPT-6 Luna medium | GLM-5.3-Flash high | Sonnet 5.5 medium |
+| Main/controller | `@default` | GPT-6 Luna auto | GLM-5.3 high | Opus 5.5 medium |
+| execution-grade plan follower | `flow-plan-executor` / `@execute` | GPT-6 Luna xhigh | DeepSeek V4.1 Flash high | Sonnet 5.5 medium |
+| residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GPT-6.1 Sol medium | DeepSeek V4.1 Flash high | Sonnet 5.5 high |
+| deliberate execution planning | `flow-planner` / `@plan` | GPT-6.1 Sol high | GLM-5.3 high | Opus 5.5 medium |
+| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | GLM-5.3 high | Opus 5.5 medium |
+| TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GPT-6.1 Sol high | DeepSeek V4.1 Flash high | Sonnet 5.5 high |
+| vision / multimodal inspection | `@vision` | GPT-6 Luna medium | DeepSeek V4.1 Flash high | Sonnet 5.5 medium |
 | exceptional security/concurrency/data-integrity escalation | `@critical` | GPT-6.1 Sol xhigh | Kimi K3 high | Fable 5.1 high |
 
 `slow` intentionally stops below the most expensive explicit escalation. `critical` is the escape hatch; no automatic Flow agent binds `@critical` on purpose. Escalation should be a conscious model/session choice, not accidental fan-out.
@@ -47,9 +47,9 @@ OMP discovers Codex models from the signed-in account, so a model newer than OMP
 
 ## Ollama Cloud selection rationale
 
-- **DeepSeek V4.1 Flash** owns `smol` / `tiny` / `commit`: cheap reasoning is appropriate for discovery, mechanical leaves and background text.
-- **DeepSeek V4 Pro** owns `default` / `plan` / `slow` in the v8 trial. Unit 2 showed GLM could implement substantial code but slipped on orchestration constraints; this keeps stronger controller/planning/final-acceptance judgment without moving routine execution onto the expensive lane.
-- **GLM-5.3-Flash** owns `execute` / `task` / `vision` / `review_aux`: constrained plan-following is its primary v8 lane; `task` remains the semantic fallback while auxiliary review stays on a separate model family from the controller.
+- **DeepSeek V4.1 Flash low** owns `smol` / `tiny` / `commit`: cheap reasoning is appropriate for discovery, mechanical leaves and background text.
+- **GLM-5.3 high** owns `default` / `plan` / `slow`.
+- **DeepSeek V4.1 Flash high** owns `execute` / `task` / `vision` / `review_aux`; auxiliary review stays on a separate model family from the controller.
 - **Kimi K3** owns `critical`: it is reserved for explicit frontier escalation. The profile uses `high`, matching OMP's generic Ollama Cloud effort mapping rather than inventing an unsupported `max` lane.
 
 Keep the exact model IDs under review when OMP or Ollama Cloud changes its discovered catalog. The role topology matters more than any one model name.
