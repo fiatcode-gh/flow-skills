@@ -25,15 +25,9 @@ code; they never edit the audited tree.
 - Report strengths and Cannot verify items. Do not present a concern as
   a defect without concrete evidence.
 
-Return each finding in the finding shape in
+Return each finding in the finding shape and severity scale in
 `skill://flow-review/references/review-lenses.md`. `<PREFIX>` is the
 prefix in your lens heading: CDH, TTC, DST, or SEC.
-
-`Critical` means security compromise, data loss, outage, destructive
-behavior, or broken primary functionality. `Important` means a verified
-defect, missing behavioral tests on a critical path, silent failure,
-contract break, or architecture violation with concrete risk. `Minor`
-is useful cleanup or clarity work.
 
 ## Applicability
 
