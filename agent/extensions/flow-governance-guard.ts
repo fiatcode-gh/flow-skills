@@ -13,13 +13,15 @@ import {
 	existsSync,
 	lstatSync,
 	mkdirSync,
+	readdirSync,
 	readFileSync,
 	readlinkSync,
 	realpathSync,
 	renameSync,
 	writeFileSync,
 } from "node:fs";
-import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { homedir } from "node:os";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 import { agentName } from "../lib/agent-name.ts";
 
@@ -75,8 +77,8 @@ const ACCEPT_ORDER_HINT =
 // Tools that write files at paths named in their input. `edit` carries its
 // targets in `path` (replace/patch modes and OMP's normalized hashline input),
 // `paths`, `edits[].rename` (patch mode) and the raw `input` text of the
-// hashline, apply_patch and sloppy modes. Not covered: bash and eval writes, and an
-// ast_edit directory or glob that covers .flow/runtime/ without naming it.
+// hashline, apply_patch and sloppy modes. `ast_edit` also covers directories and
+// globs (astEditCoversRuntime). Not covered: bash (a prompt rule in the profiles) and eval writes.
 const FILE_WRITE_TOOLS = new Set(["write", "edit", "ast_edit"]);
 const INPUT_PATH_LINES = [
 	/^\[(.+)\]\s*$/, // hashline header `[PATH#TAG]`
@@ -390,6 +392,198 @@ function writesFlowRuntime(cwd: string, input: ToolInput): boolean {
 	});
 }
 
+// OMP 18.4.5 `ast_edit` (tools/ast-edit.ts, tools/path-utils.ts, native `astEdit`): each `paths` entry may pack
+// several targets with `;`, `,` or whitespace; each target splits at its first glob segment (`* ? [ {`) into a base
+// and a glob. The walk rewrites every file below the base, hidden directories included, whose path relative to the
+// base matches the glob (`*` stays inside one segment, `**` crosses them). It does not follow symlinks met inside the
+// walk, honours `.gitignore` but not `.git/info/exclude`, so the personal `.flow/` exclude never keeps it out of
+// `.flow/runtime/`; this check therefore never relies on an exclude entry. Language comes from each file's
+// extension, so a JSON gate state is reachable. Reachability is judged against the files that exist there now.
+const AST_RUNTIME_FILE_LIMIT = 10_000;
+const GLOB_CHARS = /[*?[{]/;
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+
+// A glob over `/`-separated relative paths, or undefined when it cannot be read with confidence.
+function globToRegExp(raw: string): RegExp | undefined {
+	const glob = raw.replace(/^(?:\.\/)+/, "").replace(/^\/+/, "");
+	let out = "";
+	let braces = 0;
+	for (let i = 0; i < glob.length; i++) {
+		const ch = glob[i]!;
+		if (ch === "\\") {
+			if (i + 1 >= glob.length) return undefined;
+			out += escapeRegExp(glob[++i]!);
+		} else if (ch === "*") {
+			if (glob[i + 1] !== "*") {
+				out += "[^/]*";
+				continue;
+			}
+			while (glob[i + 1] === "*") i++;
+			if (glob[i + 1] === "/") {
+				i++;
+				out += "(?:.*/)?";
+			} else out += ".*";
+		} else if (ch === "?") {
+			out += "[^/]";
+		} else if (ch === "[") {
+			let start = i + 1;
+			const negated = glob[start] === "!" || glob[start] === "^";
+			if (negated) start++;
+			const close = glob.indexOf("]", start + 1);
+			if (close === -1) return undefined;
+			out += `${negated ? "(?!/)[^" : "["}${glob.slice(start, close).replace(/[\\\]^]/g, "\\$&")}]`;
+			i = close;
+		} else if (ch === "{") {
+			braces++;
+			out += "(?:";
+		} else if (ch === "}") {
+			if (braces === 0) return undefined;
+			braces--;
+			out += ")";
+		} else if (ch === "," && braces > 0) {
+			out += "|";
+		} else out += escapeRegExp(ch);
+	}
+	if (braces !== 0) return undefined;
+	try {
+		return new RegExp(`^${out}$`, "s");
+	} catch {
+		return undefined;
+	}
+}
+
+// Splits at `;`, `,` and whitespace outside braces, as OMP does for a packed `paths` entry.
+function splitPackedPaths(entry: string): string[] {
+	const parts: string[] = [];
+	let braces = 0;
+	let start = 0;
+	for (let i = 0; i < entry.length; i++) {
+		const ch = entry[i]!;
+		if (ch === "\\") i++;
+		else if (ch === "{") braces++;
+		else if (ch === "}" && braces > 0) braces--;
+		else if (braces === 0 && /[,;\s]/.test(ch)) {
+			parts.push(entry.slice(start, i));
+			start = i + 1;
+		}
+	}
+	parts.push(entry.slice(start));
+	return parts;
+}
+
+// The entry whole, each packed part, and each with a trailing `:selector` dropped.
+function astEditCandidates(entry: string): string[] {
+	const candidates = new Set<string>();
+	for (const raw of [entry, ...splitPackedPaths(entry)]) {
+		const value = raw.trim().replace(/^"(.*)"$/s, "$1");
+		if (!value) continue;
+		candidates.add(value);
+		candidates.add(value.replace(/:[^/:]*$/, ""));
+	}
+	return [...candidates].filter(Boolean);
+}
+
+function runtimeFiles(dir: string, files: string[] = []): string[] {
+	let entries;
+	try {
+		entries = readdirSync(dir, { withFileTypes: true });
+	} catch (error) {
+		if (!(error instanceof Error && "code" in error && error.code === "ENOTDIR")) throw error;
+		files.push(dir);
+		return files;
+	}
+	for (const entry of entries) {
+		const path = join(dir, entry.name);
+		if (entry.isDirectory()) runtimeFiles(path, files);
+		else files.push(path);
+		if (files.length > AST_RUNTIME_FILE_LIMIT) throw new Error("too many files under .flow/runtime");
+	}
+	return files;
+}
+
+// Files under any `.flow/runtime` that a walk from `base` could reach: the one at the working directory and the
+// repository root, and those at `base` or above it (a base inside `.flow` reaches the runtime directory below it).
+function reachableRuntimeFiles(base: string, cwd: string, root: string): string[] {
+	const anchors = new Set([cwd, root]);
+	for (let dir = base; ; dir = dirname(dir)) {
+		anchors.add(dir);
+		if (dirname(dir) === dir) break;
+	}
+	const files: string[] = [];
+	for (const anchor of anchors) {
+		let runtime: string;
+		try {
+			runtime = realpathSync(join(anchor, ".flow", "runtime"));
+		} catch (error) {
+			const code = error instanceof Error && "code" in error ? error.code : undefined;
+			if (code === "ENOENT" || code === "ENOTDIR") continue;
+			throw error;
+		}
+		runtimeFiles(runtime, files);
+	}
+	return files;
+}
+
+function targetCoversRuntime(cwd: string, root: string, target: string): boolean {
+	let spec = target;
+	if (/^[a-z][a-z0-9+.-]*:\/\//i.test(spec)) {
+		// Other URL schemes address OMP's own stores or remote hosts, never this checkout's `.flow/`.
+		if (!/^file:\/\//i.test(spec)) return false;
+		spec = spec.replace(/^file:\/\//i, "");
+	}
+	if (spec === "~" || spec.startsWith("~/")) spec = homedir() + spec.slice(1);
+	spec = spec.replace(/\\/g, "/");
+	const segments = spec.split("/");
+	const globAt = segments.findIndex((segment) => GLOB_CHARS.test(segment));
+	let base = spec;
+	let glob: string | undefined;
+	if (globAt === 0) {
+		base = ".";
+		glob = spec;
+	} else if (globAt > 0) {
+		base = segments.slice(0, globAt).join("/") || "/";
+		glob = segments.slice(globAt).join("/");
+	}
+	const baseAbsolute = resolve(cwd, base);
+	const baseCanonical = canonicalWritePath(baseAbsolute) ?? baseAbsolute;
+	if (hasRuntimeSegment(baseAbsolute) || hasRuntimeSegment(baseCanonical)) return true;
+	const matcher = glob === undefined ? undefined : globToRegExp(glob);
+	for (const file of reachableRuntimeFiles(baseCanonical, cwd, root)) {
+		const rel = relative(baseCanonical, file);
+		if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) continue;
+		// An unreadable glob matches everything: fail closed.
+		if (glob === undefined || matcher === undefined || matcher.test(rel.split(sep).join("/"))) return true;
+	}
+	return false;
+}
+
+function astEditCoversRuntime(cwd: string, input: ToolInput): boolean {
+	try {
+		const entries: string[] = [];
+		for (const key of ["path", "_path"]) {
+			const value = input[key];
+			if (typeof value === "string") entries.push(value);
+		}
+		if (input.paths !== undefined) {
+			if (!Array.isArray(input.paths)) return true;
+			for (const item of input.paths) {
+				if (typeof item !== "string") return true;
+				entries.push(item);
+			}
+		}
+		let root = cwd;
+		try {
+			root = repoRoot(cwd);
+		} catch {
+			// Outside git, the working directory is the only anchor.
+		}
+		return entries.some((entry) => astEditCandidates(entry).some((target) => targetCoversRuntime(cwd, root, target)));
+	} catch {
+		return true;
+	}
+}
+
 function resultText(text: string, details: Record<string, unknown> = {}) {
 	return {
 		content: [{ type: "text" as const, text }],
@@ -581,7 +775,14 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("tool_call", async (event, ctx) => {
 		if (FILE_WRITE_TOOLS.has(event.toolName)) {
-			if (writesFlowRuntime(ctx.cwd, event.input as ToolInput)) return { block: true, reason: RUNTIME_WRITE_REASON };
+			const input = event.input as ToolInput;
+			if (writesFlowRuntime(ctx.cwd, input)) return { block: true, reason: RUNTIME_WRITE_REASON };
+			if (event.toolName === "ast_edit" && astEditCoversRuntime(ctx.cwd, input)) {
+				return {
+					block: true,
+					reason: `${RUNTIME_WRITE_REASON} This ast_edit path or glob covers a file there; name narrower paths.`,
+				};
+			}
 			return;
 		}
 		if (event.toolName !== "task") return;

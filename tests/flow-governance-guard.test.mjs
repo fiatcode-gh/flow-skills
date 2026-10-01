@@ -516,6 +516,71 @@ try {
 		}
 	}
 
+	// ast_edit rewrites every file a directory or glob covers, so a call that could reach gate state is blocked.
+	{
+		const { dir } = caseRepo();
+		mkdirSync(join(dir, "src/deep"), { recursive: true });
+		mkdirSync(join(dir, ".flow/plans"), { recursive: true });
+		writeFileSync(join(dir, "src/a.ts"), "const a = 1;\n");
+		writeFileSync(join(dir, "src/deep/b.ts"), "const b = 1;\n");
+		writeFileSync(join(dir, ".flow/plans/PLAN.md"), "# Plan\n");
+		const callAst = (paths) => toolCall({ toolName: "ast_edit", input: { ops: [{ pat: "a", out: "b" }], paths } }, { cwd: dir, hasUI: true });
+		const ordinary = [["."], ["src"], ["src/**/*.ts"], ["**/*.ts"], ["src", "src/deep/b.ts"]];
+
+		// Without gate state there is nothing to rewrite under the runtime directory.
+		for (const paths of ordinary) {
+			assert.equal(await callAst(paths), undefined, `ast_edit ${JSON.stringify(paths)} must pass without gate state`);
+		}
+		mkdirSync(join(dir, ".flow/runtime"));
+		assert.equal(await callAst(["."]), undefined, "an empty runtime directory has nothing to rewrite");
+
+		// OMP's walk does not honour .git/info/exclude, so the exclude entry that accept adds must not relax the check.
+		await gateIn(dir, { action: "accept", scope: "ast", source: "test" });
+		assert.match(readFileSync(join(dir, ".git/info/exclude"), "utf8"), /^\/\.flow\/$/m, "precondition: .flow is excluded");
+		assert.equal(existsSync(join(dir, ".flow/runtime/gates.json")), true, "precondition: gate state exists");
+		symlinkSync(".flow", join(dir, "flowlink"));
+
+		for (const paths of ordinary) {
+			// `.` could rewrite the JSON gate state by its extension; everything else cannot reach it.
+			if (paths[0] === ".") continue;
+			assert.equal(await callAst(paths), undefined, `ast_edit ${JSON.stringify(paths)} must pass with gate state present`);
+		}
+		// A glob that names only the runtime directory matches no file, and OMP's walk matches files only.
+		for (const paths of [[".flow/plans"], [".flow/**/*.md"], ["*.json"], ["*/*.json"], ["src/*.ts", ".flow/plans/PLAN.md"], [".f*/runtime"]]) {
+			assert.equal(await callAst(paths), undefined, `ast_edit ${JSON.stringify(paths)} cannot reach gate state`);
+		}
+		for (const paths of [
+			["."],
+			[".flow"],
+			["flowlink"],
+			[dir],
+			[`file://${dir}`],
+			["**/*.json"],
+			["**/gates.json"],
+			["**"],
+			["*/*/*.json"],
+			[".flow/**"],
+			[".flow/**/*.json"],
+			[".fl?w/run*/*"],
+			["[.]flow/runtime/gates.json"],
+			["{src,.flow}/**/*.json"],
+			["src", "."],
+			["src;.flow"],
+			[".flow/plans, .flow/runtime"],
+			["src/**/*.ts", "**/*.json"],
+			[".flow/[run"],
+			[".flow/{runtime"],
+		]) {
+			result = await callAst(paths);
+			assert.equal(result?.block, true, `ast_edit ${JSON.stringify(paths)} must be blocked`);
+			assert.match(result.reason, /Only flow_gate writes \.flow\/runtime\//);
+		}
+		for (const paths of ["src", [42], [["."]]]) {
+			result = await callAst(paths);
+			assert.equal(result?.block, true, `ast_edit paths ${JSON.stringify(paths)} is malformed and must fail closed`);
+		}
+	}
+
 	// Hub waits are OMP's; the guard passes them through untouched.
 	assert.equal(await toolCall({ toolName: "hub", input: { op: "wait", ids: ["job-1"] } }, ctx), undefined, "Flow must not intercept native hub waits");
 
