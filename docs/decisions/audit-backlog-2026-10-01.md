@@ -33,7 +33,7 @@ Work: `8989e71`..`23b7568` on `fix/audit-backlog`, 2026-10-01. Findings: `docs/r
 - Closed on `fix/audit-residuals` (2026-10-01):
   - the acceptance fingerprint ignores `diff.external`/textconv (`52e96b2`) and counts the staged diff (`9a3e09a`); acceptances recorded earlier read stale once;
   - all three profiles prompt for any shell line that names the gate-state directory (`cc9b9b0`);
-  - the write hook blocks an `ast_edit` directory or glob that reaches an existing gate-state file (`ecda8cc`). OMP's walk honours `.gitignore` but not `.git/info/exclude`, so the guard never relies on the `.flow/` exclude;
+  - the write hook blocks an `ast_edit` directory or glob that reaches an existing gate-state file (`ecda8cc`). OMP's walk honours `.gitignore` but not `.git/info/exclude`, so the guard never relies on the `.flow/` exclude. It reads paths the way OMP expands them — stray `:`, `@`, decoded `file://` URLs, split before expanding the base — and blocks what it cannot decode (`53e6770`, `1f23bff`). Trade-off: `ast_edit .` is refused once gate state exists; name narrower paths;
   - `tests/run.sh` runs the three extension tests under Bun when it is on PATH, and CI installs Bun with `oven-sh/setup-bun@v2.2.0` (`dbaea2b`; CI itself is unproven until a push);
   - `flow-sessions render` notes a `model_change` with no model, and `list` notes an assistant message with non-list content (`8defc80`).
-- Still open: eval writes to the gate-state directory, a path assembled from pieces in a shell line, and a nested checkout's gate state below an `ast_edit` directory target are not covered. The `flow-artifacts` rule governs them.
+- Still open: eval writes to the gate-state directory; shell lines that build the path from pieces, write `.flow` as a whole or glob the directory name; and a nested checkout's gate state below an `ast_edit` directory target. The `flow-artifacts` rule governs them.
