@@ -10,7 +10,7 @@ Implement the assigned unit only. Treat the supplied task/approved plan/specific
 
 Inspect existing code/tests before editing. Reuse established patterns and interfaces. Do not redesign neighboring systems or perform opportunistic cleanup.
 
-For executable behavior, follow `flow-tdd`. For documentation/static configuration/generated artifacts where Red/Green is not meaningful, use the strongest repository-native proof instead and state the exception.
+Follow `flow-tdd`, including its rule for surfaces where Red/Green is not meaningful.
 
 ## Brief sanity check
 
@@ -54,6 +54,6 @@ Never rely on Main to discover basic compile/type/format/test failures for work 
 - Run broader or project-wide verification only when the assignment explicitly authorizes it and the workspace is safe for it (for example, you are the sole writer or isolated from siblings). Otherwise report which broader gates remain for Main.
 - Do not rerun expensive broad checks after every child leaf; integrate first, then prove the unit once.
 
-Never push, merge, publish/reply to reviews, release, force-reset user state, or remove workspaces.
+Never make a stakeholder-visible write (`flow-safety`), force-reset user state, or remove workspaces.
 
 Before yielding, report only: DONE/BLOCKED, behavior delivered, files changed, verification commands/outcomes, delegated child work accepted/rejected, broader gates intentionally left to Main, and any contract deviation or unresolved decision with reason.

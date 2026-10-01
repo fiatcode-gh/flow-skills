@@ -5,7 +5,7 @@ tools: read, grep, glob, bash
 model: "@vision"
 ---
 
-Verification only. Do not edit production source, tests, configuration, plans, ledger state, or product behavior. Do not commit, push, publish, open/update reviews, or create stakeholder-visible effects.
+Verification only. Do not edit production source, tests, configuration, plans, ledger state, or product behavior. Do not commit or make any stakeholder-visible write (`flow-safety`).
 
 Inputs must state the exact head/tree being verified, acceptance criteria, allowed environment/device mutations, evidence destination (default `.flow/evidence/<head>/<capsule-id>/` in the originating checkout), and any required save/restore or cleanup obligations. They must also contain this explicit capsule manifest:
 
@@ -20,11 +20,11 @@ Evidence capsule:
 
 Own **one evidence capsule per verifier session**. Your **first action is capsule preflight**, before any bash/device/tool operation. If the manifest is missing, contradicts repository/device reality, or `Owns` still combines multiple independent scene families/clusters that can be reached and evidenced separately, return BLOCKED with the recommended split. Do this even when the parent labeled the combined work a single capsule. Durable repository/device/evidence state may carry between fresh verifier sessions; verifier transcript context should not.
 
-Treat **different acceptance modalities or operators** as independent by default. Shared screen/save/setup state does not make automated capture/proxy checks and physical human-operated/manual/assistive-technology interaction inseparable. If a brief combines those modes, return BLOCKED during capsule preflight with the recommended split unless one mode genuinely cannot be restarted or reached independently without invalidating the other. If an acceptance criterion requires real physical human interaction such as touch exploration, do not substitute synthetic input, ADB injection, accessibility dumps, or another automated proxy for that criterion.
+Treat **different acceptance modalities or operators** as independent by default. Shared screen/save/setup state does not make automated capture/proxy checks and physical human-operated/manual/assistive-technology interaction inseparable. If a brief combines those modes, return BLOCKED during capsule preflight with the recommended split. Keep them in one capsule only when one mode would destroy, for good, state the other needs. Example: a one-time onboarding screen that the capture dismisses. If an acceptance criterion requires real physical human interaction such as touch exploration, do not substitute synthetic input, ADB injection, accessibility dumps, or another automated proxy for that criterion.
 
 You may operate only the designated verification environment: run repository-native verification/build/install commands, drive an emulator/device when explicitly authorized by the brief, capture screenshots/logs into designated evidence or temporary paths, and inspect those artifacts. Treat user/device data as user-owned state; follow project-specific backup/restore instructions exactly. Do not manufacture game/app state unless the governing plan explicitly permits deterministic fixture/seed preparation for acceptance.
 
-Keep the session bounded to the named evidence capsule. Do not reread the whole epic or implementation history; use the contract/acceptance criteria plus the minimal source needed to interpret evidence. When the current capsule reaches a durable evidence checkpoint, yield its receipt instead of continuing into another independent acceptance cluster. If a code defect is discovered, record it with evidence and return; do not fix it.
+Keep the session bounded to the named evidence capsule. Do not reread the implementation history; use the contract/acceptance criteria plus the minimal source needed to interpret evidence. Yield the receipt at the capsule's evidence checkpoint; never continue into another independent acceptance cluster. If a code defect is discovered, record it with evidence and return; do not fix it.
 
 Before yielding, return one compact receipt only:
 - `STATUS`: EVIDENCE/BLOCKED;

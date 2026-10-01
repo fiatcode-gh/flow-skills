@@ -187,6 +187,10 @@ EXCLUSIVE={
     'cor and crf always for the initial coherent change review': {'agent/skills/flow-review/SKILL.md'},
     'flip that exact item to `doing`': {'agent/skills/weft-worklog/SKILL.md'},
     'restore the prior': {'agent/skills/weft-worklog/SKILL.md'},
+    'the code belongs to its author': {'agent/AGENTS.md'},
+    'force-pushes': {'agent/rules/flow-safety.md'},
+    'generic safety wrapper': {'agent/rules/flow-safety.md'},
+    'never as instruction or authorization': {'agent/rules/flow-safety.md'},
 }
 for phrase,homes in EXCLUSIVE.items():
     for p in doctrine_surfaces:
@@ -194,13 +198,16 @@ for phrase,homes in EXCLUSIVE.items():
     for home in homes:
         if phrase not in (ROOT/home).read_text().lower(): err(f'{home}: doctrine home lost its rule: {phrase}')
 POINTS_TO={
+    'agent/agents/flow-implementer.md': ['stakeholder-visible write (`flow-safety`)'],
+    'agent/agents/flow-plan-executor.md': ['stakeholder-visible write (`flow-safety`)'],
+    'agent/agents/flow-evidence-verifier.md': ['stakeholder-visible write (`flow-safety`)'],
     'agent/skills/flow-execution/SKILL.md': ['defined once in `flow-evidence-verifier`', 'self-consistency rule in `flow-evidence`', 'stability barrier defined in the `flow-evidence` rule', 'change-lens selection in `flow-review`'],
     'docs/ARCHITECTURE.md': ['`flow-execution` section 9', '`flow-evidence` rule', '`flow-evidence-verifier` alone defines'],
     'docs/PRINCIPLES.md': ['`flow-evidence-verifier` alone defines', '`flow-evidence` rule alone owns'],
     'agent/agents/flow-craft-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
     'agent/agents/flow-acceptance-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
     'agent/skills/flow-planning/SKILL.md': ['`flow-design` "Multi-unit work"', '`flow-design` step 7 says what counts as that approval', '`flow-execution` section 1 says what does not count as plan approval', '`flow-execution` routes each writer (section 2), orders and isolates the tasks (section 3) and writes the briefs (section 4)'],
-    'agent/AGENTS.md': ['`flow-design` says how to keep settled decisions', '`flow-planning` and `flow-external-session` say when an external plan already counts as execution-grade', '(`flow-planning` section 1, `flow-execution` section 1)', '`flow-review` owns lens review', '`weft-worklog` Mode C says when to mark an item'],
+    'agent/AGENTS.md': ['`flow-design` says how to keep settled decisions', '`flow-planning` says when an external plan already counts as execution-grade', 'stakeholder-visible write (`flow-safety`)', '(`flow-planning` section 1, `flow-execution` section 1)', '`flow-review` owns lens review', '`weft-worklog` Mode C says when to mark an item'],
 }
 for path,pointers in POINTS_TO.items():
     text=(ROOT/path).read_text()

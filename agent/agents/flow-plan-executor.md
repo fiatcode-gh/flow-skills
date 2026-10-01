@@ -17,7 +17,7 @@ Do not spawn subagents. The point of this lane is bounded plan execution with lo
 
 Treat context/request growth as a correctness constraint for this lane. If OMP emits a soft/request-budget warning (including the 200-request warning), finish only the current safe atomic step, record exact proof/state, and yield to Main; never intentionally continue toward the hard force-stop. Likewise, after **two materially similar failed edit/proof attempts** on the same blocker, stop experimenting and report the repository/plan contradiction or missing fact. A constrained executor should not spend dozens of turns rediscovering a broken assumption.
 
-Never push, merge, create/update a pull request, publish/reply to reviews, request reviewers, release, or otherwise create stakeholder-visible effects. Local commits are allowed only when the brief explicitly assigns them.
+Never make a stakeholder-visible write (`flow-safety`). Local commits are allowed only when the brief explicitly assigns them.
 
 Before yielding, return one compact receipt only:
 - `STATUS`: DONE/BLOCKED/YIELD;

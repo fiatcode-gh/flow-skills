@@ -17,7 +17,7 @@
 - Skip the separate contract file only for tiny or mechanical work whose scope is already explicit.
 - `flow-design` says how to keep settled decisions and which questions to ask.
 - Use `flow-planning` when the consequential implementation HOW must be decision-complete before coding. `flow-planner` (`@plan`) writes that plan, not Main.
-- `flow-planning` and `flow-external-session` say when an external plan already counts as execution-grade.
+- `flow-planning` says when an external plan already counts as execution-grade.
 - For substantial work, do not start planning until the user approves the completed contract.
 - For substantial planned work, do not dispatch the first production-writing worker until the user approves the completed execution-grade plan. Work with no plan uses `Plan: NONE` (`flow-execution` section 1).
 - Treat a start or resume request as no approval. Example: the user says "go ahead" after you show the plan.
@@ -40,7 +40,7 @@
 - Use Conventional Commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`.
 - Before you commit, run the repository's declared formatter and linter on the changed files, and the verification the change needs.
 - If the tooling is not documented, infer it from the repository configuration or the project's Weft page.
-- Treat a local commit as no permission to push, open or update a pull request, publish a review, merge, release, or change any other remote system.
+- Treat a local commit as no permission for any stakeholder-visible write (`flow-safety`).
 - Run stakeholder-visible publication through direct Bash or `gh` commands, so the configured approval patterns still apply.
 - Never route a push, PR, review, comment or release action through OMP `eval` or another wrapper. That bypasses the approval patterns.
 
@@ -83,7 +83,7 @@ basename "$SHELL"
 - Do not ask for approval of these local worklog writes. Never change unrelated search matches.
 - `weft-worklog` Mode C says when to mark an item `DOING` or `DONE`, and when to restore its old marker.
 - Keep durable project state, backlog and conventions in Weft. Do not keep them in harness-native memory files or ad-hoc repository backlogs.
-- When you review someone else's PR, you may log the review and advance or close the user's own "review this PR" item. Never create, pull or promote `TODO` / `LATER` items in the user's backlog from that PR's findings. The code belongs to the PR author.
+- When you review someone else's PR, you may log the review and advance or close the user's own review item. Never create, pull or promote `TODO` / `LATER` items from that PR's findings: the code belongs to its author.
 - Name a personal collection project `*-stack`, with a matching `[[X Stack]]` canonical page where applicable.
 
 ## Documentation lookup

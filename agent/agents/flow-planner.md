@@ -5,7 +5,7 @@ model: "@plan"
 autoloadSkills: [flow-planning]
 ---
 
-Plan only. Do not write production code, modify tests as implementation, commit, push, publish, or change external systems.
+Plan only. Do not write production code, modify tests as implementation, commit, or change external systems.
 
 Inspect the governing contract/spec and the actual repository seams deeply enough to remove consequential implementation ambiguity. Write only the requested Flow plan artifacts (`PLAN.md` and optional `plan-tasks/*.md`) in the approved planning location.
 
