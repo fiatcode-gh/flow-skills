@@ -8,18 +8,16 @@ import os
 import sys
 from pathlib import Path
 
-ALLOWED_DESIGN = {"settled", "partial", "unresolved", "not_applicable"}
-ALLOWED_STRATEGY = {"settled", "partial", "unresolved", "not_needed"}
-REQUIRED = {
-    "flow_handoff",
-    "source",
-    "repository",
-    "observed_ref",
-    "design_status",
-    "implementation_strategy",
-    "authorization",
-    "artifacts",
-}
+# The schema is the single source of the field set, enums and constants.
+SCHEMA = json.loads(
+    (Path(__file__).resolve().parent.parent / "references" / "planning-handoff.schema.json").read_text(encoding="utf-8")
+)
+PROPERTIES = SCHEMA["properties"]
+REQUIRED = set(SCHEMA["required"])
+VERSION = PROPERTIES["flow_handoff"]["const"]
+AUTHORIZATION = PROPERTIES["authorization"]["const"]
+ALLOWED_DESIGN = set(PROPERTIES["design_status"]["enum"])
+ALLOWED_STRATEGY = set(PROPERTIES["implementation_strategy"]["enum"])
 
 
 def fail(message: str) -> "NoReturn":
@@ -55,14 +53,14 @@ def main(argv: list[str]) -> int:
         fail("schema v1 is retired: remove kind and epic, then set flow_handoff to 2")
 
     missing = sorted(REQUIRED - data.keys())
-    extra = sorted(data.keys() - REQUIRED)
+    extra = sorted(data.keys() - PROPERTIES.keys())
     if missing:
         fail(f"missing required fields: {', '.join(missing)}")
     if extra:
         fail(f"unknown fields for schema v2: {', '.join(extra)}")
 
-    if data["flow_handoff"] != 2:
-        fail("flow_handoff must be exactly 2")
+    if data["flow_handoff"] != VERSION:
+        fail(f"flow_handoff must be exactly {VERSION}")
     nonempty_string(data["source"], "source")
     nonempty_string(data["repository"], "repository")
     nonempty_string(data["observed_ref"], "observed_ref")
@@ -70,8 +68,8 @@ def main(argv: list[str]) -> int:
         fail("invalid design_status")
     if data["implementation_strategy"] not in ALLOWED_STRATEGY:
         fail("invalid implementation_strategy")
-    if data["authorization"] != "not-carried":
-        fail("authorization must be exactly not-carried")
+    if data["authorization"] != AUTHORIZATION:
+        fail(f"authorization must be exactly {AUTHORIZATION}")
 
     artifacts = data["artifacts"]
     if not isinstance(artifacts, list) or not artifacts:

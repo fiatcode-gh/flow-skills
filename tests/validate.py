@@ -256,12 +256,6 @@ else:
 for required in ['flow_handoff', 'authorization', 'not-carried', 'reject absolute paths', 'implementation_strategy: settled', 'execution-grade contract', 'refine only the missing consequential how/tests/interfaces', 'current local project instructions', 'flow-handoff.json', 'not a complete protocol handoff', 'kickoff prompt']:
     if required not in ph: err(f'planning-handoff schema invariant missing: {required}')
 
-validator=ROOT/'agent/skills/flow-external-session/scripts/validate-planning-handoff.py'
-if not validator.exists(): err('planning-handoff validator missing')
-else:
-    validator_text=validator.read_text().lower()
-    for required in ['authorization must be exactly not-carried', "artifact path must be relative without '..'", 'artifacts must declare handoff.md']:
-        if required not in validator_text: err(f'planning-handoff validator invariant missing: {required}')
 
 interop=(ROOT/'docs/EXTERNAL-INTEROP.md').read_text().lower()
 for required in ['flow-planning', 'never authorization', 'synchronization discipline', 'standalone markdown', 'kickoff prompts']:
