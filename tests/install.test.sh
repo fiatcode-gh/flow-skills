@@ -92,12 +92,13 @@ if [ "$2" = "$BAD_PROFILE" ]; then
     fail) exit 1 ;;
     empty) exit 0 ;;
     root) printf '/\n'; exit 0 ;;
+    slashes) printf '//\n'; exit 0 ;;
   esac
 fi
 printf '%s/native/%s/agent\n' "$HOME" "$2"
 SH
 chmod +x "$TMP_BAD/bin/omp"
-for mode in fail empty root; do
+for mode in fail empty root slashes; do
   for bad in openai-codex ollama-cloud anthropic; do
     for cmd in install verify doctor; do
       home="$TMP_BAD/home-$mode-$bad-$cmd"

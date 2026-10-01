@@ -18,7 +18,7 @@ profile_dir() { # profile
     dir="$HOME/${PI_CONFIG_DIR:-.omp}/profiles/$1/agent"
   fi
   case $dir in
-    /?*) ;;
+    /*[!/]*) ;;
     *) fail "OMP profile '$1' resolved to unusable directory '$dir'" ;;
   esac
 }
@@ -44,7 +44,7 @@ each_profile() { # shared-step profile-step
 shared_agent_dir() { # profile agent dir; sets $shared to <config-root>/agent
   config_root=$(dirname -- "$(dirname -- "$(dirname -- "$1")")")
   case $config_root in
-    /?*) shared="$config_root/agent" ;;
+    /*[!/]*) shared="$config_root/agent" ;;
     *) fail "cannot derive the shared agent directory from '$1'" ;;
   esac
 }
