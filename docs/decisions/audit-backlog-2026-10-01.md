@@ -30,6 +30,10 @@ Work: `8989e71`..`23b7568` on `fix/audit-backlog`, 2026-10-01. Findings: `docs/r
 
 ## Open questions
 
-- Index-only changes the worktree reverts, and `diff.external`/textconv settings, still affect the acceptance fingerprint.
-- CI runs the guards under Node only; OMP runs them under Bun. A manual Bun run passed on 2026-10-01.
-- `flow-sessions render` prints `MODEL None` for a `model_change` with no model, and `list` skips an assistant message with non-list content without a note. Both are cosmetic and parked.
+- Closed on `fix/audit-residuals` (2026-10-01):
+  - the acceptance fingerprint ignores `diff.external`/textconv (`52e96b2`) and counts the staged diff (`9a3e09a`); acceptances recorded earlier read stale once;
+  - all three profiles prompt for any shell line that names the gate-state directory (`cc9b9b0`);
+  - the write hook blocks an `ast_edit` directory or glob that reaches an existing gate-state file (`ecda8cc`). OMP's walk honours `.gitignore` but not `.git/info/exclude`, so the guard never relies on the `.flow/` exclude;
+  - `tests/run.sh` runs the three extension tests under Bun when it is on PATH, and CI installs Bun with `oven-sh/setup-bun@v2.2.0` (`dbaea2b`; CI itself is unproven until a push);
+  - `flow-sessions render` notes a `model_change` with no model, and `list` notes an assistant message with non-list content (`8defc80`).
+- Still open: eval writes to the gate-state directory, a path assembled from pieces in a shell line, and a nested checkout's gate state below an `ast_edit` directory target are not covered. The `flow-artifacts` rule governs them.

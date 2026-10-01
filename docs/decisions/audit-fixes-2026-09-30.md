@@ -30,6 +30,6 @@ Work: `4de298c`..`cac301e` on `fix/audit-2026-09-30`, 2026-10-01. Findings: `doc
 
 ## Open questions
 
-- The fingerprint still ignores index-only changes that the worktree reverts, and it follows `diff.external`/textconv settings. Both predate this batch.
+- Closed on 2026-10-01 (`fix/audit-residuals`): the fingerprint now ignores `diff.external`/textconv and counts index-only changes. See `docs/decisions/audit-backlog-2026-10-01.md`.
 - No test pins `dev.autoqaConsent: denied`.
 - Backlog from the audit: A8, A9, A10, B2–B5, C5–C7, D3.
