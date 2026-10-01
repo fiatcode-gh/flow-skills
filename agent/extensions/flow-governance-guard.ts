@@ -179,11 +179,15 @@ function worktreeIdentity(root: string): { head: string; fingerprint: string } {
 	const base = head === "UNBORN" ? git(root, ["hash-object", "-t", "tree", "/dev/null"]) : "HEAD";
 	// Raw bytes only: a configured external diff or textconv driver could print the same text for different edits.
 	const diff = gitBytes(root, ["diff", "--binary", "--no-ext-diff", "--no-textconv", base, "--", "."]);
+	// The index is state too: a change staged and then reverted in the worktree leaves no trace in the diff above.
+	const staged = gitBytes(root, ["diff", "--cached", "--binary", "--no-ext-diff", "--no-textconv", base, "--", "."]);
 	const untrackedRaw = gitBytes(root, ["ls-files", "--others", "--exclude-standard", "-z"]).toString("utf8");
 	const untracked = untrackedRaw.split("\0").filter(Boolean).sort();
 	const hash = createHash("sha256");
 	hash.update(`head\0${head}\0diff\0`);
 	hash.update(diff);
+	hash.update("\0staged\0");
+	hash.update(staged);
 	for (const rel of untracked) {
 		const path = resolve(root, rel);
 		const stat = lstatSync(path);

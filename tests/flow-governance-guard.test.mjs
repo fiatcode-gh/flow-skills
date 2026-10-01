@@ -460,6 +460,18 @@ try {
 		assert.match(result.reason, /repository state changed after acceptance\/closure/i);
 	}
 
+	// A change staged and then reverted in the working tree still differs from the accepted state.
+	{
+		const { dir, run } = caseRepo();
+		await gateIn(dir, { action: "accept", scope: "staged-revert", source: "test" });
+		assert.equal(await verifyIn(dir, "staged-revert"), undefined, "precondition: acceptance current");
+		writeFileSync(join(dir, "app.txt"), "staged\n");
+		run("add", "app.txt");
+		writeFileSync(join(dir, "app.txt"), "v1\n");
+		result = await verifyIn(dir, "staged-revert");
+		assert.equal(result?.block, true, "a staged change reverted in the working tree must stale acceptance");
+		assert.match(result.reason, /repository state changed after acceptance\/closure/i);
+	}
 
 	// approve refuses a headless session and records nothing.
 	{
