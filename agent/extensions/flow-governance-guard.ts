@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import { agentName } from "../lib/agent-name.ts";
 
 type ToolInput = Record<string, unknown>;
 type GateKind = "contract" | "plan" | "implementation";
@@ -264,11 +265,6 @@ function verifierGateError(root: string, task: unknown): string | undefined {
 		return `scope ${manifest.scope}: repository state changed after acceptance/closure (${acceptance.head} -> ${current.head}); ${ACCEPT_ORDER_HINT}`;
 	}
 	return undefined;
-}
-
-// OMP trims the agent name before resolving it, so gate on the same normalized name.
-function agentName(agent: unknown): string | undefined {
-	return typeof agent === "string" ? agent.trim() : undefined;
 }
 
 function isGatedAgent(agent: unknown): boolean {

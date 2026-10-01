@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import { agentName } from "../lib/agent-name.ts";
 
 type ToolInput = Record<string, unknown>;
 
@@ -11,17 +12,22 @@ const CAPSULE_MARKERS = [
 	"excludes:",
 	"restore obligation:",
 ] as const;
+// A marker counts only at the start of a line, optionally as a list item, so
+// the `id:` inside `grid:` or `valid:` does not satisfy `ID`. The markers hold
+// no regular-expression metacharacters.
+const MARKER_PATTERNS = CAPSULE_MARKERS.map(
+	(marker) => [marker, new RegExp(`^[ \\t]*(?:-[ \\t]*)?${marker}`, "im")] as const,
+);
 
 function missingCapsuleMarkers(task: unknown): string[] {
 	if (typeof task !== "string") return [...CAPSULE_MARKERS];
-	const lower = task.toLowerCase();
-	return CAPSULE_MARKERS.filter((marker) => !lower.includes(marker));
+	return MARKER_PATTERNS.filter(([, pattern]) => !pattern.test(task)).map(([marker]) => marker);
 }
 
 function verifierBriefErrors(input: ToolInput): string[] {
 	const errors: string[] = [];
 	const check = (agent: unknown, task: unknown, label: string) => {
-		if (agent !== VERIFIER) return;
+		if (agentName(agent) !== VERIFIER) return;
 		const missing = missingCapsuleMarkers(task);
 		if (missing.length > 0) errors.push(`${label}: missing ${missing.join(", ")}`);
 	};
