@@ -183,7 +183,7 @@ EXCLUSIVE={
     'do not manufacture questions': {'agent/skills/flow-design/SKILL.md'},
     'still-valid settled decisions': {'agent/skills/flow-design/SKILL.md'},
     'a validated external bundle may already contain': {'agent/skills/flow-planning/SKILL.md'},
-    'refine only those gaps': {'agent/skills/flow-external-session/SKILL.md'},
+    'refine only the missing how': {'agent/skills/flow-planning/SKILL.md'},
     'cor and crf always for the initial coherent change review': {'agent/skills/flow-review/SKILL.md'},
     'flip that exact item to `doing`': {'agent/skills/weft-worklog/SKILL.md'},
     'restore the prior': {'agent/skills/weft-worklog/SKILL.md'},
@@ -224,17 +224,16 @@ for path,pointers in POINTS_TO.items():
 external_raw=(ROOT/'agent/skills/flow-external-session/SKILL.md').read_text()
 external=external_raw.lower()
 # Pin only what tools parse or other files name: the skill name and title, the
-# four mode names and their headings, the reference and script paths, the
-# mailbox home, the handoff field, and the flow-design and flow-planning
-# pointers, including the execution-grade grading that agent/AGENTS.md points at.
+# three mode names and their headings, the reference and script paths, the
+# handoff field, and the flow-design and flow-planning pointers.
 EXTERNAL_MARKERS=[
     'name: flow-external-session\n', '\n# Flow external session\n', 'task/Agent Hub',
-    '**external worktree validation**', '**worker handoff**', '**planning handoff intake**', '**mailbox**',
-    '## External worktree', '## Worker handoff', '## Planning handoff intake', '## Mailbox',
-    '`references/external-worktree.md`', '`references/planning-handoff.md`', '`references/mailbox-protocol.md`',
-    '`scripts/validate-planning-handoff.py`', '`scripts/mailbox`', '`.flow/mailbox/`',
+    '**external worktree validation**', '**worker handoff**', '**planning handoff intake**',
+    '## External worktree', '## Worker handoff', '## Planning handoff intake',
+    '`references/external-worktree.md`', '`references/planning-handoff.md`',
+    '`scripts/validate-planning-handoff.py`',
     '`implementation_strategy: settled`', "`flow-design`'s contract-formation stage",
-    '`flow-planning` execution-grade contract',
+    '`flow-planning` "External handoffs"',
 ]
 for required in EXTERNAL_MARKERS:
     if required not in external_raw: err(f'flow-external-session missing machine-read marker or pointer target: {required!r}')
@@ -286,7 +285,7 @@ for required in EVIDENCE_MARKERS:
     if required not in evidence_raw: err(f'flow-evidence missing machine-read marker or pointer target: {required!r}')
 
 artifacts=(ROOT/'agent/rules/flow-artifacts.md').read_text()
-for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'mailbox/<channel>/', 'runtime/gates.json', '`docs/decisions/`', '`docs/reports/`', '`.gitignore`', '`.flow/runtime/`', '`flow_gate`', '`flow-integrating`', '## Frozen LDD ledgers', '## Lifecycle']:
+for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'runtime/gates.json', '`docs/decisions/`', '`docs/reports/`', '`.gitignore`', '`.flow/runtime/`', '`flow_gate`', '`flow-integrating`', '## Frozen LDD ledgers', '## Lifecycle']:
     if required not in artifacts: err(f'flow-artifacts missing machine-read marker or pointer target: {required!r}')
 for path,required in [
     ('agent/skills/flow-design/SKILL.md', '.flow/contracts/<slug>.md'),
@@ -294,8 +293,6 @@ for path,required in [
     ('agent/skills/flow-execution/SKILL.md', '.flow/checkpoints/<head>.md'),
     ('agent/skills/flow-execution/SKILL.md', '.flow/evidence/<head>/<capsule-id>/'),
     ('agent/agents/flow-evidence-verifier.md', '.flow/evidence/<head>/<capsule-id>/'),
-    ('agent/skills/flow-external-session/SKILL.md', '.flow/mailbox/'),
-    ('agent/skills/flow-external-session/references/mailbox-protocol.md', '.flow/mailbox/'),
     ('agent/skills/flow-integrating/SKILL.md', 'flow-artifacts'),
     ('agent/skills/flow-integrating/SKILL.md', 'docs/decisions/<slug>.md'),
     ('docs/PRINCIPLES.md', 'personal exclude guard'),
@@ -402,7 +399,7 @@ tracked=subprocess.run(['git','ls-files','-z'],cwd=ROOT,capture_output=True,text
 for path in tracked:
     if not path or path.startswith('tests/fixtures/'): continue
     f=ROOT/path
-    if f.suffix in {'.md','.ts','.mjs','.py','.sh','.yml','.json'} or path.startswith('scripts/') or path.endswith('/mailbox'):
+    if f.suffix in {'.md','.ts','.mjs','.py','.sh','.yml','.json'} or path.startswith('scripts/'):
         data=f.read_bytes()
         if data and not data.endswith(b'\n'): err(f'{path}: missing final newline')
 

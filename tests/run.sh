@@ -13,5 +13,4 @@ node --no-warnings tests/bash-patterns.test.mjs
 sh -n scripts/omp-stack
 ./tests/install.test.sh
 ./tests/flow-exclude.test.sh
-sh -n agent/skills/flow-external-session/scripts/mailbox
 printf '%s\n' 'ok: shell syntax'

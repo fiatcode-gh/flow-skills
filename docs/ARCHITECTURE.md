@@ -26,7 +26,8 @@ Native surfaces:
 | flow-reviewing-prs | flow-review PR mode |
 | flow-receiving-pr-reviews | flow-review author-feedback mode |
 | flow-auditing-codebases | flow-review audit mode |
-| flow-handover + flow-mailbox | flow-external-session |
+| flow-handover | flow-external-session |
+| flow-mailbox | dropped (2026-10-01 audit backlog batch) |
 | flow-ldd | folded into flow-design, flow-planning, flow-execution and flow-integrating; frozen ledgers stay read-only |
 | flow-tdd | flow-tdd (behavior-oriented) |
 | flow-debugging | flow-debugging |

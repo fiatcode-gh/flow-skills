@@ -17,7 +17,6 @@ Flow working state lives inside the project at `.flow/`, hidden from git through
   ldd/<epic>/                         frozen LDD ledger (read-only)
   checkpoints/<head>.md               recovery checkpoint before device/manual/external acceptance
   evidence/<head>/<capsule-id>/       flow-evidence-verifier artifacts
-  mailbox/<channel>/                  flow-external-session mailbox channels
   runtime/gates.json                  flow-governance approval/acceptance bindings
 ```
 
@@ -42,7 +41,7 @@ flow_exclude_guard() {
 
 `.flow/ldd/<epic>/` ledgers from the retired `flow-ldd` skill are read-only history:
 
-- A unit already in flight finishes through `flow-integrating` with its existing `<epic>/<unit>` gate scope. It writes no decision record.
+- A unit already in flight finishes through `flow-integrating` with its existing `<epic>/<unit>` gate scope.
 - The next unit in that epic starts with the `flow-design` resume step.
 - Do not distill a finished epic until work resumes in its area. Remove a tracked ledger only when the user asks.
 - No rule edits or deletes a frozen ledger.

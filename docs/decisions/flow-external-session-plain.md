@@ -1,5 +1,7 @@
 # Plain-language rewrite of `flow-external-session`
 
+The mailbox mode, `scripts/mailbox` and `references/mailbox-protocol.md` were removed on 2026-10-01 (audit backlog batch). The mailbox lines below are history.
+
 Work: `9889a6b` (`test(flow): pin flow-external-session machine-read markers instead of prose`), `61bac1c` (`docs(flow): rewrite flow-external-session in plain language`), 2026-09-30.
 
 ## Decisions
