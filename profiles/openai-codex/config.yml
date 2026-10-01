@@ -17,8 +17,9 @@ modelRoles:
   # Efforts follow OpenAI's GPT-6 model/effort ladder (developers.openai.com
   # model-selection guide): Luna low for well-scoped edits, Luna xhigh for
   # problems with clear constraints, GPT-6.1 Sol medium (its default) for
-  # complex technical work, Sol high for deep planning and review, Astra
-  # xhigh for demanding analysis. GPT-6.1 Sol and Astra do not accept `none`.
+  # complex technical work, Sol high for deep planning and review, Sol xhigh
+  # for decisions built from conflicting evidence. GPT-6.1 Sol does not
+  # accept `none`.
   smol: openai-codex/gpt-6-luna:low
   tiny: openai-codex/gpt-6-luna:low
   commit: openai-codex/gpt-6-luna:low
@@ -34,8 +35,9 @@ modelRoles:
   slow: openai-codex/gpt-6.1-sol:high
   review_aux: openai-codex/gpt-6.1-sol:high
 
-  # Explicit-only frontier escalation.
-  critical: openai-codex/gpt-6-astra:xhigh
+  # Explicit-only escalation. Astra is left out on purpose: on a ChatGPT Plus
+  # plan it would use up the allowance too quickly.
+  critical: openai-codex/gpt-6.1-sol:xhigh
 
 # Native backstop for Flow's external-effect gate. Keep publication commands
 # on the direct Bash/gh surface so these explicit prompt policies apply.

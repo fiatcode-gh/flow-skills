@@ -25,7 +25,7 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 | final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | DeepSeek V4 Pro high | Opus 5.5 medium |
 | TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GPT-6.1 Sol high | GLM-5.3-Flash high | Sonnet 5.5 high |
 | vision / multimodal inspection | `@vision` | GPT-6 Luna medium | GLM-5.3-Flash high | Sonnet 5.5 medium |
-| exceptional security/concurrency/data-integrity escalation | `@critical` | GPT-6 Astra xhigh | Kimi K3 high | Fable 5.1 high |
+| exceptional security/concurrency/data-integrity escalation | `@critical` | GPT-6.1 Sol xhigh | Kimi K3 high | Fable 5.1 high |
 
 `slow` intentionally stops below the most expensive explicit escalation. `critical` is the escape hatch; no automatic Flow agent binds `@critical` on purpose. Escalation should be a conscious model/session choice, not accidental fan-out.
 
@@ -37,11 +37,11 @@ OMP named profiles isolate the full OMP-native user root, not merely model selec
 
 ## OpenAI Codex selection rationale
 
-Efforts follow OpenAI's GPT-6 model-selection ladder (Luna low → Luna xhigh → GPT-6.1 Sol medium → Sol xhigh → Astra low/medium/xhigh):
+Efforts follow OpenAI's GPT-6 model-selection ladder (Luna low → Luna xhigh → GPT-6.1 Sol medium → Sol xhigh → Astra):
 
 - **GPT-6 Luna** owns `smol` / `tiny` / `commit` at low (well-scoped edits and extraction), `vision` at its default medium, and `execute` at xhigh (problems with clear constraints, which is what an execution-grade plan gives the executor). Main stays on Luna with OMP's adaptive `auto` effort, capped at `xhigh` by `providers.autoThinkingMaxEffort`.
-- **GPT-6.1 Sol** owns `task` at its default medium (complex technical work) and `plan` / `slow` / `review_aux` at high (deep planning and review). GPT-6.1 Sol replaces GPT-6 Sol; it does not accept `none` effort.
-- **GPT-6 Astra** owns `critical` at xhigh, reserved for explicit escalation.
+- **GPT-6.1 Sol** owns `task` at its default medium (complex technical work), `plan` / `slow` / `review_aux` at high (deep planning and review), and `critical` at xhigh (decisions built from conflicting evidence). GPT-6.1 Sol replaces GPT-6 Sol; it does not accept `none` effort.
+- **GPT-6 Astra** is deliberately unused: the profile runs on a ChatGPT Plus plan, and Astra would use up its allowance quickly.
 
 OMP discovers Codex models from the signed-in account, so a model newer than OMP's bundled catalog (GPT-6.1 Sol at OMP 18.4.5) still resolves once the account has access.
 

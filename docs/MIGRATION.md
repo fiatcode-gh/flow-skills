@@ -47,7 +47,7 @@ OpenAI Codex:
 - `smol` / `tiny` / `commit`: GPT-6 Luna low; `vision`: GPT-6 Luna medium; `execute`: GPT-6 Luna xhigh;
 - `default`: GPT-6 Luna auto;
 - `task`: GPT-6.1 Sol medium; `plan` / `slow` / `review_aux`: GPT-6.1 Sol high;
-- `critical`: GPT-6 Astra xhigh.
+- `critical`: GPT-6.1 Sol xhigh (GPT-6 Astra left out to protect the Plus allowance).
 
 Ollama Cloud:
 

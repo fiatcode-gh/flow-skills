@@ -490,7 +490,7 @@ expected_openai={
     'plan':'openai-codex/gpt-6.1-sol:high',
     'slow':'openai-codex/gpt-6.1-sol:high',
     'review_aux':'openai-codex/gpt-6.1-sol:high',
-    'critical':'openai-codex/gpt-6-astra:xhigh',
+    'critical':'openai-codex/gpt-6.1-sol:xhigh',
     'commit':'openai-codex/gpt-6-luna:low',
 }
 openai=yaml.safe_load(profile_cfgs['openai-codex'].read_text()).get('modelRoles',{})

@@ -101,7 +101,7 @@ The old bootstrap (`flow-using-skills`), normal workspace ceremony and standalon
 
 Skills and agents use **roles**, never concrete models. Native OMP profiles provide provider-specific role maps while the Flow content stays shared.
 
-The OpenAI Codex profile follows OpenAI's GPT-6 model/effort ladder: GPT-6 Luna for Main (adaptive effort), cheap leaves (low), vision (medium) and constrained execution (xhigh); GPT-6.1 Sol for semantic implementation (medium) and planning/final acceptance/auxiliary review (high); and GPT-6 Astra xhigh for explicit critical escalation.
+The OpenAI Codex profile follows OpenAI's GPT-6 model/effort ladder: GPT-6 Luna for Main (adaptive effort), cheap leaves (low), vision (medium) and constrained execution (xhigh); GPT-6.1 Sol for semantic implementation (medium), planning/final acceptance/auxiliary review (high) and explicit critical escalation (xhigh). GPT-6 Astra is left out to protect the ChatGPT Plus allowance.
 
 The Ollama Cloud trial keeps DeepSeek V4 Pro as Main/planning/final acceptance, uses DeepSeek V4.1 Flash for cheap mechanical roles, GLM-5.3-Flash for constrained execution/semantic coding/vision and auxiliary review, and Kimi K3 for explicit critical escalation. The Anthropic v8 profile uses Haiku 4.5 for cheap leaves, Sonnet 5.5 for constrained execution/semantic implementation/vision/auxiliary review, Opus 5.5 for Main/planning/correctness reasoning, and Fable 5.1 high for explicit critical escalation.
 
