@@ -12,7 +12,7 @@ OMP additionally owns local execution/TDD/debugging/integration, task agents, Hu
 
 ## Open WebUI port
 
-The port's sources live in `ports/open-webui/`. Import each skill file through Workspace > Skills > Import; its frontmatter fills the name and description. Paste `chat-rules.md` at the end of the Open WebUI model's system prompt, after any general instructions.
+The port's sources live in `ports/open-webui/`. Import each skill file through Workspace > Skills > Import; its frontmatter fills the name and description. Paste `system-prompt.md` as the Open WebUI model's whole system prompt.
 
 The chat reads through GitHub's read-only MCP server and writes nothing: no files, no GitHub writes, no approvals.
 
@@ -22,7 +22,7 @@ The chat reads through GitHub's read-only MCP server and writes nothing: no file
 | `flow-planning.md` | `flow-planning` sections 1–5 |
 | `flow-review.md` | `flow-review` Shared evidence contract and Change-lens selection, `review-lenses.md`, `pr-review.md` steps 1 and 3–7 |
 | `flow-handoff.md` | `planning-handoff.md` Manifest schema v2 and HANDOFF.md contents, `planning-handoff.schema.json` |
-| `chat-rules.md` | `flow-evidence` opening rule, `flow-safety` read-content, secrets and publication rules |
+| `system-prompt.md` | `AGENTS.md` Communication, Engineering principles and Documentation lookup; `flow-evidence` opening rule; `flow-safety` read-content, secrets and publication rules |
 
 `tests/validate.py` fails when `flow-handoff.md` no longer names every required manifest field, constant and enum value in the schema.
 
@@ -49,7 +49,7 @@ A changed commit SHA triggers targeted revalidation, not automatic rejection or 
 
 ## Synchronization discipline
 
-- When shared doctrine changes in OMP (`flow-design`, `flow-planning`, review lens semantics, PR reviewer mode, decision-record handling, the handoff schema, or the rules `chat-rules.md` mirrors), update `ports/open-webui/` in the same change cycle.
+- When shared doctrine changes in OMP (`flow-design`, `flow-planning`, review lens semantics, PR reviewer mode, decision-record handling, the handoff schema, or the rules `system-prompt.md` mirrors), update `ports/open-webui/` in the same change cycle.
 - The table above names what each port file mirrors.
 - When the exclude command in `flow-handoff.md` changes, prove it again with fish in a temporary git repository: fresh clone, missing trailing newline, linked worktree, outside a repository.
 - OMP-only execution mechanics do not require a mirror.
