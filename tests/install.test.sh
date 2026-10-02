@@ -4,7 +4,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT HUP INT TERM
 
-LINKED="AGENTS.md agents rules skills extensions lib"
+LINKED="AGENTS.md TITLE_SYSTEM.md agents rules skills extensions lib"
 
 # Keep the default profile untouched and preseed one named profile with a
 # divergent config. The installer must refuse to replace a customized profile

@@ -86,7 +86,7 @@ install_profile() { # profile dir
   profile=$1 dir=$2
   mkdir -p -- "$dir" || fail "could not create $dir"
   prc=0
-  for name in AGENTS.md agents rules skills extensions lib; do
+  for name in AGENTS.md TITLE_SYSTEM.md agents rules skills extensions lib; do
     link_owned "$ROOT/agent/$name" "$dir/$name"
   done
   link_config "$profile" "$dir" || prc=1
@@ -119,7 +119,7 @@ verify_profile() { # profile dir
   profile=$1 dir=$2
   prc=0
   info "profile: $profile ($dir)"
-  for name in AGENTS.md agents rules skills extensions lib; do
+  for name in AGENTS.md TITLE_SYSTEM.md agents rules skills extensions lib; do
     verify_link "$ROOT/agent/$name" "$dir/$name" || prc=1
   done
   verify_link "$ROOT/profiles/$profile/config.yml" "$dir/config.yml" || prc=1

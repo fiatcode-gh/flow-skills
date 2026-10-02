@@ -17,6 +17,7 @@ Both MCP servers are configured per profile; see [MCP servers](#mcp-servers).
 ```text
 agent/
   AGENTS.md                 durable user context
+  TITLE_SYSTEM.md           session-title prompt (verb-first kebab-case, 4-5 words)
   rules/                    always-apply Flow invariants
   agents/                   role-backed OMP task agents
   skills/                   optional workflow/domain capabilities
