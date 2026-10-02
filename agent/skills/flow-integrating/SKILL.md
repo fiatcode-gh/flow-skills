@@ -44,4 +44,9 @@ Never end a locally complete integration checkpoint with only a status summary: 
 
 Delete a local feature branch only when it is integrated and safe. Report a user-owned external worktree as removable (`flow-safety`).
 
-After confirmed integration, call `flow_gate action=clear` for the integrated scope, then remove the integrated slug's `.flow/contracts`, `.flow/plans`, `.flow/checkpoints` and `.flow/evidence` entries per the `flow-artifacts` lifecycle and report what was removed. After the last unit, also for the parent. Never touch a frozen `.flow/ldd/` ledger.
+After confirmed integration:
+
+- Call `flow_gate action=clear` for the integrated scope.
+- Remove its `.flow/contracts`, `.flow/plans`, `.flow/handoffs`, `.flow/checkpoints` and `.flow/evidence` entries (`flow-artifacts` lifecycle). Report what was removed.
+- After the last unit, do both for the parent.
+- Never touch a frozen `.flow/ldd/` ledger.

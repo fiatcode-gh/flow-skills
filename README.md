@@ -28,6 +28,8 @@ profiles/
   ollama-cloud/config.yml   first-install baseline for `omp --profile ollama-cloud`
   anthropic/config.yml      first-install baseline for `omp --profile anthropic`
 mcp.example.json            MCP server template, copied per profile (see below)
+ports/
+  open-webui/               Flow port for the Open WebUI chat (docs/EXTERNAL-INTEROP.md)
 scripts/
   omp-stack                 install / verify / doctor
   flow-sessions             list and render OMP sessions for field-trial audits

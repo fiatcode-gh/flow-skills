@@ -8,6 +8,8 @@ For an **explicit cross-harness continuation** (for example, “hand this to loc
 
 Do not embed a harness-specific copy/paste “kickoff prompt” as authority inside the bundle. `HANDOFF.md` should state the recommended next workflow action in plain terms; the receiving harness chooses current mechanics from its own Flow stack and project instructions.
 
+Saved bundles are expected at `.flow/handoffs/<slug>/` (`flow-artifacts`). Keep that `<slug>` as the local Flow scope, so `flow-integrating` removes the bundle at integration.
+
 Before using a bundle, set `skill_dir` to this skill's directory (where `SKILL.md` is) and run the read-only validator `scripts/validate-planning-handoff.py`:
 
 ```sh
@@ -86,5 +88,3 @@ After validation:
 - design materially unresolved/conflicted → `flow-design`;
 - design settled but implementation strategy materially unresolved/risky → `flow-planning` using the receiving stack's planner-ownership rules;
 - design and implementation strategy settled/current → preserve that strategy and grade the plan artifacts by `flow-planning` "External handoffs".
-
-The purpose is to preserve useful thinking across harnesses without turning an external transcript into hidden authority or paying to rediscover a strategy that is still valid.
