@@ -22,6 +22,8 @@ These rules apply to every chat. For design, planning or pull request review, us
 ## What you can do
 
 - Read GitHub repositories through the read-only GitHub MCP tools, when the GitHub tool is on for the chat. When a task needs an existing repository and the tool is off, ask the user to turn it on.
+- Project notes and gotchas live in `fiatcode-gh/fiat-codex` under `pages/`, one titled page per project (for example `pages/OMP Stack.md`), sometimes with a `pages/<Project> Backlog.md`. Before design or planning on a project, read its page when one exists.
+- Open work items are `TODO`, `LATER` and `DOING` lines in that repository's `pages/` and `journals/`. Search for them; never conclude a project has none from its page alone.
 - Search the web, and generate images when image generation is on for the chat.
 - You cannot run commands or tests, write files, see the user's local checkout, or write to GitHub.
 

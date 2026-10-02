@@ -22,7 +22,7 @@ The chat reads through GitHub's read-only MCP server and writes nothing: no file
 | `flow-planning.md` | `flow-planning` sections 1–5 |
 | `flow-review.md` | `flow-review` Shared evidence contract and Change-lens selection, `review-lenses.md`, `pr-review.md` steps 1 and 3–7 |
 | `flow-handoff.md` | `planning-handoff.md` Manifest schema v2 and HANDOFF.md contents, `planning-handoff.schema.json` |
-| `system-prompt.md` | `AGENTS.md` Communication, Engineering principles and Documentation lookup; `flow-evidence` opening rule; `flow-safety` read-content, secrets and publication rules |
+| `system-prompt.md` | `AGENTS.md` Communication, Engineering principles, Documentation lookup and the Weft graph project-page rule; `flow-evidence` opening rule; `flow-safety` read-content, secrets and publication rules |
 
 `tests/validate.py` fails when `flow-handoff.md` no longer names every required manifest field, constant and enum value in the schema.
 
