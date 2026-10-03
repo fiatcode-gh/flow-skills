@@ -57,6 +57,7 @@ type Presentation = {
 	scope: string;
 	kind: GateKind;
 	path: string;
+	displayPath: string;
 	sha256: string;
 	summary: string;
 };
@@ -717,6 +718,24 @@ function resultText(text: string, details: Record<string, unknown> = {}) {
 	};
 }
 
+// The approval dialog paints every detail line in the theme accent. Bold and dim
+// (SGR 1 and 2, both reset by 22) leave that colour alone, so they add structure
+// without fighting the theme; OMP's native-terminal path strips the escapes.
+const bold = (text: string) => `\x1b[1m${text}\x1b[22m`;
+const dim = (text: string) => `\x1b[2m${text}\x1b[22m`;
+const field = (label: string, value: string) => `${bold(label.padEnd(9))}${value}`;
+
+// The dialog drops empty detail lines, so a lone space keeps a visual break.
+function textBlock(label: string, text: string): string[] {
+	return [" ", bold(label), ...text.split(/\r?\n/).map((line) => `  ${line}`)];
+}
+
+const APPROVAL_EFFECT: Record<GateKind, string> = {
+	contract: "clears this scope's plan and implementation approvals and its acceptance",
+	plan: "clears this scope's recorded acceptance",
+	implementation: "clears this scope's recorded acceptance",
+};
+
 export default function (pi: ExtensionAPI) {
 	const presentations = new Map<string, Presentation>();
 	const z = pi.zod;
@@ -785,19 +804,23 @@ export default function (pi: ExtensionAPI) {
 			const action = gateAction(input);
 			const scope = getString(input, "scope");
 			if (action === "accept") {
-				return [`Scope: ${scope}`, `Source: ${getString(input, "source")}`, `Summary: ${getString(input, "summary") ?? ""}`];
+				const summary = getString(input, "summary");
+				return [
+					field("Source", getString(input, "source") ?? ""),
+					field("Effect", "binds acceptance to the current HEAD and working tree; any later change makes it stale"),
+					...(summary ? textBlock("Summary", summary) : []),
+				];
 			}
 			if (action !== "approve") return undefined;
 			const kind = gateKind(input);
 			if (!scope || !kind) return undefined;
 			const presented = presentations.get(presentationKey(scope, kind));
-			if (!presented) return [`Scope: ${scope}`, `Kind: ${kind}`, "Presentation: missing"];
+			if (!presented) return [field("Scope", scope), field("Kind", kind), field("Status", "not presented")];
 			return [
-				`Scope: ${scope}`,
-				`Kind: ${kind}`,
-				`Artifact: ${presented.path}`,
-				`SHA-256: ${presented.sha256}`,
-				`Summary: ${presented.summary}`,
+				field("Artifact", presented.displayPath),
+				field("Revision", dim(`sha256 ${presented.sha256}`)),
+				field("Effect", APPROVAL_EFFECT[kind]),
+				...textBlock("Summary", presented.summary),
 			];
 		},
 		async execute(_id, raw, _signal, _onUpdate, ctx) {
@@ -814,10 +837,12 @@ export default function (pi: ExtensionAPI) {
 				const summary = getString(input, "summary");
 				if (!kind || !path || !summary) throw new Error("Flow gate present requires kind, path, and summary");
 				const identity = artifactIdentity(root, path);
-				const presented: Presentation = { scope, kind, path: identity.path, sha256: identity.sha256, summary };
+				const displayPath = relative(root, identity.path);
+				const presented: Presentation = { scope, kind, path: identity.path, displayPath, sha256: identity.sha256, summary };
 				presentations.set(presentationKey(scope, kind), presented);
+				// Summary first: the transcript collapses a result to its first few lines.
 				return resultText(
-					[`Flow ${kind} presentation`, `Scope: ${scope}`, `Artifact: ${identity.path}`, `SHA-256: ${identity.sha256}`, "", summary].join("\n"),
+					[`Presented ${kind} for scope ${scope}: ${displayPath}`, summary, "", `sha256 ${identity.sha256}`].join("\n"),
 					presented,
 				);
 			}
