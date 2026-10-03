@@ -911,6 +911,27 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
+	// OMP raises a desktop notification for `ask` but not for a tool approval
+	// prompt, so a gate waiting in a background session goes unseen. Lazy import:
+	// the tests load this file under plain Node, where the host package does not
+	// resolve; OMP maps it to its own instance. A notification failure must never
+	// hold up the prompt.
+	pi.on("tool_approval_requested", async (event, ctx) => {
+		if (event.toolName !== "flow_gate") return;
+		try {
+			const { TERMINAL } = await import("@oh-my-pi/pi-tui");
+			TERMINAL.sendNotification({
+				title: ctx.sessionManager.getSessionName() || "omp",
+				body: event.reason ?? "Flow gate is waiting for approval",
+				type: "ask",
+				urgency: "normal",
+				actions: "focus",
+			});
+		} catch {
+			// Best effort: the approval prompt itself is the authority.
+		}
+	});
+
 	pi.on("tool_call", async (event, ctx) => {
 		if (event.toolName === "bash") {
 			const cwd = (event.input as ToolInput).cwd;
