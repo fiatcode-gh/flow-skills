@@ -58,7 +58,7 @@ Ollama Cloud:
 
 Anthropic:
 
-- `smol` / `tiny` / `commit`: Claude Haiku 4.5;
+- `smol` / `tiny` / `commit`: Claude Haiku 5.5 medium;
 - `execute` / `vision`: Claude Sonnet 5.5 medium; `task` / `review_aux`: Claude Sonnet 5.5 high;
 - `default` / `plan` / `slow`: Claude Opus 5.5 medium;
 - `critical`: Claude Fable 5.1 high (explicitly not max).

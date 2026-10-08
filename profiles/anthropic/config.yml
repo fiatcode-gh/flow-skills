@@ -15,12 +15,11 @@ disabledProviders:
 defaultThinkingLevel: auto
 
 modelRoles:
-  # Cheap background / mechanical roles. Haiku is intentionally left without
-  # an explicit effort suffix; OMP's first-party Haiku effort surface is not
-  # the same adaptive ladder exposed by Sonnet/Opus/Fable.
-  smol: anthropic/claude-haiku-4-5-20251001
-  tiny: anthropic/claude-haiku-4-5-20251001
-  commit: anthropic/claude-haiku-4-5-20251001
+  # Cheap background / mechanical roles. Haiku 5.5 uses the same adaptive
+  # effort ladder as Sonnet/Opus/Fable; medium is Anthropic's default for it.
+  smol: anthropic/claude-haiku-5-5:medium
+  tiny: anthropic/claude-haiku-5-5:medium
+  commit: anthropic/claude-haiku-5-5:medium
 
   # High-throughput constrained execution, semantic implementation, multimodal
   # work and auxiliary review. Keep Main separate from the implementation tier.
