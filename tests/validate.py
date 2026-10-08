@@ -483,7 +483,7 @@ if ollama != expected_ollama:
 
 expected_anthropic={
     'default':'anthropic/claude-opus-5-5:medium',
-    'smol':'anthropic/claude-haiku-5-5:medium',
+    'smol':'anthropic/claude-sonnet-5-5:low',
     'tiny':'anthropic/claude-haiku-5-5:medium',
     'vision':'anthropic/claude-sonnet-5-5:medium',
     'execute':'anthropic/claude-sonnet-5-5:medium',
@@ -492,7 +492,7 @@ expected_anthropic={
     'slow':'anthropic/claude-opus-5-5:medium',
     'review_aux':'anthropic/claude-sonnet-5-5:high',
     'critical':'anthropic/claude-fable-5-1:high',
-    'commit':'anthropic/claude-haiku-5-5:medium',
+    'commit':'anthropic/claude-sonnet-5-5:low',
 }
 anthropic=yaml.safe_load(profile_cfgs['anthropic'].read_text()).get('modelRoles',{})
 if anthropic != expected_anthropic:

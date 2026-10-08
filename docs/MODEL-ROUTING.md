@@ -15,9 +15,9 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 | Load | Role / agent | OpenAI Codex profile | Ollama Cloud profile | Anthropic profile |
 |---|---|---|---|---|
 | tiny metadata/title/background | `@tiny` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Haiku 5.5 medium |
-| commit/changelog generation | `@commit` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Haiku 5.5 medium |
-| repo exploration | bundled `scout` / `@smol` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Haiku 5.5 medium |
-| behavior-preserving mechanical work / diagnosed exact correction | bundled `sonic` / `@smol` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Haiku 5.5 medium |
+| commit/changelog generation | `@commit` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Sonnet 5.5 low |
+| repo exploration | bundled `scout` / `@smol` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Sonnet 5.5 low |
+| behavior-preserving mechanical work / diagnosed exact correction | bundled `sonic` / `@smol` | GPT-6 Luna low | DeepSeek V4.1 Flash low | Sonnet 5.5 low |
 | Main/controller | `@default` | GPT-6 Luna auto | GLM-5.3 high | Opus 5.5 medium |
 | execution-grade plan follower | `flow-plan-executor` / `@execute` | GPT-6 Luna xhigh | DeepSeek V4.1 Flash high | Sonnet 5.5 medium |
 | residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GPT-6.1 Sol medium | DeepSeek V4.1 Flash high | Sonnet 5.5 high |
@@ -56,8 +56,8 @@ Keep the exact model IDs under review when OMP or Ollama Cloud changes its disco
 
 ## Anthropic selection rationale
 
-- **Claude Haiku 5.5 medium** owns `smol` / `tiny` / `commit`: cheap bounded work does not need the premium reasoning tier. Unlike Haiku 4.5, Haiku 5.5 uses adaptive thinking with the same effort ladder as Sonnet/Opus/Fable, so the effort is pinned. `medium` is Anthropic's default for Haiku 5.5; at its price, the extra thinking over `low` is cheap insurance for scout and mechanical-edit leaves.
-- **Claude Sonnet 5.5** owns `execute` / `task` / `vision` / `review_aux`: it is the high-throughput constrained-execution, semantic-implementation and multimodal lane, while auxiliary review stays independent from the Opus correctness lane. Sonnet 5.5 recalibrated its effort levels, so the Sonnet 5 `high` setting is not carried over. Anthropic recommends `medium` for well-specified agentic work and `high` for harder or longer work: `execute` (decision-complete plans) and `vision` run at `medium`; `task` (unresolved judgment, debugging) and `review_aux` (independent review) run at `high`.
+- **Claude Haiku 5.5 medium** owns `tiny` only. Its 100k context window is too small for scout exploration, mechanical-edit leaves and large commit diffs, but title and metadata generation never comes near it. Haiku 5.5 uses adaptive thinking with the same effort ladder as Sonnet/Opus/Fable; `medium` is Anthropic's default for it.
+- **Claude Sonnet 5.5** owns `smol` / `commit` / `execute` / `task` / `vision` / `review_aux`: it is the high-throughput constrained-execution, semantic-implementation and multimodal lane, while auxiliary review stays independent from the Opus correctness lane. Sonnet 5.5 recalibrated its effort levels, so the Sonnet 5 `high` setting is not carried over. `smol` and `commit` run at `low`: they take Haiku's former leaves for the larger context window, not for more reasoning. Anthropic recommends `medium` for well-specified agentic work and `high` for harder or longer work: `execute` (decision-complete plans) and `vision` run at `medium`; `task` (unresolved judgment, debugging) and `review_aux` (independent review) run at `high`.
 - **Claude Opus 5.5 medium** owns `default` / `plan` / `slow`: the Team Premium profile spends its larger allowance on controller reliability, long-horizon orchestration, architecture and primary correctness reasoning rather than making Main another implementation-tier session. `medium` is Anthropic's default for Opus 5.5 and matches or beats Opus 5 at `high` on agentic tasks.
 - **Claude Fable 5.1 high** owns `critical`: the role is explicit-only, and `high` is deliberate. Do not pin `max` here; maximum effort would burn Team Premium allowance too aggressively for a reusable baseline.
 

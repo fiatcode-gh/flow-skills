@@ -15,11 +15,12 @@ disabledProviders:
 defaultThinkingLevel: auto
 
 modelRoles:
-  # Cheap background / mechanical roles. Haiku 5.5 uses the same adaptive
-  # effort ladder as Sonnet/Opus/Fable; medium is Anthropic's default for it.
-  smol: anthropic/claude-haiku-5-5:medium
+  # Cheap background / mechanical roles. Haiku 5.5 has a 100k context window:
+  # enough for titles/metadata, too small for scout, sonic and large commit
+  # diffs, so those run on Sonnet 5.5 at its cheapest effort.
+  smol: anthropic/claude-sonnet-5-5:low
   tiny: anthropic/claude-haiku-5-5:medium
-  commit: anthropic/claude-haiku-5-5:medium
+  commit: anthropic/claude-sonnet-5-5:low
 
   # High-throughput constrained execution, semantic implementation, multimodal
   # work and auxiliary review. Keep Main separate from the implementation tier.
