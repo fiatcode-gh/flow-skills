@@ -155,7 +155,7 @@ function writeState(root: string, state: GateState): void {
 // The first segment is read before normalizing, so `.flow/../x` stays a repository path and is refused.
 function resolveFlowArtifact(root: string, inputPath: string): string {
 	const flowRoot = resolve(root, ".flow");
-	const first = inputPath.split(/[\\/]+/).find((segment) => segment !== "" && segment !== ".");
+	const first = inputPath.split("/").find((segment) => segment !== "" && segment !== ".");
 	const base = first === ".flow" ? root : flowRoot;
 	const candidate = isAbsolute(inputPath) ? resolve(inputPath) : resolve(base, inputPath);
 	const rel = relative(flowRoot, candidate);
@@ -247,10 +247,31 @@ function normalizeManifestValue(raw: string): string | undefined {
 	return value || undefined;
 }
 
+// Mirror of `repairDoubleEncodedJsonString` in @oh-my-pi/pi-tui `src/tools/task-repair-args.ts` (OMP 18.8.4).
+// OMP applies it to `task`, `context` and each `tasks[].task` after this hook runs, so the guard must read
+// the text the child receives: a double-encoded task has no `Flow gate:` line until it is unescaped.
+function repairDoubleEncodedTaskText(value: string): string {
+	if (!value.includes("\\")) return value;
+	let signature = /\\(?:["\\/]|u[0-9a-fA-F]{4})/.test(value);
+	for (let i = 0, count = 0; !signature && i < value.length; i += 1) {
+		if (value.charCodeAt(i) !== 0x5c) continue;
+		count += 1;
+		signature = count >= 2;
+		i += 1;
+	}
+	if (!signature) return value;
+	try {
+		const decoded: unknown = JSON.parse(`"${value}"`);
+		return typeof decoded === "string" ? decoded : value;
+	} catch {
+		return value;
+	}
+}
+
 // `undefined` means the text has no Flow gate block at all, which differs from a block with no usable fields.
 function parseManifest(task: unknown): GateManifest | undefined {
 	if (typeof task !== "string") return undefined;
-	const lines = task.split(/\r?\n/);
+	const lines = repairDoubleEncodedTaskText(task).split(/\r?\n/);
 	const start = lines.findIndex((line) => line.trim().toLowerCase() === GATE_HEADER);
 	if (start < 0) return undefined;
 	const result: GateManifest = {};

@@ -63,8 +63,6 @@ All under `flow-execution`. Section 4 checks: each was opened in the transcript.
 
 Recurring in two or more sessions on this baseline, so rule 4 allows a doctrine change. None is made yet; they wait for one batch.
 
-- The `Flow gate:` block put only in the `task` tool's shared `context`: the guard rejects the dispatch, one retry fixes it. 20 sessions, nearly every planned one. The doctrine says "brief"; the task tool says `context` is shared and "NEVER repeat per task"; the guard reads only `tasks[].task`. Cause: doctrine-ambiguity and tooling. Fixed in the guard (tooling fix, rule 5, no mark reset): it now takes the block from `context` for any task without its own.
-- `flow_gate present` with `contracts/<slug>.md` instead of `.flow/contracts/<slug>.md`: rejected, one retry. 18 sessions. The parameter text "Artifact path below .flow/" reads as relative to `.flow/`. Cause: tooling. Fixed in the guard (tooling fix, rule 5, no mark reset): a relative path that does not start with `.flow/` now resolves under it, in `present`, `status` and the manifest `Contract:`/`Plan:` lines.
 - Main writing plan amendments or task briefs itself instead of `flow-planner`: 10 sessions (`01a0f5a2` with the user's correction "you just violate our flow-planning skills", `01a0fa74`, `01a0fa48`, `01a0fbab`, `01a0ff5c`, `01a0fbda`, `01a1100f`, `01a10520`, `01a10b4e`, `01a11949`). Almost all were re-presented and re-approved before a writer ran. "Substantial" has no threshold for a one-task amendment. Cause: doctrine-ambiguity.
 - `flow_gate action=status` not run before integration choices: 7 sessions after `a377d78`, 4 more before it. Cause: compliance; the skill is often read only after the choice is shown.
 - Closure review replaced by Main's own check and a rationale after post-acceptance production fixes: 6 sessions (`01a0f5a5`, `01a0f5df`, `01a0ff5c`, `01a10520`, `01a114dc`, `01a11949`). `flow-execution` section 7 ("Run one scoped closure review by default") against the `flow-evidence` rebind rationale. Cause: doctrine-ambiguity.
@@ -79,6 +77,11 @@ Recurring in two or more sessions on this baseline, so rule 4 allows a doctrine 
 - Commits straight on `main` in omp-stack for small config or prompt changes: 3 sessions (`01a0faaf`, `01a11907`, `01a11a6f`; the last one offered a branch). Cause: doctrine-ambiguity ("feature work").
 
 Single occurrences: a `sonic` committed the user-owned `uv.lock` (`01a0fa74`, removed by Main, hash unchanged); `sonic` given new tests and behavior (`01a114dc`); an executor `git reset --hard` its own commits (`01a11949`); a verifier booted an AVD its brief did not allow (`01a10520`); a verifier wrote temporary helper scripts in the repository tree (`01a11521`); CRF Important findings dropped instead of posted non-blocking (`01a0fbbe`); a merge-question reply read as approval (`01a11620#134`, followed by the OMP prompt).
+
+Tooling defects fixed without mark effect (rule 5; the guard restores the documented behavior):
+
+- The `Flow gate:` block put only in the `task` tool's shared `context`: the guard rejected the dispatch, one retry fixed it. 20 sessions, nearly every planned one. The doctrine says "brief"; the task tool says `context` is shared and "NEVER repeat per task"; the guard read only `tasks[].task`. Cause: doctrine-ambiguity and tooling. The guard now takes the block from the call's `context` for any gated task without its own block, read as OMP repairs it (a double-encoded task or context is unescaped first).
+- `flow_gate present` with `contracts/<slug>.md` instead of `.flow/contracts/<slug>.md`: rejected, one retry. 18 sessions. The parameter text "Artifact path below .flow/" reads as relative to `.flow/`. Cause: tooling. A relative path that does not start with `.flow/` now resolves under it, in `present`, `status` and the manifest `Contract:`/`Plan:` lines; escapes from `.flow/` stay refused.
 
 Open tooling defects:
 

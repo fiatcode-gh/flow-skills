@@ -484,6 +484,9 @@ try {
 			[join(dir, "x.md"), /must live below/],
 			[join(outside, "x.md"), /must live below/],
 			[".flow", /must live below/],
+			// POSIX `resolve` keeps `\` in a name, so the base choice must not read it as a separator.
+			[".flow\\..\\x.md", /does not exist/],
+			["contracts\\c.md", /does not exist/],
 			["", /requires kind, path, and summary/],
 			["out/x.md", /escapes/],
 			[".flow/out/x.md", /escapes/],
@@ -582,6 +585,20 @@ try {
 
 		// context never gates an ungated agent
 		assert.equal(await dispatchIn(dir, { context: shared("stale"), tasks: [{ agent: "scout", task: "Look." }] }), undefined);
+
+		// OMP un-escapes a double-encoded task or context after the hook runs, so the guard reads the repaired text.
+		const doubleEncoded = (text) => JSON.stringify(text).slice(1, -1);
+		result = await dispatchIn(dir, { context: shared("ctx"), tasks: [{ agent: "flow-planner", task: doubleEncoded(block("stale")) }] });
+		assert.equal(result?.block, true, "a double-encoded task block must not fall back to a current block in context");
+		assert.match(result.reason, /scope stale: no recorded contract approval/);
+		result = await dispatchIn(dir, { context: shared("stale"), tasks: [{ agent: "flow-planner", task: doubleEncoded(block("ctx")) }] });
+		assert.equal(result, undefined, "a double-encoded current block in the task must win over a stale block in context");
+		result = await dispatchIn(dir, { context: doubleEncoded(shared("ctx")), tasks: [{ agent: "flow-planner", task: "Plan it." }] });
+		assert.equal(result, undefined, "a double-encoded block in context must be read");
+		result = await dispatchIn(dir, { context: doubleEncoded(shared("stale")), tasks: [{ agent: "flow-planner", task: "Plan it." }] });
+		assert.match(result?.reason ?? "", /scope stale: no recorded contract approval/, "a double-encoded stale block in context must fail like a plain one");
+		result = await dispatchIn(dir, { agent: "flow-planner", task: doubleEncoded(block("stale")) });
+		assert.match(result?.reason ?? "", /scope stale: no recorded contract approval/, "a single double-encoded task must be read too");
 	}
 
 	// A new untracked file stales acceptance.
