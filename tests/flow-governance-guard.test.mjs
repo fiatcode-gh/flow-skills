@@ -1,7 +1,7 @@
 // Behavioral tests for Flow approval-revision and acceptance-state runtime gates.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import guardExtension from "../agent/extensions/flow-governance-guard.ts";
@@ -422,8 +422,8 @@ try {
 		const { dir } = governedRepo();
 		await assert.rejects(
 			gateIn(dir, { action: "present", scope: "outside", kind: "contract", path: "app.txt", summary: "s" }),
-			/must live below/,
-			"present must refuse an artifact outside .flow/",
+			/does not exist: .*\.flow[\\/]app\.txt/,
+			"a bare relative path resolves below .flow/, so a file that only exists at the repository root is not an artifact",
 		);
 		symlinkSync("../app.txt", join(dir, ".flow/escape.md"));
 		await assert.rejects(
@@ -431,6 +431,157 @@ try {
 			/escapes/,
 			"present must refuse a .flow/ symlink that resolves outside .flow/",
 		);
+	}
+
+	// Artifact paths written relative to .flow/ resolve like their .flow/-prefixed spelling.
+	{
+		const { dir } = governedRepo();
+		const present = (path) => gateIn(dir, { action: "present", scope: "short", kind: "contract", path, summary: "s" });
+		const full = (await present(".flow/contracts/c.md")).details?.path;
+		assert.ok(full, "precondition: present reports the artifact path");
+		for (const path of ["contracts/c.md", "./contracts/c.md", "./.flow/contracts/c.md", join(dir, ".flow/contracts/c.md")]) {
+			assert.equal((await present(path)).details?.path, full, `present ${path} must record the same artifact as .flow/contracts/c.md`);
+		}
+
+		await gateIn(dir, { action: "approve", scope: "short", kind: "contract" });
+		assert.match((await gateIn(dir, { action: "status", scope: "short" })).content[0].text, /contract: current/, "status must see the short-form approval as current");
+		assert.equal(stateIn(dir).scopes.short.approvals.contract.path, full, "approval must bind to the same artifact");
+		const shortPlanner = "Flow gate:\n- Scope: short\n- Contract: contracts/c.md";
+		assert.equal(await dispatchIn(dir, { agent: "flow-planner", task: shortPlanner }), undefined, "a planner manifest using the short Contract form must bind to the approval");
+
+		await approveIn(dir, "short", "plan", "plans/c/PLAN.md");
+		assert.equal(stateIn(dir).scopes.short.approvals.plan.path, realpathSync(join(dir, ".flow/plans/c/PLAN.md")), "a short-form plan must bind too");
+		assert.equal(
+			await dispatchIn(dir, { agent: "flow-plan-executor", task: "Flow gate:\n- Scope: short\n- Contract: contracts/c.md\n- Plan: plans/c/PLAN.md" }),
+			undefined,
+			"a writer manifest using short Contract and Plan forms must bind to the approvals",
+		);
+
+		writeFileSync(join(dir, ".flow/contracts/c.md"), "# Contract\n\nchanged\n");
+		result = await dispatchIn(dir, { agent: "flow-planner", task: shortPlanner });
+		assert.equal(result?.block, true, "the short form must still see a changed artifact");
+		assert.match(result.reason, /contract artifact changed after approval/i);
+
+		result = await dispatchIn(dir, { agent: "flow-planner", task: "Flow gate:\n- Scope: short\n- Contract: nope/c.md" });
+		assert.equal(result?.block, true, "a short path that names nothing must block");
+		assert.match(result.reason, /does not exist/);
+	}
+
+	// Nothing outside .flow/ becomes an artifact, whichever way the path is spelled.
+	{
+		const { dir } = governedRepo();
+		const outside = mkdtempSync(join(tmpdir(), "flow-governance-outside-"));
+		caseRepos.push(outside);
+		writeFileSync(join(outside, "x.md"), "outside\n");
+		writeFileSync(join(dir, "x.md"), "root\n");
+		symlinkSync(outside, join(dir, ".flow/out"));
+		symlinkSync(join(outside, "x.md"), join(dir, ".flow/contracts/link.md"));
+		for (const [path, pattern] of [
+			["../x.md", /must live below/],
+			["./../x.md", /must live below/],
+			[".flow/../x.md", /must live below/],
+			["contracts/../../x.md", /must live below/],
+			[join(dir, "x.md"), /must live below/],
+			[join(outside, "x.md"), /must live below/],
+			[".flow", /must live below/],
+			["", /requires kind, path, and summary/],
+			["out/x.md", /escapes/],
+			[".flow/out/x.md", /escapes/],
+			["contracts/link.md", /escapes/],
+		]) {
+			await assert.rejects(
+				gateIn(dir, { action: "present", scope: "esc", kind: "contract", path, summary: "s" }),
+				pattern,
+				`present ${JSON.stringify(path)} must be refused`,
+			);
+		}
+		await assert.rejects(
+			gateIn(dir, { action: "present", scope: "esc", kind: "contract", path: "../x.md", summary: "s" }),
+			/\.flow\/contracts\/<slug>\.md.*contracts\/<slug>\.md/s,
+			"the path error must name both accepted forms",
+		);
+		result = await dispatchIn(dir, { agent: "flow-planner", task: "Flow gate:\n- Scope: esc\n- Contract: ../x.md" });
+		assert.equal(result?.block, true, "a manifest path that escapes .flow/ must block dispatch");
+	}
+
+	// The Flow gate block may sit in the call's shared context; the task's own block wins.
+	{
+		const { dir } = governedRepo();
+		await approveIn(dir, "ctx", "contract", "contracts/c.md");
+		await approveIn(dir, "ctx", "plan", "plans/c/PLAN.md");
+		const block = (scope, extra = "") => `Flow gate:\n- Scope: ${scope}\n- Contract: .flow/contracts/c.md\n- Plan: .flow/plans/c/PLAN.md${extra}`;
+		const shared = (scope) => `Shared brief.\n\n${block(scope)}`;
+		const verifierBody = "# Verify\n\nEvidence capsule:\n- ID: a\n- Owns: a\n- Independent split check: none\n- Excludes: b\n- Restore obligation: NONE";
+
+		// planner, writer and verifier read the block from context
+		await gateIn(dir, { action: "accept", scope: "ctx", source: "test" });
+		result = await dispatchIn(dir, {
+			context: shared("ctx"),
+			tasks: [
+				{ agent: "flow-planner", task: "Plan it." },
+				{ agent: "flow-plan-executor", task: "Implement it." },
+				{ agent: "flow-evidence-verifier", task: verifierBody },
+			],
+		});
+		assert.equal(result, undefined, "planner, writer and verifier must pass with the block only in context");
+		result = await dispatchIn(dir, { agent: "flow-planner", context: shared("ctx"), task: "Plan it." });
+		assert.equal(result, undefined, "a single-task call must read the block from context too");
+
+		// the same reasons fail it as when the block sits in the task text
+		result = await dispatchIn(dir, { context: shared("unknown"), tasks: [{ agent: "flow-planner", task: "Plan it." }] });
+		assert.equal(result?.block, true, "an unapproved scope in context must block");
+		assert.match(result.reason, /tasks\[0\]: scope unknown: no recorded contract approval/);
+		result = await dispatchIn(dir, { context: shared("unknown"), tasks: [{ agent: "flow-plan-executor", task: "Implement it." }] });
+		assert.match(result?.reason ?? "", /scope unknown: no recorded contract approval/);
+		result = await dispatchIn(dir, { context: shared("unknown"), tasks: [{ agent: "flow-evidence-verifier", task: verifierBody }] });
+		assert.match(result?.reason ?? "", /scope unknown: no acceptance\/closure recorded/);
+		result = await dispatchIn(dir, { context: "Flow gate:\n- Scope: ctx\n- Contract: .flow/contracts/c.md", tasks: [{ agent: "flow-plan-executor", task: "Implement it." }] });
+		assert.match(result?.reason ?? "", /production writer task must include Flow gate with Scope, Contract, and Plan/, "an incomplete block in context must fail as an incomplete block in the task would");
+		writeFileSync(join(dir, "app.txt"), "dirty\n");
+		result = await dispatchIn(dir, { context: shared("ctx"), tasks: [{ agent: "flow-evidence-verifier", task: verifierBody }] });
+		assert.match(result?.reason ?? "", /repository state changed after acceptance\/closure/);
+		writeFileSync(join(dir, "app.txt"), "v1\n");
+
+		// backticked and quoted values keep working in context
+		for (const wrap of ["`", '"', "'"]) {
+			const wrapped = `Flow gate:\n- Scope: ${wrap}ctx${wrap}\n- Contract: ${wrap}contracts/c.md${wrap}\n- Plan: ${wrap}plans/c/PLAN.md${wrap}`;
+			result = await dispatchIn(dir, { context: wrapped, tasks: [{ agent: "flow-plan-executor", task: "Implement it." }] });
+			assert.equal(result, undefined, `values wrapped in ${wrap} must pass in context`);
+		}
+
+		// the task's own block wins, in both directions, and is never merged with context
+		result = await dispatchIn(dir, { context: shared("stale"), tasks: [{ agent: "flow-planner", task: block("ctx") }] });
+		assert.equal(result, undefined, "a current block in the task must win over a stale block in context");
+		result = await dispatchIn(dir, { context: shared("ctx"), tasks: [{ agent: "flow-planner", task: block("stale") }] });
+		assert.equal(result?.block, true, "a stale block in the task must win over a current block in context");
+		assert.match(result.reason, /scope stale: no recorded contract approval/);
+		result = await dispatchIn(dir, { context: shared("ctx"), tasks: [{ agent: "flow-plan-executor", task: "Flow gate:\n- Scope: ctx" }] });
+		assert.equal(result?.block, true, "a partial block in the task must not borrow fields from context");
+		assert.match(result.reason, /production writer task must include Flow gate with Scope, Contract, and Plan/);
+		result = await dispatchIn(dir, {
+			context: shared("ctx"),
+			tasks: [{ agent: "flow-planner", task: "Plan it." }, { agent: "flow-planner", task: block("stale") }],
+		});
+		assert.match(result?.reason ?? "", /tasks\[1\]: scope stale/, "each task picks its own block");
+		assert.doesNotMatch(result.reason, /tasks\[0\]/);
+
+		// no block anywhere is still blocked, and says where it may sit
+		for (const input of [
+			{ agent: "flow-planner", task: "Plan it." },
+			{ agent: "flow-planner", context: "Background only.", task: "Plan it." },
+			{ context: "Background only.", tasks: [{ agent: "flow-plan-executor", task: "Implement it." }] },
+			{ context: "Background only.", tasks: [{ agent: "flow-evidence-verifier", task: verifierBody }] },
+			{ context: "Flow gate:\n- Scope: ctx", tasks: [{ agent: "flow-planner", task: "Plan it." }] },
+			{ context: 7, tasks: [{ agent: "flow-planner", task: "Plan it." }] },
+		]) {
+			result = await dispatchIn(dir, input);
+			assert.equal(result?.block, true, `${JSON.stringify(input)} must be blocked`);
+			assert.match(result.reason, /must include Flow gate/);
+			assert.match(result.reason, /task text or the shared context/i, "the error must say the block may sit in the shared context");
+		}
+
+		// context never gates an ungated agent
+		assert.equal(await dispatchIn(dir, { context: shared("stale"), tasks: [{ agent: "scout", task: "Look." }] }), undefined);
 	}
 
 	// A new untracked file stales acceptance.

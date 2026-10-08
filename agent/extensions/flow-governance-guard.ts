@@ -151,12 +151,18 @@ function writeState(root: string, state: GateState): void {
 	renameSync(tmp, path);
 }
 
+// A relative path whose first segment is not `.flow` is written relative to `.flow/`.
+// The first segment is read before normalizing, so `.flow/../x` stays a repository path and is refused.
 function resolveFlowArtifact(root: string, inputPath: string): string {
-	const candidate = isAbsolute(inputPath) ? resolve(inputPath) : resolve(root, inputPath);
 	const flowRoot = resolve(root, ".flow");
+	const first = inputPath.split(/[\\/]+/).find((segment) => segment !== "" && segment !== ".");
+	const base = first === ".flow" ? root : flowRoot;
+	const candidate = isAbsolute(inputPath) ? resolve(inputPath) : resolve(base, inputPath);
 	const rel = relative(flowRoot, candidate);
 	if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
-		throw new Error(`Flow gate artifacts must live below ${flowRoot}`);
+		throw new Error(
+			`Flow gate artifacts must live below ${flowRoot}: write the path as .flow/contracts/<slug>.md or contracts/<slug>.md`,
+		);
 	}
 	if (!existsSync(candidate)) throw new Error(`Flow gate artifact does not exist: ${candidate}`);
 	const real = realpathSync(candidate);
@@ -241,11 +247,12 @@ function normalizeManifestValue(raw: string): string | undefined {
 	return value || undefined;
 }
 
-function parseManifest(task: unknown): GateManifest {
-	if (typeof task !== "string") return {};
+// `undefined` means the text has no Flow gate block at all, which differs from a block with no usable fields.
+function parseManifest(task: unknown): GateManifest | undefined {
+	if (typeof task !== "string") return undefined;
 	const lines = task.split(/\r?\n/);
 	const start = lines.findIndex((line) => line.trim().toLowerCase() === GATE_HEADER);
-	if (start < 0) return {};
+	if (start < 0) return undefined;
 	const result: GateManifest = {};
 	for (let i = start + 1; i < lines.length; i += 1) {
 		const line = lines[i];
@@ -272,18 +279,18 @@ function approvalError(root: string, scope: string, kind: GateKind, manifestPath
 	return undefined;
 }
 
-function plannerGateError(root: string, task: unknown): string | undefined {
-	const manifest = parseManifest(task);
+const BLOCK_PLACEMENT = "the block may be in the task text or the shared context";
+
+function plannerGateError(root: string, manifest: GateManifest): string | undefined {
 	if (!manifest.scope || !manifest.contract) {
-		return "flow-planner task must include Flow gate with Scope and Contract";
+		return `flow-planner task must include Flow gate with Scope and Contract (${BLOCK_PLACEMENT})`;
 	}
 	return approvalError(root, manifest.scope, "contract", manifest.contract);
 }
 
-function writerGateError(root: string, task: unknown): string | undefined {
-	const manifest = parseManifest(task);
+function writerGateError(root: string, manifest: GateManifest): string | undefined {
 	if (!manifest.scope || !manifest.contract || !manifest.plan) {
-		return "production writer task must include Flow gate with Scope, Contract, and Plan";
+		return `production writer task must include Flow gate with Scope, Contract, and Plan (${BLOCK_PLACEMENT})`;
 	}
 	const contractError = approvalError(root, manifest.scope, "contract", manifest.contract);
 	if (contractError) return contractError;
@@ -293,9 +300,8 @@ function writerGateError(root: string, task: unknown): string | undefined {
 	return approvalError(root, manifest.scope, "plan", manifest.plan);
 }
 
-function verifierGateError(root: string, task: unknown): string | undefined {
-	const manifest = parseManifest(task);
-	if (!manifest.scope) return "flow-evidence-verifier task must include Flow gate with Scope";
+function verifierGateError(root: string, manifest: GateManifest): string | undefined {
+	if (!manifest.scope) return `flow-evidence-verifier task must include Flow gate with Scope (${BLOCK_PLACEMENT})`;
 	const acceptance = readState(root).scopes[manifest.scope]?.acceptance;
 	if (!acceptance) return `scope ${manifest.scope}: no acceptance/closure recorded for the current repository state; ${ACCEPT_ORDER_HINT}`;
 	const current = worktreeIdentity(root);
@@ -317,20 +323,24 @@ function requestsGatedRole(input: ToolInput): boolean {
 
 function taskGateErrors(root: string, input: ToolInput): string[] {
 	const errors: string[] = [];
+	// The call's shared context reaches every child, so its block serves any task without one of its own.
+	// The whole block comes from one place; fields are never merged.
+	const shared = parseManifest(input.context);
 	const check = (rawAgent: unknown, task: unknown, label: string) => {
 		const agent = agentName(rawAgent);
+		const manifest = parseManifest(task) ?? shared ?? {};
 		if (agent === PLANNER) {
-			const error = plannerGateError(root, task);
+			const error = plannerGateError(root, manifest);
 			if (error) errors.push(`${label}: ${error}`);
 			return;
 		}
 		if (agent !== undefined && WRITERS.has(agent)) {
-			const error = writerGateError(root, task);
+			const error = writerGateError(root, manifest);
 			if (error) errors.push(`${label}: ${error}`);
 			return;
 		}
 		if (agent === VERIFIER) {
-			const error = verifierGateError(root, task);
+			const error = verifierGateError(root, manifest);
 			if (error) errors.push(`${label}: ${error}`);
 		}
 	};
@@ -751,7 +761,7 @@ export default function (pi: ExtensionAPI) {
 			action: z.string().describe("present | approve | accept | status | clear"),
 			scope: z.string().describe("Stable Flow scope/slug/unit id"),
 			kind: z.string().optional().describe("contract | plan | implementation for present/approve"),
-			path: z.string().optional().describe("Artifact path below .flow/ for present"),
+			path: z.string().optional().describe("Artifact path for present: .flow/contracts/<slug>.md or contracts/<slug>.md (relative to .flow/)"),
 			summary: z.string().optional().describe("User-facing summary tied to the presented artifact revision"),
 			source: z.string().optional().describe("Acceptance/closure receipt identifier or concise source"),
 		}),
