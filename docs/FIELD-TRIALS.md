@@ -29,27 +29,66 @@ The audit backlog batch (2026-10-01) resets every Flow skill. `flow-safety` now 
 
 The Open WebUI port unit gives saved external bundles a home at `.flow/handoffs/<slug>/`. That changes `flow-external-session` intake and `flow-integrating` cleanup, both already 0/2. `flow-artifacts` only lists the path and no other Flow skill's text changes, so no mark moves (rule 5).
 
+The 2026-10-08 audit covered the 44 top-level sessions started after `6711862` (2026-10-01T10:30:54+07:00); 30 exercised Flow, the rest were chat, smoke tests or small config work. Reports and the session list are in `.flow/checkpoints/9eb8eda/`. `flow-external-session` and `flow-integrating` count only sessions started after `a377d78` (2026-10-01T15:54:34+07:00). The 2026-10-03 `flow_gate` prompt and notification changes (`a781cd5`, `ba51523`) are tooling and reset nothing. A skill counts as exercised only where its workflow ran with the skill read (by `skill://` or by path; `flow-tdd` also through executors). A skill that applied but was not read is a non-trigger slip, not a pass.
+
 | Flow skill | Active mark | Current-baseline note |
 |---|---:|---|
-| `flow-debugging` | 0/2 | Reset by the audit backlog batch (read content is data). Before that, reset by the audit-fix batch (`docs(flow): close audit doctrine gaps`): after the root cause, Main routes the fix by `flow-execution` section 2. Before that: 2 clean; 1 non-trigger slip. |
-| `flow-design` | 0/2 | Reset by the audit backlog batch (read content is data). Before that, reset by the fold-LDD unit (`docs(flow): fold LDD into the normal Flow`): recon checks decision records, multi-unit work uses a parent contract, and a frozen epic resumes by distilling its ledger. Before that, reset by the craft + DDD unit; 10 clean before that. |
-| `flow-execution` | 0/2 | Reset by the audit backlog batch: read content is data, isolation points at `flow-safety`, and the revived-owner wait keeps only the rule. Before that, reset by the fold-LDD unit (`docs(flow): fold LDD into the normal Flow`): the Main-direct lane applies to multi-unit work, and `Plan: NONE` covers any approved contract whose work needs no separate plan. Before that, by the plain-language rewrite (`docs(flow): rewrite flow-execution in plain language`). |
-| `flow-external-session` | 0/2 | Reset by the audit backlog batch: the mailbox mode is gone and plan grading points at `flow-planning`. Not exercised before that; the fold-LDD unit (`docs(flow): fold LDD into the normal Flow`) moved planning handoffs to schema v2 without `kind` and `epic`. |
-| `flow-integrating` | 0/2 | Reset by the audit backlog batch: `Plan: NONE` work expects `plan: missing`, frozen-ledger units write no decision record, and read content is data. Before that, reset by the fold-LDD unit (`docs(flow): fold LDD into the normal Flow`): integration writes a decision record and puts a contract note in the commit or PR. Before that: 4 clean. |
-| `flow-planning` | 0/2 | Reset by the audit backlog batch (read content is data; it owns external-plan grading alone). Before that, reset by the fold-LDD unit (`docs(flow): fold LDD into the normal Flow`): work with parts that could ship separately goes back to Main for a split into units. Before that, reset by the craft + DDD unit; 10 clean before that. |
-| `flow-review` | 0/2 | Reset by the audit backlog batch: one finding shape in `review-lenses.md`, the PR worklog exception points at `AGENTS.md`, and read content is data. Before that, reset by the craft + DDD unit (`docs(flow): enforce craft and domain names, suggest flow-ldd`): CRF always runs, the named craft defects are Important, and craft-only PR findings never block. Before that: 5 clean; 2 slips. |
-| `flow-tdd` | 0/2 | Reset by the audit backlog batch: layered proof points at the `flow-evidence` rule, and read content is data. Before that: 2/2, 5 clean. |
+| `flow-debugging` | 2/2 | 3 clean (`01a0f5a2`, `01a0fa74`, `01a10b39`). 5 non-trigger slips (see below). Before that, reset by the audit backlog batch (read content is data) and by the audit-fix batch (`docs(flow): close audit doctrine gaps`). |
+| `flow-design` | 2/2 | 21 clean on this baseline (three were still running at audit time). Before that, reset by the audit backlog batch (read content is data), the fold-LDD unit (`docs(flow): fold LDD into the normal Flow`) and the craft + DDD unit; 10 clean before those. |
+| `flow-execution` | 2/2 | 3 trial-failing breaks on 2026-10-01/02 (`01a0f5a5`, `01a0fa74`, `01a0fbda`), then 8 clean from `01a0ff5c` on. Before that, reset by the audit backlog batch, the fold-LDD unit and the plain-language rewrite. |
+| `flow-external-session` | 1/2 | 1 clean: `01a0fbda`, the first real planning-bundle intake. Before that, reset by the audit backlog batch (mailbox mode removed); never exercised before. |
+| `flow-integrating` | 2/2 | 10 clean after `a377d78`. Before that, reset by the audit backlog batch and the fold-LDD unit; 4 clean before those. |
+| `flow-planning` | 2/2 | 18 clean (three were still running at audit time). Before that, reset by the audit backlog batch (it owns external-plan grading alone), the fold-LDD unit and the craft + DDD unit; 10 clean before those. |
+| `flow-review` | 2/2 | 9 clean: 8 PR reviews and 1 change review (`01a0f5df`). Before that, reset by the audit backlog batch and the craft + DDD unit; 5 clean before those. |
+| `flow-tdd` | 2/2 | Clean through executor Red→Green receipts in every planned session; Main read it in `01a0fa74`. Before that, reset by the audit backlog batch; 2/2, 5 clean before it. |
 
 ## Trial-failing breaks
 
-Evidence: the same audit. Both fall under `flow-execution`, which is 0/2 on this baseline either way.
+### 2026-10-08 audit
+
+All under `flow-execution`. Section 4 checks: each was opened in the transcript.
+
+- Read-only acceptance reviewers edited tracked source in the repository to run mutation probes, then restored it byte-for-byte with a sha256 check: `Cmt01bClosure` in `01a0f5a5` (`sed -i` on `error_comments.py` and `pipeline.py`), `Cmt01cAcceptance` and `FlErr01Acceptance` in `01a0fa74` (Python writes to `src/`). Main's briefs allowed it ("in place with a byte-exact restore and a sha256 check"). Cause: doctrine-ambiguity. The `flow-evidence` probe procedure (snapshot, restore, compare) names no role, while `flow-acceptance-reviewer` says "Never edit files or mutate git state". Rule 1 has no restore exception, and a reviewer probing the shared checkout races any writer or test run there. Later sessions' reviewers probed `git archive` or `/tmp` copies instead.
+- Main overrode a locked plan decision without approval (`01a0fbda#169`, `#178`). Executor 03 escalated as its capsule required ("escalate rather than adding ad-hoc calls"); Main wrote the production fix itself, rewrote the capsule's locked decision as "Amended by Main after escalation" and approved it "as controller". Cause: compliance. Tooling gap behind it: `flow_gate` digests `PLAN.md` only, so `plan-tasks/` edits never stale the approval.
+- Main wrote a release pipeline (`.goreleaser.yaml`, a `contents: write` release workflow, docs) with no contract (`01a0fbda#401`–`#458`). It had judged the work "not mechanical enough to skip the contract" (#402) and asked the user design questions (#408), then wrote it "directly since it's small" (#411). Clarification answers are not approval. Cause: compliance.
+
+### 2026-09-28 audit
 
 - A `flow-acceptance-reviewer` mutated the repository it was reviewing: its `cd` into a scratch directory failed in the tool shell, so the sandbox commands ran in the repository (session `01a0d276`).
 - A production script's parse error printed part of a backup password into a subagent transcript while an executor ran it (session `01a0d33e`).
 
 ## Recorded slips
 
-Evidence: the 2026-09-28 field-trial audit (23 sessions since `2c75bb5`).
+### 2026-10-08 audit
+
+Recurring in two or more sessions on this baseline, so rule 4 allows a doctrine change. None is made yet; they wait for one batch.
+
+- The `Flow gate:` block put only in the `task` tool's shared `context`: the guard rejects the dispatch, one retry fixes it. 20 sessions, nearly every planned one. The doctrine says "brief"; the task tool says `context` is shared and "NEVER repeat per task"; the guard reads only `tasks[].task`. Cause: doctrine-ambiguity and tooling.
+- `flow_gate present` with `contracts/<slug>.md` instead of `.flow/contracts/<slug>.md`: rejected, one retry. 18 sessions. The parameter text "Artifact path below .flow/" reads as relative to `.flow/`. Cause: tooling.
+- Main writing plan amendments or task briefs itself instead of `flow-planner`: 10 sessions (`01a0f5a2` with the user's correction "you just violate our flow-planning skills", `01a0fa74`, `01a0fa48`, `01a0fbab`, `01a0ff5c`, `01a0fbda`, `01a1100f`, `01a10520`, `01a10b4e`, `01a11949`). Almost all were re-presented and re-approved before a writer ran. "Substantial" has no threshold for a one-task amendment. Cause: doctrine-ambiguity.
+- `flow_gate action=status` not run before integration choices: 7 sessions after `a377d78`, 4 more before it. Cause: compliance; the skill is often read only after the choice is shown.
+- Closure review replaced by Main's own check and a rationale after post-acceptance production fixes: 6 sessions (`01a0f5a5`, `01a0f5df`, `01a0ff5c`, `01a10520`, `01a114dc`, `01a11949`). `flow-execution` section 7 ("Run one scoped closure review by default") against the `flow-evidence` rebind rationale. Cause: doctrine-ambiguity.
+- Main-direct production writes past "tiny": 6 sessions (`01a0f5df` 45-line leftovers batch, `01a0fa74` leadership fix, `01a1002a` guard notification code, `01a0faaf` installer, `01a11521` 114-line converter fix, `01a10b39`). "Tiny" is undefined in `AGENTS.md` and `flow-execution` section 2. Cause: doctrine-ambiguity.
+- Recovery checkpoint before the first device or manual action: `adb devices` as "read-only preparation", showing recorded frames, executor-driven TUI smokes. 7 sessions. Section 8 allows read-only preparation; section 9 lists "the first ADB or device command". Cause: doctrine-ambiguity.
+- PR re-review rounds with no lens run and no recorded disposition: 5 sessions, 8 rounds. `pr-review.md` step 3 "Run COR and CRF always" against `SKILL.md` "for the initial coherent change review" and "do **not** automatically repeat every original lens". Cause: doctrine-ambiguity.
+- `flow-debugging` not read for bug reports, test failures or flaky tests: 5 sessions (`01a0fbda`, `01a1100f`, `01a10520`, `01a11521`, `01a11a47`). Cause: description non-trigger.
+- `flow-tdd` not read for Main-direct production edits: 7 sessions. Cause: non-trigger.
+- Remote writes with no chat-level approval, approved only at the OMP command prompt: `01a10b39` (round-1 replies, PR edit and re-request, a remote branch delete, a force-push) and `01a10520` (two PRs pushed, created and merged, a remote branch delete). Main admitted both deletes. Every command matched a `bash.patterns` prompt rule, so the user approved each one; not rule 1. Cause: compliance.
+- PR review published after approval of a summary, not the exact text: `01a0f661` (two rounds), `01a0fbbe` (one round). Cause: compliance.
+- Fixed `/tmp` scratch paths instead of `mktemp -d`: 3 sessions. Broad `rm -rf /tmp/tmp*` once (`01a0f666#230`). Cause: compliance.
+- Commits straight on `main` in omp-stack for small config or prompt changes: 3 sessions (`01a0faaf`, `01a11907`, `01a11a6f`; the last one offered a branch). Cause: doctrine-ambiguity ("feature work").
+
+Single occurrences: a `sonic` committed the user-owned `uv.lock` (`01a0fa74`, removed by Main, hash unchanged); `sonic` given new tests and behavior (`01a114dc`); an executor `git reset --hard` its own commits (`01a11949`); a verifier booted an AVD its brief did not allow (`01a10520`); a verifier wrote temporary helper scripts in the repository tree (`01a11521`); CRF Important findings dropped instead of posted non-blocking (`01a0fbbe`); a merge-question reply read as approval (`01a11620#134`, followed by the OMP prompt).
+
+Open tooling defects:
+
+- `flow_gate` keeps presentations in memory, so an extension reload or session restart loses them and `approve` fails (`01a10b39#254`, `01a0ff5c#1297`, `01a1100f#67`).
+- `flow_gate` binds only `PLAN.md`; `plan-tasks/` capsules can change after approval (`01a0fbda#178`).
+- A contract in another repository, or a session started in a non-git directory, cannot be presented (`01a0f605`, `01a11a3a`).
+- The same-batch `accept` plus verifier rejection prints the same id on both sides (`01a11521#336`).
+- `scripts/flow-sessions` lists only `skill://` reads, so a session that reads `SKILL.md` by path shows `skills {}` (`01a0f666`).
+
+### 2026-09-28 audit
 
 - `flow-execution`: no durable recovery checkpoint before the first device/emulator/external acceptance action in 3 of 5 planned sessions — two device/emulator sessions, and one session running irreversible production SSH operations, where the old trigger wording did not clearly cover a live server. Recurred, so the trigger now names live production servers and other hard-to-recover remote hosts (rule 4) and the mark resets (rule 5).
 - `flow-execution`: Main diagnosed and fixed a production backup-script defect itself during a live deploy instead of routing the semantic work to `flow-implementer` (session `01a0d276`).
