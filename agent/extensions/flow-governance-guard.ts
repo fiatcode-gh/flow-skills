@@ -753,7 +753,7 @@ function resultText(text: string, details: Record<string, unknown> = {}) {
 // reset by 22) leaves that colour alone, so it adds structure without fighting
 // the theme; OMP's native-terminal path strips the escapes.
 const bold = (text: string) => `\x1b[1m${text}\x1b[22m`;
-const field = (label: string, value: string) => `${bold(label.padEnd(9))}${value}`;
+const field = (label: string, value: string) => `${bold(`${label}:`)} ${value}`;
 
 // OMP 18.10 shows an Approve/Deny prompt as a native picker whose subtitle holds every
 // detail line and fits about one line, so the summary leads and must fit one line.
