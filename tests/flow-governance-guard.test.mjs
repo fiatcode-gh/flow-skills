@@ -88,10 +88,29 @@ try {
 	});
 	const contractDecision = flowGate.approval({ action: "approve", scope: "demo", kind: "contract" });
 	assert.equal(contractDecision.policy, "prompt", "contract approval must force a native user prompt even under yolo");
+	const approvalDetails = flowGate.formatApprovalDetails({ action: "approve", scope: "demo", kind: "contract" });
 	assert.match(
-		flowGate.formatApprovalDetails({ action: "approve", scope: "demo", kind: "contract" }).join("\n"),
-		/[0-9a-f]{64}/,
-		"the approval prompt must name the exact artifact revision being approved",
+		approvalDetails[0],
+		/Behavior A amended before approval, now re-presented\./,
+		"the summary must lead the approval prompt: OMP's picker cuts later detail lines",
+	);
+	assert.match(approvalDetails.join("\n"), /\.flow\/contracts\/demo\.md/, "the approval prompt must name the artifact being approved");
+	for (const summary of ["Line one\nline two", "x".repeat(81)]) {
+		await assert.rejects(
+			callGate({ action: "present", scope: "demo", kind: "contract", path: ".flow/contracts/demo.md", summary }),
+			/one line of at most 80 characters/,
+			"present must refuse a summary the approval prompt cannot show whole",
+		);
+	}
+	assert.equal(
+		flowGate.formatApprovalDetails({ action: "approve", scope: "demo", kind: "contract" })[0],
+		approvalDetails[0],
+		"a refused present must leave the current presentation in place",
+	);
+	assert.equal(
+		flowGate.approval({ action: "accept", scope: "demo", source: "closure-1", summary: "x".repeat(81) }).policy,
+		"deny",
+		"accept must refuse a summary the approval prompt cannot show whole",
 	);
 	await callGate({ action: "approve", scope: "demo", kind: "contract" });
 	const acceptDecision = flowGate.approval({ action: "accept", scope: "demo", source: "closure-1" });

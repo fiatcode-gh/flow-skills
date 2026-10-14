@@ -749,22 +749,27 @@ function resultText(text: string, details: Record<string, unknown> = {}) {
 	};
 }
 
-// The approval dialog paints every detail line in the theme accent. Bold and dim
-// (SGR 1 and 2, both reset by 22) leave that colour alone, so they add structure
-// without fighting the theme; OMP's native-terminal path strips the escapes.
+// The approval dialog paints every detail line in the theme accent. Bold (SGR 1,
+// reset by 22) leaves that colour alone, so it adds structure without fighting
+// the theme; OMP's native-terminal path strips the escapes.
 const bold = (text: string) => `\x1b[1m${text}\x1b[22m`;
-const dim = (text: string) => `\x1b[2m${text}\x1b[22m`;
 const field = (label: string, value: string) => `${bold(label.padEnd(9))}${value}`;
 
-// The dialog drops empty detail lines, so a lone space keeps a visual break.
-function textBlock(label: string, text: string): string[] {
-	return [" ", bold(label), ...text.split(/\r?\n/).map((line) => `  ${line}`)];
+// OMP 18.10 shows an Approve/Deny prompt as a native picker whose subtitle holds every
+// detail line and fits about one line, so the summary leads and must fit one line.
+const SUMMARY_MAX_CHARS = 80;
+
+function summaryError(summary: string): string | undefined {
+	if (/[\r\n]/.test(summary) || summary.length > SUMMARY_MAX_CHARS) {
+		return `Flow gate summary must be one line of at most ${SUMMARY_MAX_CHARS} characters; put the detail in the chat message that presents the artifact.`;
+	}
+	return undefined;
 }
 
 const APPROVAL_EFFECT: Record<GateKind, string> = {
-	contract: "clears this scope's plan and implementation approvals and its acceptance",
-	plan: "clears this scope's recorded acceptance",
-	implementation: "clears this scope's recorded acceptance",
+	contract: "clears this scope's later approvals and acceptance",
+	plan: "clears this scope's acceptance",
+	implementation: "clears this scope's acceptance",
 };
 
 export default function (pi: ExtensionAPI) {
@@ -783,7 +788,7 @@ export default function (pi: ExtensionAPI) {
 			scope: z.string().describe("Stable Flow scope/slug/unit id"),
 			kind: z.string().optional().describe("contract | plan | implementation for present/approve"),
 			path: z.string().optional().describe("Artifact path for present: .flow/contracts/<slug>.md or contracts/<slug>.md (relative to .flow/)"),
-			summary: z.string().optional().describe("User-facing summary tied to the presented artifact revision"),
+			summary: z.string().optional().describe(`One line, at most ${SUMMARY_MAX_CHARS} characters, naming what the user approves; shown in the approval prompt`),
 			source: z.string().optional().describe("Acceptance/closure receipt identifier or concise source"),
 		}),
 		approval: (raw) => {
@@ -796,7 +801,10 @@ export default function (pi: ExtensionAPI) {
 				const scope = getString(input, "scope");
 				const source = getString(input, "source");
 				if (!scope || !source) return { tier: "write", policy: "deny", reason: "Flow acceptance requires scope and a source receipt." };
-				return { tier: "write", policy: "prompt", reason: `Record acceptance/closure for Flow scope ${scope} from ${source}.` };
+				const summary = getString(input, "summary");
+				const invalidSummary = summary ? summaryError(summary) : undefined;
+				if (invalidSummary) return { tier: "write", policy: "deny", reason: invalidSummary };
+				return { tier: "write", policy: "prompt", reason: `Record acceptance for Flow scope ${scope}.` };
 			}
 			if (action !== "approve") return "write";
 			const scope = getString(input, "scope");
@@ -827,7 +835,7 @@ export default function (pi: ExtensionAPI) {
 			return {
 				tier: "write",
 				policy: "prompt",
-				reason: `Approve the presented ${kind} revision for Flow scope ${scope}.`,
+				reason: `Approve ${kind} for Flow scope ${scope}.`,
 			};
 		},
 		formatApprovalDetails: (raw) => {
@@ -837,9 +845,9 @@ export default function (pi: ExtensionAPI) {
 			if (action === "accept") {
 				const summary = getString(input, "summary");
 				return [
+					...(summary ? [field("Summary", summary)] : []),
 					field("Source", getString(input, "source") ?? ""),
-					field("Effect", "binds acceptance to the current HEAD and working tree; any later change makes it stale"),
-					...(summary ? textBlock("Summary", summary) : []),
+					field("Effect", "goes stale after any later change"),
 				];
 			}
 			if (action !== "approve") return undefined;
@@ -848,10 +856,9 @@ export default function (pi: ExtensionAPI) {
 			const presented = presentations.get(presentationKey(scope, kind));
 			if (!presented) return [field("Scope", scope), field("Kind", kind), field("Status", "not presented")];
 			return [
+				field("Summary", presented.summary),
 				field("Artifact", presented.displayPath),
-				field("Revision", dim(`sha256 ${presented.sha256}`)),
 				field("Effect", APPROVAL_EFFECT[kind]),
-				...textBlock("Summary", presented.summary),
 			];
 		},
 		async execute(_id, raw, _signal, _onUpdate, ctx) {
@@ -867,6 +874,8 @@ export default function (pi: ExtensionAPI) {
 				const path = getString(input, "path");
 				const summary = getString(input, "summary");
 				if (!kind || !path || !summary) throw new Error("Flow gate present requires kind, path, and summary");
+				const invalidSummary = summaryError(summary);
+				if (invalidSummary) throw new Error(invalidSummary);
 				const identity = artifactIdentity(root, path);
 				const displayPath = relative(root, identity.path);
 				const presented: Presentation = { scope, kind, path: identity.path, displayPath, sha256: identity.sha256, summary };
