@@ -60,7 +60,20 @@ type Presentation = {
 	displayPath: string;
 	sha256: string;
 	summary: string;
+	presentedAt: number;
 };
+
+// Strictly increasing wall-clock milliseconds, so two records written in the same millisecond still order.
+let lastStamp = 0;
+function stamp(): number {
+	lastStamp = Math.max(Date.now(), lastStamp + 1);
+	return lastStamp;
+}
+
+// A record made after the contract revision was presented was made against that revision and survives its approval.
+function recordedSince(at: string | undefined, presentedAt: number): boolean {
+	return at !== undefined && Date.parse(at) >= presentedAt;
+}
 
 type GateManifest = {
 	scope?: string;
@@ -269,6 +282,8 @@ function repairDoubleEncodedTaskText(value: string): string {
 }
 
 // `undefined` means the text has no Flow gate block at all, which differs from a block with no usable fields.
+// The block is the bullets right after the header; the first other non-blank line ends it, so a later
+// `- Contract:` bullet in the brief's own lists is never read as a manifest value.
 function parseManifest(task: unknown): GateManifest | undefined {
 	if (typeof task !== "string") return undefined;
 	const lines = repairDoubleEncodedTaskText(task).split(/\r?\n/);
@@ -277,7 +292,8 @@ function parseManifest(task: unknown): GateManifest | undefined {
 	const result: GateManifest = {};
 	for (let i = start + 1; i < lines.length; i += 1) {
 		const line = lines[i];
-		if (/^\s*[^-\s].*:\s*$/.test(line)) break;
+		if (line.trim() === "") continue;
+		if (!/^\s*-/.test(line)) break;
 		const match = line.match(/^\s*-\s*(Scope|Contract|Plan):\s*(.+?)\s*$/i);
 		if (!match) continue;
 		const key = match[1].toLowerCase();
@@ -878,7 +894,7 @@ export default function (pi: ExtensionAPI) {
 				if (invalidSummary) throw new Error(invalidSummary);
 				const identity = artifactIdentity(root, path);
 				const displayPath = relative(root, identity.path);
-				const presented: Presentation = { scope, kind, path: identity.path, displayPath, sha256: identity.sha256, summary };
+				const presented: Presentation = { scope, kind, path: identity.path, displayPath, sha256: identity.sha256, summary, presentedAt: stamp() };
 				presentations.set(presentationKey(scope, kind), presented);
 				// Summary first: the transcript collapses a result to its first few lines.
 				return resultText(
@@ -901,11 +917,11 @@ export default function (pi: ExtensionAPI) {
 				const state = readState(root);
 				const scopeState = (state.scopes[scope] ??= {});
 				const approvals = (scopeState.approvals ??= {});
-				approvals[kind] = { path: presented.path, sha256: presented.sha256, approvedAt: new Date().toISOString() };
+				approvals[kind] = { path: presented.path, sha256: presented.sha256, approvedAt: new Date(stamp()).toISOString() };
 				if (kind === "contract") {
-					delete approvals.plan;
-					delete approvals.implementation;
-					delete scopeState.acceptance;
+					if (!recordedSince(approvals.plan?.approvedAt, presented.presentedAt)) delete approvals.plan;
+					if (!recordedSince(approvals.implementation?.approvedAt, presented.presentedAt)) delete approvals.implementation;
+					if (!recordedSince(scopeState.acceptance?.recordedAt, presented.presentedAt)) delete scopeState.acceptance;
 				}
 				if (kind === "plan" || kind === "implementation") delete scopeState.acceptance;
 				writeState(root, state);

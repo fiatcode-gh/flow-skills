@@ -409,6 +409,32 @@ try {
 		assert.match(result.reason, /no recorded plan approval/i);
 	}
 
+	// A contract and its plan presented together, then approved in either order, both stay approved:
+	// the plan was approved against the presented contract revision (01a125e9#805-#814).
+	{
+		const { dir } = governedRepo();
+		await gateIn(dir, { action: "present", scope: "batch", kind: "contract", path: ".flow/contracts/c.md", summary: "contract" });
+		await gateIn(dir, { action: "present", scope: "batch", kind: "plan", path: ".flow/plans/c/PLAN.md", summary: "plan" });
+		await gateIn(dir, { action: "approve", scope: "batch", kind: "plan" });
+		await gateIn(dir, { action: "approve", scope: "batch", kind: "contract" });
+		assert.deepEqual(Object.keys(stateIn(dir).scopes.batch.approvals).sort(), ["contract", "plan"], "a plan approved after the contract presentation must survive the contract approval");
+		result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("batch", ".flow/plans/c/PLAN.md") });
+		assert.equal(result, undefined, "the writer must dispatch after a same-batch contract and plan approval");
+	}
+
+	// The gate block ends at the first non-bullet line; a later `- Contract:` bullet in the brief is not a manifest value (01a13341#32).
+	{
+		const { dir } = governedRepo();
+		await approveIn(dir, "inputs", "contract", ".flow/contracts/c.md");
+		await approveIn(dir, "inputs", "plan", ".flow/plans/c/PLAN.md");
+		const brief = `${writerIn("inputs", ".flow/plans/c/PLAN.md")}\n\n# Inputs\n- Contract: \`.flow/contracts/c.md\` (approved). Parent: \`.flow/contracts/parent.md\`\n- Plan: see above`;
+		result = await dispatchIn(dir, { agent: "flow-plan-executor", task: brief });
+		assert.equal(result, undefined, "bullets after the gate block must not override its values");
+		const spaced = `Flow gate:\n\n- Scope: inputs\n- Contract: .flow/contracts/c.md\n\n- Plan: .flow/plans/c/PLAN.md\nImplement it.`;
+		result = await dispatchIn(dir, { agent: "flow-plan-executor", task: spaced });
+		assert.equal(result, undefined, "blank lines inside the block must not end it");
+	}
+
 	// A manifest that names a different artifact than the approved one is rejected.
 	{
 		const { dir } = governedRepo();
