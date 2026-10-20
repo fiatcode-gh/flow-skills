@@ -22,9 +22,11 @@
 - `flow-planning` says when an external plan already counts as execution-grade.
 - For substantial work, do not start planning until the user approves the completed contract.
 - For substantial planned work, do not dispatch the first production-writing worker until the user approves the completed execution-grade plan. Work with no plan uses `Plan: NONE` (`flow-execution` section 1).
-- Treat a start or resume request as no approval. Example: the user says "go ahead" after you show the plan.
+- Treat a start or resume request as no approval.
 - Treat answers to clarification questions as no approval of the contract. Only explicit approval of the completed contract counts.
-- Record each approval with `flow_gate`: `present` the artifact summary, then `approve`. Every planner, executor, implementer or verifier dispatch needs a current gate record and the `Flow gate:` block in its brief (`flow-planning` section 1, `flow-execution` section 1).
+- Show each artifact in chat before its `flow_gate` prompt: the contract, the plan, or the acceptance or closure receipt. Give its path and what the user is agreeing to. Then end your turn.
+- Call `flow_gate` only after the user agrees in chat: `present`, then `approve`, or `accept` for a receipt. Example: the user says "go ahead" after you show the plan. Call `flow_gate` now; dispatch only after the approval is recorded.
+- Every planner, executor, implementer or verifier dispatch needs a current gate record and the `Flow gate:` block in its brief (`flow-planning` section 1, `flow-execution` section 1).
 - A recorded approval survives resume while its artifact is unchanged. A material edit to the contract or plan needs a new approval.
 - Route task agents by agent name or role. Never put a concrete model id in a workflow prompt.
 - Route each writer by what is left to decide:
@@ -34,7 +36,7 @@
 - Review planned work with one `flow-acceptance-reviewer` pass after the coherent change. Do not fan out COR/TTC/CRF lens reviewers by routine.
 - Add a specialist reviewer only for a concrete residual risk, such as a security boundary.
 - `flow-review` owns lens review for unplanned work, audits and PRs.
-- After you accept the acceptance or closure receipt, record the repository state with `flow_gate` `accept`.
+- After you accept the acceptance or closure receipt and the user agrees in chat, record the repository state with `flow_gate` `accept`.
 - Write production code as Main only in the Main-direct lane defined by `flow-execution`.
 
 ## Commits

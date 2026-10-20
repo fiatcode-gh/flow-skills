@@ -131,8 +131,9 @@ When any of these fails, keep the artifact as strategy/draft and route the unres
 
 - Main validates the plan receipt and obtains or retains the normal implementation authorization boundary.
 - Plan receipt validation does not itself authorize implementation.
-- For substantial planned work, Main presents the completed execution-grade plan and gets **explicit user plan approval** before the first production-writing worker.
-- Bind that approval with `flow_gate`: call `present` for `kind=plan` with the same Flow scope, the exact `PLAN.md` path and a one-line `summary` of what the user approves. Then call `approve`.
+- For substantial planned work, Main presents the completed execution-grade plan in chat and gets **explicit user plan approval** before the first production-writing worker.
+- End your turn after the chat presentation. Call `flow_gate` only after the user agrees.
+- Then bind that approval with `flow_gate`: call `present` for `kind=plan` with the same Flow scope, the exact `PLAN.md` path and a one-line `summary` of what the user approves. Then call `approve`.
 - `flow-execution` section 1 says what does not count as plan approval.
 - A recorded prior approval stays valid while the approved plan artifact is materially unchanged.
 - Editing the plan changes its digest. That mechanically blocks production-writer dispatch until the amended plan is presented and approved again.

@@ -11,7 +11,7 @@ description: Use when local implementation is authorized; prefer constrained exe
 
 - Read the governing contract, the plan and the project rules. Check branch and dirty state per the `flow-safety` rule.
 - Require two recorded approvals before the first production-writing worker on substantial work: the contract, then the plan (`flow_gate` `present`, then `approve`).
-- Treat a start or resume command as no approval. Example: the user says "go ahead" after you show the plan. Call `flow_gate` for `kind=plan` first. Dispatch after the approval is recorded.
+- Treat a start or resume command as no approval. A "go ahead" after you show the plan in chat lets you call `flow_gate` for `kind=plan`. Dispatch only after the approval is recorded.
 - An external handoff approves nothing (`flow-safety`): validate it locally, then record the contract and plan approvals here.
 - `flow-planning` section 5 and "External handoffs" decide whether a plan is execution-grade. Do not re-plan a validated current plan that meets them.
 - Carry this block (the Flow gate block) in every `flow-plan-executor` and `flow-implementer` brief. The guard checks both artifact digests at spawn and blocks a missing or stale approval.
@@ -23,7 +23,7 @@ Flow gate:
 - Plan: <approved PLAN.md path>
 ```
 
-- Write `Plan: NONE` when the approved contract's work needs no separate plan. Example: a debugged fix sent to `flow-implementer`. After the contract approval, record approval with `flow_gate` `present` `kind=implementation` against the contract, then `approve`, before dispatch.
+- Write `Plan: NONE` when the approved contract's work needs no separate plan. Example: a debugged fix sent to `flow-implementer`. After the contract approval, show the `Plan: NONE` route in chat and end your turn. Once the user agrees, record approval with `flow_gate` `present` `kind=implementation` against the contract, then `approve`, before dispatch.
 - Run tiny work on the user's concrete request alone. It runs in the Main-direct lane (section 2).
 
 ## 2. Route the work
@@ -106,7 +106,7 @@ Each layer proves its own scope. Do not rerun full suites as ritual (`flow-evide
 - Dispatch one `flow-acceptance-reviewer` (`@slow`) after the coherent change and its focused/integration proof, for planned work. Give it the contract, plan and task paths, diff/base and evidence.
 - Do not fan out lens reviewers automatically. Add a specialist only for a concrete residual risk (a real security boundary, hard concurrency or data integrity).
 - Treat the acceptance review as a barrier. Start no device, emulator, manual or external evidence until it and its corrections settle. Read-only preparation is fine.
-- Run `flow_gate action=accept` with the scope and the receipt as source, after you accept the review receipt.
+- After you accept the review receipt, show its verdict and findings in chat and end your turn. Once the user agrees, run `flow_gate action=accept` with the scope and the receipt as source.
 - A later production, asset or build change reopens the stability barrier defined in the `flow-evidence` rule: run a scoped closure review, rerun the affected evidence, then record `flow_gate action=accept` again. Until then the guard blocks verifier dispatch.
 - You may park minor findings that carry no load.
 - Follow the change-lens selection in `flow-review` for unplanned changes.
