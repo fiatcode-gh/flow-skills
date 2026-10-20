@@ -11,7 +11,7 @@ Apply these whenever you create or change a skill, agent, rule or `agent/AGENTS.
    1. first delete or shorten other text in that file to make room;
    2. only if that is not possible, ask the user to raise the cap.
 
-   When a file shrinks, lower its cap to the new size.
+   Each cap is the file size in bytes, rounded up to the next multiple of 1024. When a file shrinks, round its new size up the same way and lower the cap if the result is smaller.
 3. **Plain enough for a small model.** The smallest model that runs the text (`@smol`, `@execute`) must follow it correctly the first time:
    - one rule per bullet, one idea per sentence;
    - start with the action: "Run …", "Ask the user …", "Stop and report …";
