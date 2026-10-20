@@ -5,6 +5,9 @@
 - **YAGNI:** do not build what is not needed yet.
 - **DRY, without premature abstraction:** remove meaningful duplication. Do not add an abstraction before its shape is stable.
 - **Separation of concerns:** keep each module and layer focused.
+- **High cohesion:** keep things that change together in one place. A module should have one clear reason to change.
+- **Loose coupling:** depend on narrow, stable interfaces, not on another module's internals. A change in one module should rarely force a change in another.
+- **Screaming architecture:** organize code by business domain or feature, not by technical layer or framework. The top-level structure should show what the system does.
 - **Self-explaining code:** let names and structure show *what* the code does. Write comments only for *why*, invariants, constraints or non-obvious context.
 - Make the smallest coherent change that meets the requirement.
 - Clean up unrelated code only when correctness needs it or the user asks for it.
