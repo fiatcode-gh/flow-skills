@@ -19,7 +19,7 @@ def frontmatter(p):
     except Exception as e:
         err(f'{rel(p)}: invalid frontmatter: {e}'); return {}, text
 
-MODEL_LEAK=re.compile(r'(?:openai-codex|ollama-cloud|anthropic)/|gpt-5|gpt-6|claude-(?:haiku|sonnet|opus|fable)|deepseek|glm-|kimi')
+MODEL_LEAK=re.compile(r'(?:openai-codex|ollama-cloud|anthropic|commandcode)/|gpt-5|gpt-6|claude-(?:haiku|sonnet|opus|fable)|deepseek|glm-|kimi|mimo')
 skills=list((ROOT/'agent/skills').glob('*/SKILL.md'))
 agents=list((ROOT/'agent/agents').glob('*.md'))
 rules=list((ROOT/'agent/rules').glob('*.md'))
@@ -429,6 +429,7 @@ profile_cfgs={
     'openai-codex': ROOT/'profiles/openai-codex/config.yml',
     'ollama-cloud': ROOT/'profiles/ollama-cloud/config.yml',
     'anthropic': ROOT/'profiles/anthropic/config.yml',
+    'commandcode': ROOT/'profiles/commandcode/config.yml',
 }
 profile_roles={}
 for profile,path in profile_cfgs.items():
@@ -498,8 +499,25 @@ anthropic=yaml.safe_load(profile_cfgs['anthropic'].read_text()).get('modelRoles'
 if anthropic != expected_anthropic:
     err('profiles/anthropic/config.yml: role mapping drifted from documented routing')
 
+expected_commandcode={
+    'default':'commandcode/xiaomi/mimo-v2.6-pro',
+    'smol':'commandcode/deepseek/deepseek-v4.1-flash:low',
+    'tiny':'commandcode/deepseek/deepseek-v4.1-flash:low',
+    'vision':'commandcode/deepseek/deepseek-v4.1-flash:high',
+    'execute':'commandcode/deepseek/deepseek-v4.1-flash:high',
+    'task':'commandcode/xiaomi/mimo-v2.6-pro',
+    'plan':'commandcode/zai-org/GLM-5.3:high',
+    'slow':'commandcode/moonshotai/Kimi-K3:high',
+    'review_aux':'commandcode/z-ai/glm-5.3-flash:high',
+    'critical':'commandcode/moonshotai/Kimi-K3:max',
+    'commit':'commandcode/deepseek/deepseek-v4.1-flash:low',
+}
+commandcode=yaml.safe_load(profile_cfgs['commandcode'].read_text()).get('modelRoles',{})
+if commandcode != expected_commandcode:
+    err('profiles/commandcode/config.yml: role mapping drifted from documented routing')
+
 # Every v8 provider baseline carries the external-effect approval backstop.
-# The profiles are the single source of truth for the pattern list; the three
+# The profiles are the single source of truth for the pattern list; the
 # copies must be identical and tests/bash-patterns.test.mjs proves the list
 # against a port of OMP's matcher.
 pattern_lists={}

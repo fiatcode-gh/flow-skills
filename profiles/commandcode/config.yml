@@ -1,0 +1,186 @@
+# omp-stack managed baseline for: omp --profile commandcode
+# scripts/omp-stack symlinks the profile's config.yml to this file; edit
+# settings here and review the result with git diff like any other change.
+# Authenticate with COMMAND_CODE_API_KEY or OMP's login inside this profile;
+# never store the key in this repository.
+providers:
+  webSearchOrder: []
+
+# Do not probe unused local inference endpoints at startup.
+disabledProviders:
+  - ollama
+  - llama.cpp
+  - lm-studio
+
+defaultThinkingLevel: auto
+
+modelRoles:
+  # Open models on the Command Code GOAT plan. Agentic loops resend a large
+  # cached prompt every turn, so cache-read price decides the cost of the
+  # high-volume roles (Main, execute, task, leaves).
+
+  # Cheap background / mechanical roles.
+  smol: commandcode/deepseek/deepseek-v4.1-flash:low
+  tiny: commandcode/deepseek/deepseek-v4.1-flash:low
+  commit: commandcode/deepseek/deepseek-v4.1-flash:low
+
+  # Main and semantic implementation: strongest open model on the plan with
+  # near-free cache reads. OMP's catalog exposes no effort control for it.
+  default: commandcode/xiaomi/mimo-v2.6-pro
+  task: commandcode/xiaomi/mimo-v2.6-pro
+
+  # Constrained plan execution and long evidence sessions stay on the
+  # cheapest image-capable model.
+  execute: commandcode/deepseek/deepseek-v4.1-flash:high
+  vision: commandcode/deepseek/deepseek-v4.1-flash:high
+
+  # Planner, executor and acceptance reviewer use three different families so
+  # acceptance can challenge the plan as well as the code.
+  plan: commandcode/zai-org/GLM-5.3:high
+  slow: commandcode/moonshotai/Kimi-K3:high
+  review_aux: commandcode/z-ai/glm-5.3-flash:high
+
+  # Explicit frontier escalation only.
+  critical: commandcode/moonshotai/Kimi-K3:max
+
+# Native backstop for Flow's external-effect gate. Keep publication commands
+# on the direct Bash/gh surface so these explicit prompt policies apply.
+# `gh api` prompts only when a method/body flag is present as its own token;
+# tests/bash-patterns.test.mjs proves this list against OMP's matcher.
+bash:
+  patterns:
+    - match: "git push*"
+      approval: prompt
+    - match: "git -C * push*"
+      approval: prompt
+    - match: "git -c * push*"
+      approval: prompt
+    - match: "env * git push*"
+      approval: prompt
+    - match: "env * gh *"
+      approval: prompt
+    - match: "gh pr create*"
+      approval: prompt
+    - match: "gh pr merge*"
+      approval: prompt
+    - match: "gh pr review*"
+      approval: prompt
+    - match: "gh pr comment*"
+      approval: prompt
+    - match: "gh pr edit*"
+      approval: prompt
+    - match: "gh pr close*"
+      approval: prompt
+    - match: "gh pr ready*"
+      approval: prompt
+    - match: "gh pr reopen*"
+      approval: prompt
+    - match: "gh issue comment*"
+      approval: prompt
+    - match: "gh issue create*"
+      approval: prompt
+    - match: "gh issue close*"
+      approval: prompt
+    - match: "gh issue edit*"
+      approval: prompt
+    - match: "gh release create*"
+      approval: prompt
+    - match: "gh release edit*"
+      approval: prompt
+    - match: "gh release upload*"
+      approval: prompt
+    - match: "gh release delete*"
+      approval: prompt
+    - match: "gh repo edit*"
+      approval: prompt
+    - match: "gh repo delete*"
+      approval: prompt
+    - match: "gh secret set*"
+      approval: prompt
+    - match: "gh workflow run*"
+      approval: prompt
+    - match: "gh api -X*"
+      approval: prompt
+    - match: "gh api * -X*"
+      approval: prompt
+    - match: "gh api --method*"
+      approval: prompt
+    - match: "gh api * --method*"
+      approval: prompt
+    - match: "gh api -f*"
+      approval: prompt
+    - match: "gh api * -f*"
+      approval: prompt
+    - match: "gh api -F*"
+      approval: prompt
+    - match: "gh api * -F*"
+      approval: prompt
+    - match: "gh api --field*"
+      approval: prompt
+    - match: "gh api * --field*"
+      approval: prompt
+    - match: "gh api --raw-field*"
+      approval: prompt
+    - match: "gh api * --raw-field*"
+      approval: prompt
+    - match: "gh api --input*"
+      approval: prompt
+    - match: "gh api * --input*"
+      approval: prompt
+    # Gate state is flow_gate's; a shell line that names it asks first. Eval is not covered.
+    - match: "*.flow/runtime*"
+      approval: prompt
+
+# Keep per-dispatch effort disabled so an orchestrator cannot silently turn a
+# cheap worker into the selected model's highest reasoning level.
+task:
+  maxConcurrency: 3
+  maxRecursionDepth: 2
+  enableEffort: false
+  isolation:
+    enabled: true
+
+isolation:
+  backend: auto
+
+symbolPreset: nerd
+composer:
+  shape: rule
+theme:
+  dark: titanium
+  light: light
+setupVersion: 2
+statusLine:
+  preset: custom
+  leftSegments:
+    - pi
+    - model
+    - mode
+    - git
+    - context_pct
+  rightSegments:
+    - session_name
+    - usage
+  separator: powerline-thin
+  sessionAccent: true
+  compactThinkingLevel: true
+  contextLine: embedded
+  segmentOptions:
+    model:
+      showThinkingLevel: true
+    git:
+      showBranch: true
+      showStaged: true
+      showUnstaged: true
+      showUntracked: true
+colorBlindMode: true
+tui:
+  codexResetFireworks: true
+cycleOrder:
+  - smol
+  - default
+  - slow
+dev:
+  # Deny OMP's automated tool-issue reports: with consent granted they are
+  # stored locally and pushed to OMP's collector.
+  autoqaConsent: denied

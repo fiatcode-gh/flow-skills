@@ -28,6 +28,7 @@ profiles/
   openai-codex/config.yml   first-install baseline for `omp --profile openai-codex`
   ollama-cloud/config.yml   first-install baseline for `omp --profile ollama-cloud`
   anthropic/config.yml      first-install baseline for `omp --profile anthropic`
+  commandcode/config.yml    first-install baseline for `omp --profile commandcode`
 mcp.example.json            MCP server template, copied per profile (see below)
 ports/
   open-webui/               Flow port for the Open WebUI chat (docs/EXTERNAL-INTEROP.md)
@@ -43,7 +44,7 @@ docs/
 
 ## Install
 
-The installer provisions three native OMP profiles: `openai-codex`, `ollama-cloud`, and `anthropic`. It links `agent/keybindings.yml` into the shared agent directory once — named profiles inherit it and can still override single actions — symlinks the shared Flow surfaces and that profile's `config.yml` into each profile, refuses to clobber real managed-surface files/directories or symlinks that point outside this repository (it names the link and its target), relinks symlinks that point into it, and never writes `mcp.json`.
+The installer provisions four native OMP profiles: `openai-codex`, `ollama-cloud`, `anthropic`, and `commandcode`. It links `agent/keybindings.yml` into the shared agent directory once — named profiles inherit it and can still override single actions — symlinks the shared Flow surfaces and that profile's `config.yml` into each profile, refuses to clobber real managed-surface files/directories or symlinks that point outside this repository (it names the link and its target), relinks symlinks that point into it, and never writes `mcp.json`.
 
 `profiles/<name>/config.yml` is the single source of truth: each profile's `config.yml` is a symlink back to it, so a settings change belongs in this repository. An existing real file is replaced by the symlink only when it is already byte-identical to the template; otherwise the installer warns, leaves it alone, and exits non-zero so the divergence is visible. Merge it by hand, then rerun `install`. Editing settings through OMP's own settings UI rewrites the target file in this repository — review it with `git diff` like any other change.
 
@@ -58,6 +59,7 @@ Launch OMP directly with the native profile selector:
 omp --profile openai-codex
 omp --profile ollama-cloud
 omp --profile anthropic
+omp --profile commandcode
 ```
 
 See `docs/MIGRATION.md` for moving an existing profile onto the linked config.
@@ -67,7 +69,7 @@ See `docs/MIGRATION.md` for moving an existing profile onto the linked config.
 MCP stays profile-owned: the installer never writes or links `mcp.json`, because the file carries credentials and per-profile enablement. Every profile is meant to see the **same** servers, so copy the template into each one and keep the copies identical:
 
 ```sh
-for p in openai-codex ollama-cloud anthropic; do
+for p in openai-codex ollama-cloud anthropic commandcode; do
   cp mcp.example.json "$(omp --profile "$p" config path)/mcp.json"
 done
 ```
@@ -114,6 +116,8 @@ Skills and agents use **roles**, never concrete models. Native OMP profiles prov
 The OpenAI Codex profile follows OpenAI's GPT-6 model/effort ladder: GPT-6 Luna for Main (adaptive effort), cheap leaves (low), vision (medium) and constrained execution (xhigh); GPT-6.1 Sol for semantic implementation (medium), planning/final acceptance/auxiliary review (high) and explicit critical escalation (xhigh). GPT-6 Astra is left out to protect the ChatGPT Plus allowance.
 
 The Ollama Cloud profile uses GLM-5.3 high for Main/planning/final acceptance, DeepSeek V4.1 Flash low for cheap mechanical roles, DeepSeek V4.1 Flash high for constrained execution/semantic coding/vision and auxiliary review, and Kimi K3 for explicit critical escalation. The Anthropic v8 profile uses Haiku 5.5 medium for tiny metadata only (its 100k context is too small for other leaves), Sonnet 5.5 low for scout/mechanical leaves and commits, Sonnet 5.5 for constrained execution/semantic implementation/vision/auxiliary review, Opus 5.5 for Main/planning/correctness reasoning, and Fable 5.1 high for explicit critical escalation.
+
+The Command Code profile runs open models on the GOAT plan: MiMo V2.6 Pro for Main and semantic implementation, DeepSeek V4.1 Flash for cheap leaves (low) and constrained execution/vision (high), GLM-5.3 high for planning, Kimi K3 high for final acceptance (max for explicit critical escalation), and GLM-5.3 Flash high for auxiliary review.
 
 See `docs/MODEL-ROUTING.md`. Current OMP assumptions are recorded in `docs/OMP-COMPATIBILITY.md`.
 

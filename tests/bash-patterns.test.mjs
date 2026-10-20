@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const profiles = ["openai-codex", "ollama-cloud", "anthropic"];
+const profiles = ["openai-codex", "ollama-cloud", "anthropic", "commandcode"];
 
 const normalize = (value) => value.trim().replace(/\s+/gu, " ");
 const toRegExp = (pattern) =>
