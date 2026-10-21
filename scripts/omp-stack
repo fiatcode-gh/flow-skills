@@ -4,7 +4,7 @@ set -eu
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(CDPATH= cd -- "$HERE/.." && pwd)
 ROOT=$(readlink -f "$ROOT")
-PROFILES="openai-codex ollama-cloud anthropic commandcode"
+PROFILES="openai-codex anthropic commandcode"
 
 info() { printf '%s\n' "$*"; }
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -161,7 +161,7 @@ doctor_profile() { # profile dir
   done
 
   if grep -Eq '^[[:space:]]+enableEffort:[[:space:]]+false' "$cfg"; then info "ok: task.enableEffort=false"; else info "NOTE: recommend task.enableEffort=false"; fi
-  if grep -Eq '^[[:space:]]+maxConcurrency:[[:space:]]+3' "$cfg"; then info "ok: task.maxConcurrency=3"; else info "NOTE: recommend task.maxConcurrency=3"; fi
+  if grep -Eq '^[[:space:]]+maxConcurrency:[[:space:]]+4' "$cfg"; then info "ok: task.maxConcurrency=4"; else info "NOTE: recommend task.maxConcurrency=4"; fi
   if grep -Eq '^[[:space:]]+enabled:[[:space:]]+true' "$cfg" && grep -Eq '^isolation:' "$cfg"; then info "ok: task isolation appears enabled"; else info "NOTE: recommend task.isolation.enabled=true with isolation.backend=auto"; fi
 
   if command -v omp >/dev/null 2>&1; then

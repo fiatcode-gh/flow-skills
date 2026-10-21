@@ -132,7 +132,7 @@ bash:
 # Keep per-dispatch effort disabled so an orchestrator cannot silently turn a
 # cheap worker into the selected model's highest reasoning level.
 task:
-  maxConcurrency: 3
+  maxConcurrency: 4
   maxRecursionDepth: 2
   enableEffort: false
   isolation:

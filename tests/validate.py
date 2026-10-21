@@ -19,7 +19,7 @@ def frontmatter(p):
     except Exception as e:
         err(f'{rel(p)}: invalid frontmatter: {e}'); return {}, text
 
-MODEL_LEAK=re.compile(r'(?:openai-codex|ollama-cloud|anthropic|commandcode)/|gpt-5|gpt-6|claude-(?:haiku|sonnet|opus|fable)|deepseek|glm-|kimi|mimo')
+MODEL_LEAK=re.compile(r'(?:openai-codex|anthropic|commandcode)/|gpt-5|gpt-6|claude-(?:haiku|sonnet|opus|fable)|deepseek|glm-|kimi|mimo')
 skills=list((ROOT/'agent/skills').glob('*/SKILL.md'))
 agents=list((ROOT/'agent/agents').glob('*.md'))
 rules=list((ROOT/'agent/rules').glob('*.md'))
@@ -427,7 +427,6 @@ for path in tracked:
 required_roles={'default','smol','tiny','vision','execute','task','plan','slow','review_aux','critical','commit'}
 profile_cfgs={
     'openai-codex': ROOT/'profiles/openai-codex/config.yml',
-    'ollama-cloud': ROOT/'profiles/ollama-cloud/config.yml',
     'anthropic': ROOT/'profiles/anthropic/config.yml',
     'commandcode': ROOT/'profiles/commandcode/config.yml',
 }
@@ -464,23 +463,6 @@ expected_openai={
 openai=yaml.safe_load(profile_cfgs['openai-codex'].read_text()).get('modelRoles',{})
 if openai != expected_openai:
     err('profiles/openai-codex/config.yml: role mapping drifted from documented routing')
-
-expected_ollama={
-    'default':'ollama-cloud/glm-5.3:high',
-    'smol':'ollama-cloud/deepseek-v4.1-flash:low',
-    'tiny':'ollama-cloud/deepseek-v4.1-flash:low',
-    'vision':'ollama-cloud/deepseek-v4.1-flash:high',
-    'execute':'ollama-cloud/deepseek-v4.1-flash:high',
-    'task':'ollama-cloud/deepseek-v4.1-flash:high',
-    'plan':'ollama-cloud/glm-5.3:high',
-    'slow':'ollama-cloud/glm-5.3:high',
-    'review_aux':'ollama-cloud/deepseek-v4.1-flash:high',
-    'critical':'ollama-cloud/kimi-k3:high',
-    'commit':'ollama-cloud/deepseek-v4.1-flash:low',
-}
-ollama=yaml.safe_load(profile_cfgs['ollama-cloud'].read_text()).get('modelRoles',{})
-if ollama != expected_ollama:
-    err('profiles/ollama-cloud/config.yml: role mapping drifted from documented routing')
 
 expected_anthropic={
     'default':'anthropic/claude-opus-5-5:medium',
@@ -609,8 +591,8 @@ compat_text=(ROOT/'docs/OMP-COMPATIBILITY.md').read_text()
 for required in ['78b7531', 'tests/bash-patterns.test.mjs', 'GH_TOKEN=x gh api']:
     if required not in compat_text: err(f'OMP compatibility matcher note missing: {required}')
 migration=(ROOT/'docs/MIGRATION.md').read_text().lower()
-for stale in ['deepseek v4 flash low', '`default` / `plan` / `slow` / `review_aux`: deepseek v4 pro high', 'are not overwritten by `omp-stack install`**, so merge', 'bash/forge']:
-    if stale in migration: err(f'docs/MIGRATION.md stale Ollama routing survived: {stale}')
+for stale in ['are not overwritten by `omp-stack install`**, so merge', 'bash/forge']:
+    if stale in migration: err(f'docs/MIGRATION.md stale installer doctrine survived: {stale}')
 
 # Every file that loads into a session (skills, their references, agents, rules, AGENTS.md)
 # has a byte cap; growth needs a deliberate cap change.

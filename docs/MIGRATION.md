@@ -22,17 +22,16 @@ Why:
 ## Recommended sequence
 
 1. Extract/clone `omp-stack` somewhere stable.
-2. Run `./scripts/omp-stack install`. This provisions `openai-codex`, `ollama-cloud`, and `anthropic` under OMP's native profile roots. A managed path that is already a symlink is relinked only when it points into this repository. A symlink to anywhere else, such as an old `ai-stack` checkout, makes `install` stop and name the link and its target: remove or move that link, then rerun `install`.
+2. Run `./scripts/omp-stack install`. This provisions `openai-codex`, `anthropic`, and `commandcode` under OMP's native profile roots. A managed path that is already a symlink is relinked only when it points into this repository. A symlink to anywhere else, such as an old `ai-stack` checkout, makes `install` stop and name the link and its target: remove or move that link, then rerun `install`.
 3. If a profile already had a real `config.yml`, the installer links it only when it is byte-identical to `profiles/<name>/config.yml`. Otherwise it warns and leaves the file alone: merge the wanted settings into the repository template, delete the profile copy, and rerun `install` so the profile ends up pointing at the single source of truth.
 4. Remove any old `ai-stack` `extensions:` registrations and `skills.customDirectories` entries from the profile configs.
-5. Authenticate each profile/provider as needed. Named OMP profiles do not inherit runtime/auth state from the default profile or from each other. `OLLAMA_CLOUD_API_KEY` may instead be supplied through the environment. For the Anthropic Team profile, use OMP's Anthropic/Claude OAuth login inside `omp --profile anthropic`; never commit Team credentials. For the Command Code profile, supply `COMMAND_CODE_API_KEY` or use OMP's login inside `omp --profile commandcode`.
+5. Authenticate each profile/provider as needed. Named OMP profiles do not inherit runtime/auth state from the default profile or from each other. For the Anthropic Team profile, use OMP's Anthropic/Claude OAuth login inside `omp --profile anthropic`; never commit Team credentials. For the Command Code profile, supply `COMMAND_CODE_API_KEY` or use OMP's login inside `omp --profile commandcode`.
 6. Copy `mcp.example.json` into each profile as `mcp.json` and replace the Context7 key; keep the copies identical so every profile sees the same servers. MCP is intentionally profile-owned and the installer never writes credentials. See the `MCP servers` section in `README.md`.
 7. Run `./scripts/omp-stack verify` and `./scripts/omp-stack doctor`.
 8. Launch with native OMP profile selection:
 
    ```sh
    omp --profile openai-codex
-   omp --profile ollama-cloud
    omp --profile anthropic
    omp --profile commandcode
    ```
@@ -49,13 +48,6 @@ OpenAI Codex:
 - `default`: GPT-6 Luna auto;
 - `task`: GPT-6.1 Sol medium; `plan` / `slow` / `review_aux`: GPT-6.1 Sol high;
 - `critical`: GPT-6.1 Sol xhigh (GPT-6 Astra left out to protect the Plus allowance).
-
-Ollama Cloud:
-
-- `default` / `plan` / `slow`: GLM-5.3 high;
-- `execute` / `task` / `vision` / `review_aux`: DeepSeek V4.1 Flash high;
-- `smol` / `tiny` / `commit`: DeepSeek V4.1 Flash low;
-- `critical`: Kimi K3 high.
 
 Anthropic:
 
