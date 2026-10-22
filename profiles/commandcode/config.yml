@@ -24,24 +24,22 @@ modelRoles:
   tiny: commandcode/deepseek/deepseek-v4.1-flash:low
   commit: commandcode/deepseek/deepseek-v4.1-flash:low
 
-  # Main: GLM-5.3 Flash replaced MiMo V2.6 Pro, which proved weaker as the
-  # controller in field use. Cheap cache reads keep long Main loops affordable.
+  # Main and semantic implementation: cheap cache reads keep long tool loops
+  # affordable. MiMo V2.6 Pro proved weaker in field use and is not used.
   default: commandcode/z-ai/glm-5.3-flash:high
+  task: commandcode/z-ai/glm-5.3-flash:high
 
-  # Semantic implementation: strongest open model on the plan with near-free
-  # cache reads. OMP's catalog exposes no effort control for it.
-  task: commandcode/xiaomi/mimo-v2.6-pro
-
-  # Constrained plan execution and long evidence sessions stay on the
-  # cheapest image-capable model.
+  # Constrained plan execution, long evidence sessions and auxiliary review
+  # stay on the cheapest image-capable model; review_aux is a different family
+  # from the Main and task work it reviews.
   execute: commandcode/deepseek/deepseek-v4.1-flash:high
   vision: commandcode/deepseek/deepseek-v4.1-flash:high
+  review_aux: commandcode/deepseek/deepseek-v4.1-flash:high
 
   # Planner, executor and acceptance reviewer use three different families so
   # acceptance can challenge the plan as well as the code.
   plan: commandcode/zai-org/GLM-5.3:high
   slow: commandcode/moonshotai/Kimi-K3:high
-  review_aux: commandcode/z-ai/glm-5.3-flash:high
 
   # Explicit frontier escalation only.
   critical: commandcode/moonshotai/Kimi-K3:max

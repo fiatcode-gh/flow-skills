@@ -487,10 +487,10 @@ expected_commandcode={
     'tiny':'commandcode/deepseek/deepseek-v4.1-flash:low',
     'vision':'commandcode/deepseek/deepseek-v4.1-flash:high',
     'execute':'commandcode/deepseek/deepseek-v4.1-flash:high',
-    'task':'commandcode/xiaomi/mimo-v2.6-pro',
+    'task':'commandcode/z-ai/glm-5.3-flash:high',
     'plan':'commandcode/zai-org/GLM-5.3:high',
     'slow':'commandcode/moonshotai/Kimi-K3:high',
-    'review_aux':'commandcode/z-ai/glm-5.3-flash:high',
+    'review_aux':'commandcode/deepseek/deepseek-v4.1-flash:high',
     'critical':'commandcode/moonshotai/Kimi-K3:max',
     'commit':'commandcode/deepseek/deepseek-v4.1-flash:low',
 }
