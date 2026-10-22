@@ -18,7 +18,7 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 | commit/changelog generation | `@commit` | GPT-6 Luna low | Sonnet 5.5 low | DeepSeek V4.1 Flash low |
 | repo exploration | bundled `scout` / `@smol` | GPT-6 Luna low | Sonnet 5.5 low | DeepSeek V4.1 Flash low |
 | behavior-preserving mechanical work / diagnosed exact correction | bundled `sonic` / `@smol` | GPT-6 Luna low | Sonnet 5.5 low | DeepSeek V4.1 Flash low |
-| Main/controller | `@default` | GPT-6 Luna auto | Opus 5.5 medium | MiMo V2.6 Pro |
+| Main/controller | `@default` | GPT-6 Luna auto | Opus 5.5 medium | GLM-5.3 Flash high |
 | execution-grade plan follower | `flow-plan-executor` / `@execute` | GPT-6 Luna xhigh | Sonnet 5.5 medium | DeepSeek V4.1 Flash high |
 | residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GPT-6.1 Sol medium | Sonnet 5.5 high | MiMo V2.6 Pro |
 | deliberate execution planning | `flow-planner` / `@plan` | GPT-6.1 Sol high | Opus 5.5 medium | GLM-5.3 high |
@@ -58,10 +58,11 @@ Authenticate the profile through OMP's Anthropic/Claude OAuth flow so Team entit
 
 The profile runs open models on the Command Code GOAT plan ($10 a month, with usage limits of $14 per 5 hours, $35 per week and $70 per month). Flow sessions resend a large, mostly cached prompt (`AGENTS.md`, rules, skill text, tool output) on every turn, so for long tool loops the cache-read price decides the cost, not the output price. At about 100k cached tokens a turn, MiMo V2.6 Pro and DeepSeek V4.1 Flash cost well under a tenth of a cent, GLM-5.3 Flash about $0.003, and GLM-5.3 or Kimi K3 about $0.03.
 
-- **MiMo V2.6 Pro** owns `default` / `task`: the highest-scoring open model on the plan, with near-free cache reads, which suits the two roles that run long semantic tool loops. OMP's catalog exposes no effort control for it, so the role carries no effort suffix. If it proves unreliable under Flow's gate doctrine, GLM-5.3 Flash high is the fallback for both roles.
+- **GLM-5.3 Flash high** owns `default`: MiMo V2.6 Pro was the first choice, but it proved weaker as the controller in field use. GLM-5.3 Flash keeps cache reads cheap (about $0.003 a turn) for Main's long loops. If it also falls short, GLM-5.3 high is the stronger option at roughly ten times the cache-read price.
+- **MiMo V2.6 Pro** owns `task`: the highest-scoring open model on the plan, with near-free cache reads, which suits long semantic implementation loops. OMP's catalog exposes no effort control for it, so the role carries no effort suffix. If it proves unreliable, GLM-5.3 Flash high is the fallback.
 - **DeepSeek V4.1 Flash** owns `smol` / `tiny` / `commit` at `low` and `execute` / `vision` at `high`: the cheapest image-capable model, enough for mechanical leaves, locked-plan execution and long evidence sessions.
 - **GLM-5.3 high** owns `plan`, **Kimi K3 high** owns `slow`: both run rarely, so their higher price is affordable. Planner, executor and acceptance reviewer come from three different families, so acceptance can challenge the plan as well as the code.
-- **GLM-5.3 Flash high** owns `review_aux`: cheap enough for whole-codebase audits, and a different family from the `@task` work it reviews.
+- **GLM-5.3 Flash high** also owns `review_aux`: cheap enough for whole-codebase audits, and a different family from the `@task` work it reviews.
 - **Kimi K3 max** owns `critical`: explicit-only, one effort step above `slow`.
 
 Authenticate with `COMMAND_CODE_API_KEY` or OMP's login inside `omp --profile commandcode`; never commit the key. Catalog IDs are case-sensitive (`zai-org/GLM-5.3`, `moonshotai/Kimi-K3`); keep them under review when Command Code changes its catalog.

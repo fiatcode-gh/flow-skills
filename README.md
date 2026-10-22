@@ -115,7 +115,7 @@ The OpenAI Codex profile follows OpenAI's GPT-6 model/effort ladder: GPT-6 Luna 
 
 The Anthropic v8 profile uses Haiku 5.5 medium for tiny metadata only (its 100k context is too small for other leaves), Sonnet 5.5 low for scout/mechanical leaves and commits, Sonnet 5.5 for constrained execution/semantic implementation/vision/auxiliary review, Opus 5.5 for Main/planning/correctness reasoning, and Fable 5.1 high for explicit critical escalation.
 
-The Command Code profile runs open models on the GOAT plan: MiMo V2.6 Pro for Main and semantic implementation, DeepSeek V4.1 Flash for cheap leaves (low) and constrained execution/vision (high), GLM-5.3 high for planning, Kimi K3 high for final acceptance (max for explicit critical escalation), and GLM-5.3 Flash high for auxiliary review.
+The Command Code profile runs open models on the GOAT plan: GLM-5.3 Flash high for Main, MiMo V2.6 Pro for semantic implementation, DeepSeek V4.1 Flash for cheap leaves (low) and constrained execution/vision (high), GLM-5.3 high for planning, Kimi K3 high for final acceptance (max for explicit critical escalation), and GLM-5.3 Flash high for auxiliary review.
 
 See `docs/MODEL-ROUTING.md`. Current OMP assumptions are recorded in `docs/OMP-COMPATIBILITY.md`.
 

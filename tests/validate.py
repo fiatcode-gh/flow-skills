@@ -482,7 +482,7 @@ if anthropic != expected_anthropic:
     err('profiles/anthropic/config.yml: role mapping drifted from documented routing')
 
 expected_commandcode={
-    'default':'commandcode/xiaomi/mimo-v2.6-pro',
+    'default':'commandcode/z-ai/glm-5.3-flash:high',
     'smol':'commandcode/deepseek/deepseek-v4.1-flash:low',
     'tiny':'commandcode/deepseek/deepseek-v4.1-flash:low',
     'vision':'commandcode/deepseek/deepseek-v4.1-flash:high',

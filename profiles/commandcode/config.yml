@@ -24,9 +24,12 @@ modelRoles:
   tiny: commandcode/deepseek/deepseek-v4.1-flash:low
   commit: commandcode/deepseek/deepseek-v4.1-flash:low
 
-  # Main and semantic implementation: strongest open model on the plan with
-  # near-free cache reads. OMP's catalog exposes no effort control for it.
-  default: commandcode/xiaomi/mimo-v2.6-pro
+  # Main: GLM-5.3 Flash replaced MiMo V2.6 Pro, which proved weaker as the
+  # controller in field use. Cheap cache reads keep long Main loops affordable.
+  default: commandcode/z-ai/glm-5.3-flash:high
+
+  # Semantic implementation: strongest open model on the plan with near-free
+  # cache reads. OMP's catalog exposes no effort control for it.
   task: commandcode/xiaomi/mimo-v2.6-pro
 
   # Constrained plan execution and long evidence sessions stay on the
