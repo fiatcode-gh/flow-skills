@@ -35,6 +35,8 @@ The 2026-10-15 audit covered the 27 top-level sessions started after the 2026-10
 
 The chat-first approval change (`docs(flow): show artifacts in chat before flow_gate prompts`, 2026-10-20) answers the 2026-10-15 slip "approval requested at the native `flow_gate` prompt before or without a chat presentation". `agent/AGENTS.md` now says once that Main shows the contract, plan or acceptance/closure receipt in chat and ends its turn, then calls `flow_gate` only after the user agrees; `flow-design` step 7, `flow-planning` section 6 and `flow-execution` sections 1 and 8 say the same at their own gate. That changes how those three skills reach their gates, so they reset (rule 5); `flow-execution` was already 0/2.
 
+The Flow todo rule (2026-10-23) answers a user report that Main sometimes keeps no OMP `todo` list during Flow work. Top-level sessions such as `01a13490`, `01a157ad`, `01a15d82` and `01a16297` ran contract, plan and execution with no `todo` call at all. `agent/AGENTS.md` now says to run `init` in every session, a resumed one too, with one item per phase left, and to `append` the plan tasks after plan approval. It adds progress tracking only; no gate, approval, evidence or routing rule changes, so no mark moves (rule 5). The `agent/AGENTS.md` cap rose to 10240 with the user's agreement.
+
 | Flow skill | Active mark | Current-baseline note |
 |---|---:|---|
 | `flow-debugging` | 2/2 | 10 clean (`01a132f7`, `01a13858`, `01a13d38`, `01a11a71`, `01a12f0d`, `01a1397b`, `01a11e53` added 2026-10-15; two of those read it only after the diagnosis). 4 more non-trigger slips (see below). Before that, reset by the audit backlog batch (read content is data) and by the audit-fix batch (`docs(flow): close audit doctrine gaps`). |
