@@ -15,7 +15,7 @@
 
 - Use OMP's own Plan mode, task-agent lifecycle, isolation, Agent Hub, Vibe, built-in review and security scanning. Flow skills add judgment and gates. Do not rebuild those mechanics.
 - Load a Flow skill when its description matches the task. There is no bootstrap skill.
-- Track substantial Flow work in OMP `todo`. In every session, a resumed one too, run `init` before the first Flow step, with one item per phase left: contract, plan, acceptance, integration. After plan approval, `append` one item per plan task.
+- Track substantial Flow work in OMP `todo`. In every session, a resumed one too, run `init` before the first Flow step. Give it one phase per stage left, in this order: Contract, Plan, Execution, Acceptance, Integration. Before plan approval, the Execution phase holds one item, `Execute plan`. After plan approval, it holds one item per plan task left. At the moment of plan approval, `append` the plan tasks with `phase: "Execution"`, then `rm` the `Execute plan` item.
 - Use `flow-design` before substantial work enters planning: write the governing WHAT/WHY contract, present it, and get explicit user approval. This holds for every start: a new or existing project, an internal brainstorm, an external handoff.
 - Skip the separate contract file only for tiny or mechanical work whose scope is already explicit.
 - `flow-design` says how to keep settled decisions and which questions to ask.
