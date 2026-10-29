@@ -886,6 +886,8 @@ export default function (pi: ExtensionAPI) {
 			const root = repoRoot(ctx.cwd);
 
 			if (action === "present") {
+				// A subagent's presentation would sit in the shared map until Main approves it as its own.
+				if (!ctx.hasUI) throw new Error("Flow artifacts are presented by the interactive parent session");
 				const kind = gateKind(input);
 				const path = getString(input, "path");
 				const summary = getString(input, "summary");
@@ -953,6 +955,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			if (action === "clear") {
+				if (!ctx.hasUI) throw new Error("Flow gate state is cleared by the interactive parent session");
 				const state = readState(root);
 				delete state.scopes[scope];
 				writeState(root, state);

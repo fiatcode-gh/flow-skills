@@ -709,6 +709,12 @@ try {
 			"headless agents must not record approvals",
 		);
 		assert.equal(existsSync(join(dir, ".flow/runtime/gates.json")), false, "a refused approve must write no gate state");
+		const headless = (input) => flowGate.execute("gate-case", input, undefined, undefined, { cwd: dir, hasUI: false });
+		await assert.rejects(headless({ action: "present", scope: "headless", kind: "plan", path: ".flow/plans/c/PLAN.md", summary: "s" }), /interactive parent session/i, "a subagent must not present (01a157ad PlanTeamBudgets#159)");
+		assert.equal(flowGate.approval({ action: "approve", scope: "headless", kind: "plan" }).policy, "deny", "a refused present must leave no presentation behind");
+		await approveIn(dir, "headless", "contract", ".flow/contracts/c.md");
+		await assert.rejects(headless({ action: "clear", scope: "headless" }), /interactive parent session/i, "a subagent must not clear gate state");
+		assert.ok(stateIn(dir).scopes.headless.approvals.contract, "a refused clear must keep the approval");
 	}
 
 	// Only flow_gate writes .flow/runtime/: file-writing tools are blocked there, in every input shape.
