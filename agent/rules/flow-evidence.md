@@ -29,19 +29,15 @@ No material completion/correctness claim without fresh evidence appropriate to t
   - state why the intervening diff cannot affect the reused claim;
   - rerun any proof whose dependency surface is uncertain.
 - Acceptance is a stability barrier for the dependency surface it reviewed.
-- Any later production-, asset-, or build-affecting mutation reopens the stability barrier before integration:
-  - run scoped independent acceptance/closure for the changed final tree;
+- Every production, asset or build change after acceptance reopens the stability barrier. Before integration or a new `flow_gate` `accept`:
+  - run a fresh scoped closure review of the changed tree; Main's own check never replaces it;
   - classify earlier device/manual/external evidence by its owned dependency surface;
   - rerun only affected evidence;
   - explicitly justify reuse of unaffected capsules.
-- A downstream evidence failure that causes such a correction is a concrete acceptance risk and may require an additional scoped closure even when the normal closure ceiling was already reached.
+- Only a docs-only or test-only edit after acceptance may skip that closure review. Write why the edit cannot affect the accepted behavior, rerun the proof the edit touches, show that reason in chat as the receipt, then record `accept` again. Example: a README typo fix → reason and re-`accept`; a one-line production fix → closure review first.
+- A fix after a downstream evidence failure is such a change: it gets its own closure review, even when the closure ceiling (`flow-execution` section 7) was already reached.
 - `flow_gate` is the mechanical backstop: it records the accepted repository state and blocks verifier dispatch after mutation.
-- The `flow-evidence` rule still decides whether the new state requires independent closure or can be rebound from an explicit unaffected-evidence freshness rationale.
-- For a temporary mutation/probe on a file that may already be dirty:
-  - capture the exact pre-edit bytes (and preferably a hash) before the probe;
-  - restore those bytes afterward;
-  - then compare the restored file to that captured snapshot.
-- `git diff --exit-code <file>` against `HEAD` is not restoration proof when the file was already modified before the probe.
+- Prove a writer's probe restore (`flow-safety`) by comparing the restored file to the captured snapshot, by hash or bytes. `git diff --exit-code <file>` against `HEAD` is not restoration proof when the file was already modified before the probe.
 - Structured evidence receipts must be internally self-consistent.
 - `MATCH` is itself an evidence claim: the literal rendered `before` and `after` identities/hashes must use the same comparison scheme, agree, and be supported by the observed comparison.
 - A contradictory or transcription-damaged receipt is not MATCH evidence. Correct it before handoff or downgrade the result to `UNKNOWN`.

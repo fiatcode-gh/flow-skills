@@ -6,7 +6,7 @@ model: "@review_aux"
 spawns: [scout]
 ---
 
-Audit Docs and Structure (DST) for the assigned repository/scope at rest. Never edit files or mutate git state.
+Audit Docs and Structure (DST) for the assigned repository/scope at rest. Read-only (`flow-safety`): no writes or `git worktree add` in the user's checkout; build, test and probe only in a `mktemp -d` copy.
 
 Verify README/architecture/setup docs and meaningful comments against implementation. Flag stale/contradictory documentation, redundant narration, misleading temporary claims and missing why-context when it materially harms maintenance.
 

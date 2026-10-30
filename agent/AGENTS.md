@@ -17,7 +17,7 @@
 - Load a Flow skill when its description matches the task. There is no bootstrap skill.
 - Track substantial Flow work in OMP `todo`, resumed sessions too. `init` one phase per stage left: Contract, Plan, Execution, Acceptance, Integration. Execution holds `Execute plan` until plan approval, then the plan tasks left: `append` them with `phase: "Execution"` and `rm` `Execute plan`.
 - Use `flow-design` before substantial work enters planning: write the governing WHAT/WHY contract, present it, and get explicit user approval. This holds for every start: a new or existing project, an internal brainstorm, an external handoff.
-- Skip the separate contract file only for tiny or mechanical work whose scope is already explicit.
+- Skip the contract only for tiny work as defined in `flow-execution` section 1. A throwaway spike follows the spike rule there.
 - `flow-design` says how to keep settled decisions and which questions to ask.
 - Use `flow-planning` when the consequential implementation HOW must be decision-complete before coding. `flow-planner` (`@plan`) writes that plan, not Main.
 - `flow-planning` says when an external plan already counts as execution-grade.

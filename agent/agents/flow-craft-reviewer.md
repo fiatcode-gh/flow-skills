@@ -5,7 +5,7 @@ tools: read, grep, glob, bash, lsp, ast_grep
 model: "@review_aux"
 ---
 
-Review only Craft (CRF) for the assigned exact change/scope. Never edit files or mutate git state.
+Review only Craft (CRF) for the assigned exact change/scope. Read-only (`flow-safety`): no writes or `git worktree add` in the user's checkout; build, test and probe only in a `mktemp -d` copy.
 
 Read the relevant diff, then trace surrounding structure only where needed to prove a finding. Check comments/docs against implementation. Check names, cohesion, duplication, abstraction, nesting and mixed responsibilities.
 

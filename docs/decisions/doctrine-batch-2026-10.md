@@ -1,0 +1,34 @@
+# Flow doctrine batch (2026-10)
+
+Work: branch `docs/flow-doctrine-batch`, contract `doctrine-batch-2026-10`, 2026-10. Evidence: the "Recorded slips" and "Trial-failing breaks" of the 2026-10-08, 2026-10-15 and 2026-10-29 audits in `docs/FIELD-TRIALS.md`.
+
+## Decisions
+
+- **Tiny is 30 changed lines over 3 files.** Work with no contract must have at most 30 changed lines (hand-written lines, added plus removed) across at most 3 files, add no behavior beyond the user's exact request, and touch no migration, schema, data rewrite or release pipeline. The recorded Main-direct overruns were 45 to 412 lines; 30 lines keeps a typo, a one-line bug fix or a small config change tiny and puts every recorded overrun over the line. The definition lives in `flow-execution` section 1. `agent/AGENTS.md`, `flow-design` and `flow-planning` point at it, and the Main-direct lane in section 2 uses the same word, so the limit holds inside contract work too. Lines a tool generated (lockfiles, codegen output, regenerated snapshots) do not count: every recorded overrun was hand-written, and counting lockfiles would force a contract on routine dependency bumps. A bump that needs code changes is still caught, because those lines count.
+- **A spike has its own lane.** A throwaway spike the user asks for runs on a scratch branch with no contract and is never merged. Merging any of it needs the normal flow. Before this, a spike either broke the tiny rule or forced a contract on work meant to be thrown away.
+- **User-judged evidence comes after `accept`.** `flow_gate accept` covers the reviewed change. A criterion the user judges (a look, a playtest) is checked in this order: `accept`, the recovery checkpoint, capture by `flow-evidence-verifier` (or one trivial observation by Main), the user's verdict. A change made from the verdict is a post-acceptance change. The order keeps the existing `accept` gate on verifier dispatch: Main used to drive capture itself, or hand it to generic `task` agents, before `accept` to get past that gate.
+- **Closure after acceptance is not optional.** Every production, asset or build change after acceptance gets a fresh scoped closure review before integration or a new `accept`, and Main's own check never replaces it. Docs-only and test-only edits are the one exception: they rebind with a written freshness reason, shown in chat as the receipt, after rerunning the proof the edit touches. The old `flow-evidence` clause let any change rebind on a rationale, which competed with `flow-execution` section 7.
+- **Read-only roles never write in the user's checkout.** Acceptance, TTC, craft and audit reviewers, `reviewer`, `security-reviewer` and `flow-evidence-verifier` run every build, test or mutation probe in a `mktemp -d` copy (`git archive`, or `cp -a` for uncommitted changes), and never run `git worktree add` on the user's repository. Only writers probe in place, on their own files, with the snapshot-and-restore steps. The verifier's one write in the checkout is its evidence under `.flow/evidence/`, which `flow-artifacts` already treats as Flow working state. The agent files carry the `mktemp -d` rule themselves, because the fixed `/tmp` slip kept recurring where only `flow-review` named it. `reviewer` and `security-reviewer` are not ours, so `flow-review` copies the rule into their briefs.
+- **Credentials files are never printed.** Not even through a redaction filter: the two recorded leaks were filters that missed a `P/W:` label. Read key names or cite the path; a user's question about credentials gets the path.
+- **The user sees the exact text before it is published.** PR titles and bodies, review bodies, replies and comments, ClickUp uploads and status changes: approving the action or a summary does not approve text the user has not seen. The home is the publication rule in `flow-safety`; `flow-review`'s publication gate points at it.
+- **Main may amend a plan only inside one task.** The amendment may not change an interface or locked decision another task shares; larger amendments go to `flow-planner`. Every amendment is logged as one line in `PLAN.md`, because `flow_gate` digests only `PLAN.md` and a `plan-tasks/` edit alone would not block dispatch.
+- **Locked decisions change only in the plan.** Never by a message or a correction brief to a running worker. The worker stops at a clean boundary, the plan is edited and approved, then a writer is dispatched.
+
+## Rejected alternatives
+
+- A pre-`accept` capture lane for user-judged criteria, or "before" baselines captured by a verifier ahead of review: both need guard changes, and the order rule closes the gap without them.
+- Allowing read-only roles to probe in place with a byte-exact restore: it races any writer or test run in the shared checkout, which is how the 2026-10-08 and 2026-10-15 breaks happened.
+- A tiny limit by file count alone, or "substantial" left undefined: the recorded overruns were judged "small" by the model that wrote them.
+- Counting generated lines toward the limit: it would force a contract on a one-line dependency bump with a large lockfile diff.
+- Raising byte caps: every changed file fits its cap after cutting lines that restated `flow-evidence` or `agent/AGENTS.md` in `flow-execution`, the writer-ordering sentence in `flow-safety` that `flow-execution` section 3 already holds, and agent-file sentences the probe rule now covers.
+
+## Traps
+
+- `PLAN.md` is the only file `flow_gate` binds. An amendment that touches only `plan-tasks/` must still add its line to `PLAN.md`, or the guard lets a writer run on an unapproved capsule.
+- In PR reviewer mode Main, not a lens, may still create the disposable worktree under `review_tmp` that `github-operations.md` describes; lenses may not.
+- `flow-execution`, `flow-safety`, `flow-planning` and four 1 KB agent files sit within 60 bytes of their caps. The next addition there needs a cut first.
+
+## Open questions
+
+- "Generated" means a tool produced the lines. A hand-edited generated file counts its hand-written lines; no session has shown that case yet.
+- The probe rule is doctrine only. No guard checks that a read-only agent stays out of the checkout.

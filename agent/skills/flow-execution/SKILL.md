@@ -24,7 +24,14 @@ Flow gate:
 ```
 
 - Write `Plan: NONE` when the approved contract's work needs no separate plan. Example: a debugged fix sent to `flow-implementer`. After the contract approval, show the `Plan: NONE` route in chat and end your turn. Once the user agrees, record approval with `flow_gate` `present` `kind=implementation` against the contract, then `approve`, before dispatch.
-- Run tiny work on the user's concrete request alone. It runs in the Main-direct lane (section 2).
+- Tiny work needs no contract. Work is tiny only when all hold:
+  - at most 30 hand-written changed lines (added plus removed) across at most 3 files;
+  - no behavior beyond the user's exact request;
+  - no migration, schema change, data rewrite or release pipeline.
+- Lines a tool generated do not count: lockfiles, codegen output, snapshots a tool regenerated.
+- Work that is not tiny needs a `flow-design` contract, even when the user chose the fix in chat.
+- Main writes tiny work in the Main-direct lane (section 2).
+- Run a throwaway spike the user asks for on a scratch branch, with no contract. Never merge any of it; merging spike code needs the normal flow.
 
 ## 2. Route the work
 
@@ -33,7 +40,7 @@ Work to owner:
 - Open judgment, debugging, or a plan contradiction → `flow-implementer` (`@task`), or back to `flow-planning`/`flow-design`.
 - An exact mechanical edit, or a correction already diagnosed with one obvious result and existing proof → `sonic` (`@smol`).
 - Read-only fact finding → `scout`. Give it the paths and symbols you already know.
-- A tiny cohesive edit, where spawning costs more than the edit → Main writes it under `flow-tdd`. This is the Main-direct lane. It applies to multi-unit work too.
+- A tiny cohesive edit (section 1), where spawning costs more than the edit → Main writes it under `flow-tdd`. This is the Main-direct lane. It applies to multi-unit work too.
 
 Rules:
 - Never send ambiguous or new behavior, architecture, migration, concurrency or error semantics, or root-cause diagnosis to `sonic`.
@@ -65,7 +72,6 @@ Verification ownership:
 - Main-owned gates: <broader commands and why they stay with Main>
 ```
 
-- Never tell a writer to skip its own tests, formatter or build because Main verifies later (`flow-evidence` rule: writers verify their own work).
 - Make the writer run the canonical formatter on its touched files. Keep for Main only repo-wide formatting and gates that could touch sibling work.
 
 ## 5. Clarify and wait
@@ -73,6 +79,7 @@ Verification ownership:
 - Expect workers to derive what they can, then ask you over `hub` when the answer would change approved behavior, scope, interfaces, data or architecture.
 - Answer within the approved contract only. Never widen authorization.
 - For a new design, product or user choice, or a wrong plan: tell the worker to stop at a clean boundary and return BLOCKED, then route it through `flow-design`, `flow-planning` or the user.
+- Change a locked plan decision only by a plan edit, never by a message or a correction brief. Stop the worker first, as above. `flow-planning` sections 1 and 6 say who writes the edit and how it is approved. Example: an executor reports that locked decision D4 cannot work → stop it, edit the plan, get approval, dispatch.
 - Do independent work while children run.
 - Use one `hub wait` when you need that result next. User steering can interrupt it.
 - Do not poll. Repeated short `hub wait` calls or repeated `hub jobs` snapshots are polling.
@@ -87,41 +94,43 @@ Verification ownership:
 5. Check integration with already accepted work.
 6. Correct deviations before dependent work starts.
 
-Each layer proves its own scope. Do not rerun full suites as ritual (`flow-evidence` rule).
-
 ## 7. Route corrections
 
 - Verify and deduplicate findings. Batch the verified set into one correction round.
 - Send an exact diagnosed fix to `sonic`.
 - For a formatter-only failure, have the owner run the canonical formatter on its touched files, or send the exact fix to `sonic`. Never hand-imitate formatter output.
-- Send a fix inside a still-valid plan to a fresh `flow-plan-executor` with one correction brief and its focused proof.
+- Send a fix that keeps every locked decision to a fresh `flow-plan-executor` with one correction brief and its focused proof. A fix that changes one needs a plan edit (section 5).
 - Send a fix needing semantic context to the existing `flow-implementer` (wait as in section 5). Send it to a new bounded owner when that owner is gone.
 - Stop that work for a plan defect or invalid contract. Return through `flow-planning`, `flow-design` or the user.
 - Rerun only the proof the correction affects, plus gates it made stale.
-- Run one scoped closure review by default. Run another only for a concrete unresolved acceptance risk.
-- For a production, asset or build change after acceptance, follow the stability-barrier steps in section 8 of this skill.
+- Before acceptance, run one scoped closure review by default. Run another only for a concrete unresolved acceptance risk.
+- After acceptance, follow section 8.
 
 ## 8. Review proportionally
 
 - Dispatch one `flow-acceptance-reviewer` (`@slow`) after the coherent change and its focused/integration proof, for planned work. Give it the contract, plan and task paths, diff/base and evidence.
-- Do not fan out lens reviewers automatically. Add a specialist only for a concrete residual risk (a real security boundary, hard concurrency or data integrity).
 - Treat the acceptance review as a barrier. Start no device, emulator, manual or external evidence until it and its corrections settle. Read-only preparation is fine.
 - After you accept the review receipt, show its verdict and findings in chat and end your turn. Once the user agrees, run `flow_gate action=accept` with the scope and the receipt as source.
-- A later production, asset or build change reopens the stability barrier defined in the `flow-evidence` rule: run a scoped closure review, rerun the affected evidence, then record `flow_gate action=accept` again. Until then the guard blocks verifier dispatch.
+- A production, asset or build change after acceptance reopens the stability barrier defined in the `flow-evidence` rule. The guard blocks verifier dispatch until a new `flow_gate action=accept`.
 - You may park minor findings that carry no load.
 - Follow the change-lens selection in `flow-review` for unplanned changes.
 
 ## 9. Close execution
 
 - When local commits are expected, commit coherent behavior units with Conventional Commits and the repository's pre-commit checks. Do not commit once per worker by rule.
-- Reuse fresh final proof by the claim it covers (`flow-evidence` rule).
 - Write `.flow/checkpoints/<head>.md` before the first device, emulator, manual or external acceptance action.
 - Treat each of these as that action:
   - the first ADB or device command, driving an emulator or app, a screenshot, a manual smoke step;
   - the first command against a live production server or other hard-to-recover remote host (deploy, migration, service restart, config change, on-host check);
   - anything likely to cross a provider/session window.
 - Record head/tree, dirty and user-owned state, accepted evidence and why it is fresh, remaining criteria, device/remote state and the exact next action in the checkpoint.
-- Do not drive multi-step device or manual acceptance yourself, as Main, when `flow-evidence-verifier` (`@vision`) is available. A single trivial observation may stay with Main.
+- `flow_gate action=accept` covers the reviewed change. Check a contract criterion that the user judges (a look, a playtest) after it, in this order:
+  1. `flow_gate action=accept`;
+  2. the checkpoint above;
+  3. capture by `flow-evidence-verifier`, or one trivial observation by Main;
+  4. the user's verdict.
+- A change made from that verdict is a change after acceptance (section 8).
+- Never drive multi-step device or manual capture yourself, as Main. Never give verifier-role capture to a generic `task` agent.
 - Put this manifest (the Evidence capsule block) in each verifier task's own brief. One verifier session owns one evidence capsule. The guard rejects a verifier dispatch without it.
 - Start each verifier brief with the Flow gate block, with at least `- Scope:`. The guard blocks verifier dispatch without it, and until `flow_gate action=accept` matches the current repository state.
 
@@ -138,4 +147,3 @@ Evidence capsule:
 - Give each verifier the exact acceptance criteria and the environment/device changes it may make. Send evidence to `.flow/evidence/<head>/<capsule-id>/` (an absolute path when the verifier runs in another checkout). Never let the verifier edit production code or declare acceptance.
 - Follow the `MATCH` self-consistency rule in `flow-evidence` for restore receipts. Inspect consequential evidence and own acceptance as Main.
 - Use `flow-integrating` next.
-- Keep the forward pointer at user-facing checkpoints: the outcome, the next Flow action, and whether user input is needed. Continue authorized internal actions.

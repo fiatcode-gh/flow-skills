@@ -8,7 +8,7 @@ description: Use after the governing WHAT/WHY contract is approved when conseque
 Flow planning turns an approved contract or specification into an **execution-grade plan**. The goal is decision completeness, not document volume: pay for consequential judgment once, record it durably, and let implementation mostly follow the plan.
 
 - Use this skill when the implementer would otherwise decide something material: file/module ownership, interfaces, state/data flow, error semantics, compatibility behavior, test shape, performance/lifetime constraints, or integration order.
-- Skip it for a tiny, bounded change whose implementation is already obvious from the contract and repository patterns.
+- Skip it when the approved contract and repository patterns already make the implementation obvious (`Plan: NONE`, `flow-execution` section 1). Tiny work, as defined there, needs no contract either.
 
 ## 1. Establish the planning boundary
 
@@ -34,6 +34,8 @@ Flow gate:
 - `flow-governance-guard` rejects the dispatch when the contract approval is missing or its digest no longer matches the current artifact. Example: the contract was edited after approval.
 - Main owns the governing contract, validates the planner's receipt and owns plan acceptance.
 - Main does not write substantial consequential HOW itself.
+- Main may write a plan amendment itself only when it stays inside one task and changes no interface or locked decision that another task shares. Example: a wrong test command in task 03 → Main may fix it; a function signature that task 04 also uses → `flow-planner`.
+- Send every larger amendment to `flow-planner`.
 - Record the source revision and dirty-state assumptions the plan was derived from.
 - When the source revision changes, revalidate the affected parts. Do not replan by ritual.
 
@@ -136,7 +138,8 @@ When any of these fails, keep the artifact as strategy/draft and route the unres
 - Then bind that approval with `flow_gate`: call `present` for `kind=plan` with the same Flow scope, the exact `PLAN.md` path and a one-line `summary` of what the user approves. Then call `approve`.
 - `flow-execution` section 1 says what does not count as plan approval.
 - A recorded prior approval stays valid while the approved plan artifact is materially unchanged.
-- Editing the plan changes its digest. That mechanically blocks production-writer dispatch until the amended plan is presented and approved again.
+- Editing the plan changes its digest. That mechanically blocks production-writer dispatch until the amended plan is presented and approved again. Present and approve every amendment before any writer acts on it.
+- Add one line per amendment to `PLAN.md` (task and change), so a `plan-tasks/` edit changes the digest too.
 - Then `flow-execution` routes each writer (section 2), orders and isolates the tasks (section 3) and writes the briefs (section 4).
 - One execution-grade task brief normally gets one fresh `flow-plan-executor` session.
 - The planner's handoff is receipt-first: source/base revision and dirty-state assumption, plan/task paths, dependency shape, quality-gate disposition, residual risks and the exact next action.

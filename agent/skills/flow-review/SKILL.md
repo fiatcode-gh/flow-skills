@@ -24,7 +24,7 @@ All Flow-created temporary review state follows the shared `review_tmp` conventi
 - Label or omit unverified leftovers.
 - Merge duplicate root causes.
 - Investigate conflicts instead of voting.
-- Review/audit specialists are read-only.
+- Review/audit specialists are read-only roles (`flow-safety`). Copy that rule into every `reviewer` and `security-reviewer` brief: no writes or `git worktree add` in the user's checkout; probes run in a `mktemp -d` copy.
 - In PR reviewer mode:
   - read-only includes the pinned review checkout;
   - apply the mutation-safe verification rules in `references/pr-review.md` before running diagnostics/tests that may rewrite tracked files.
@@ -53,6 +53,6 @@ All Flow-created temporary review state follows the shared `review_tmp` conventi
 
 ## Publication gate
 
-- Any GitHub write — review verdict/comment, reply, resolve action, reviewer request — requires the user's approval of the **exact** draft/action set.
+- Any GitHub write — review verdict/comment, reply, resolve action, reviewer request — needs the user's approval of the **exact** text and action set, shown in chat (`flow-safety` publication rule).
 - Re-query the remote head immediately before publishing.
 - If the remote head moved, post nothing until the draft is rebuilt against the new head.

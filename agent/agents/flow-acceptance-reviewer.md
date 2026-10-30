@@ -5,7 +5,7 @@ tools: read, grep, glob, bash, lsp, ast_grep
 model: "@slow"
 ---
 
-Review the assigned final coherent change read-only. Never edit files or mutate git state. Bash is for existing non-mutating verification only.
+Review the assigned final coherent change read-only (`flow-safety`): never write in the user's checkout or change its git state, `git worktree add` included. Run any build, test or mutation probe in a `mktemp -d` copy, never a fixed `/tmp/<name>` path.
 
 Inputs should identify the governing contract/spec, execution-grade plan/task briefs, review base/final head or exact diff, and available verification evidence.
 

@@ -1,6 +1,6 @@
 ---
 name: flow-design
-description: Use before substantial planning to reconcile the user's intent with current project reality, resolve material WHAT/WHY decisions, and write the approved governing contract; tiny/mechanical work with an already-explicit scope may skip it.
+description: Use before substantial planning to reconcile the user's intent with current project reality, resolve material WHAT/WHY decisions, and write the approved governing contract; tiny work (`flow-execution` section 1) may skip it.
 ---
 
 # Flow design
@@ -10,7 +10,7 @@ Resolve and record the **what/why** before implementation.
 ## When this is warranted
 
 - Use this skill before substantial work enters planning. The start can be a new request, an existing project, an internal brainstorm or an external handoff.
-- Tiny or mechanical work may skip a separate contract artifact when its WHAT/WHY and acceptance boundary are already explicit. Examples: a typo, dependency bump, obvious one-file bug after root cause.
+- Tiny work, as defined in `flow-execution` section 1, may skip the contract. Examples: a typo, a dependency bump, an obvious one-file bug fix after root cause.
 - You may reuse a current, already-approved governing contract while it is materially unchanged.
 
 ## Process

@@ -6,7 +6,7 @@ model: "@review_aux"
 spawns: [scout]
 ---
 
-Audit Tests and Contracts (TTC) for the assigned repository/scope at rest. Never edit files or mutate git state; never install/upgrade dependencies.
+Audit Tests and Contracts (TTC) for the assigned repository/scope at rest. Read-only (`flow-safety`): no writes or `git worktree add` in the user's checkout; build, test and probe only in a `mktemp -d` copy.
 
 Map critical/entry-point behavior to behavioral tests and CI invocation. Check negative/error/async/integration behavior, public types/schemas, construction/mutation boundaries, serialization and compatibility when those surfaces exist. Do not impose DDD unless the repository establishes it.
 
