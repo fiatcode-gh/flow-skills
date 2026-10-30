@@ -606,7 +606,7 @@ for p in port_skills+port_agents:
     fm,_=frontmatter(p)
     expected=p.parent.name if p.name=='SKILL.md' else p.stem
     if not fm or fm.get('name')!=expected or not fm.get('description'): err(f'{rel(p)}: frontmatter needs name {expected} and a description')
-    if p in port_agents and fm and fm.get('model') not in {'opus','sonnet','haiku','inherit'}: err(f'{rel(p)}: model must be a Claude Code alias')
+    if p in port_agents and fm and not re.fullmatch(r'opus|sonnet|haiku|inherit|claude-(?:fable|opus|sonnet|haiku)-\d+-\d+', str(fm.get('model'))): err(f'{rel(p)}: model must be a Claude Code alias or a claude-<family>-<n>-<n> id')
 port_docs=port_skills+port_agents+list((port/'skills').glob('*/references/*.md'))+list((port/'hooks').glob('*.md'))
 for p in port_docs:
     text=p.read_text()

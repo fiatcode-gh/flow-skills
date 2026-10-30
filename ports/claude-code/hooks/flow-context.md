@@ -63,7 +63,6 @@ Claude Code on the web runs in an ephemeral container with a fresh clone. These 
 - Pushing that branch and opening a draft pull request is how a cloud session delivers its work. Do it when `flow-integrating` says the work is locally complete. `weft_publish` pushes to the Weft graph repository are also pre-approved (Weft graph below). Every other stakeholder-visible write (marking ready, merging, review comments, replies on someone else's pull request, releases) needs explicit user approval for that action.
 - Use the GitHub MCP tools (`mcp__github__*`) for GitHub reads and writes. `gh` is not authenticated here.
 - The codebase-memory MCP is local-only. Use `Grep`, `Glob` and `Explore` for code lookup.
-- The Weft graph reaches a cloud session as a clone of its GitHub repository (Weft graph below).
 
 ## Weft graph
 
@@ -75,6 +74,10 @@ Claude Code on the web runs in an ephemeral container with a fresh clone. These 
 Run the guard before any Weft read or write. Paste these functions into each Bash call that uses them.
 
 ```sh
+weft_branch() { # the graph repository's default branch
+  b=$(git -C "$WEFT_GRAPH" rev-parse --abbrev-ref origin/HEAD 2>/dev/null); b=${b#origin/}
+  [ -n "$b" ] && [ "$b" != HEAD ] && echo "$b" || echo main
+}
 weft_guard() { # prints ok, or why the graph is unavailable
   [ -n "${WEFT_GRAPH:-}" ] || { echo MISSING; return 1; }
   if [ ! -d "$WEFT_GRAPH" ] && [ -n "${WEFT_GRAPH_REPO:-}" ]; then
@@ -82,20 +85,21 @@ weft_guard() { # prints ok, or why the graph is unavailable
   fi
   [ -d "$WEFT_GRAPH" ] || { echo MISSING; return 1; }
   if [ -n "${WEFT_GRAPH_REPO:-}" ]; then
-    git -C "$WEFT_GRAPH" pull -q --rebase --autostash || { echo PULL-FAILED; return 1; }
+    git -C "$WEFT_GRAPH" pull -q --rebase --autostash origin "$(weft_branch)" || { echo PULL-FAILED; return 1; }
   fi
   echo "ok: $WEFT_GRAPH"
 }
 weft_publish() { # weft_publish "<message>"   cloud only; a no-op on a local graph
   [ -n "${WEFT_GRAPH_REPO:-}" ] || { echo "local graph: left for the user to commit"; return 0; }
   git -C "$WEFT_GRAPH" add -A && git -C "$WEFT_GRAPH" commit -q -m "$1" || return 1
-  if ! git -C "$WEFT_GRAPH" pull -q --rebase; then
+  if ! git -C "$WEFT_GRAPH" pull -q --rebase origin "$(weft_branch)"; then
     git -C "$WEFT_GRAPH" rebase --abort; echo "CONFLICT: commit kept locally, not pushed"; return 1
   fi
-  git -C "$WEFT_GRAPH" push -q && echo "pushed: $1"
+  git -C "$WEFT_GRAPH" push -q origin "HEAD:$(weft_branch)" && echo "pushed: $1"
 }
 ```
 
+- Point `WEFT_GRAPH` at its own clone, not at a session checkout of the graph repository.
 - `MISSING`: skip the Weft steps and say so once. Never fall back to a hardcoded path.
 - `CLONE-FAILED` in a cloud session: attach the repository with `add_repo` (`access: "push"`), then run the guard again. If that is refused, relay the reason and skip the Weft steps.
 - Run `weft_publish` once after each approved or lifecycle write, with a message such as `journal: 2026-10-28` or `memory: <one-line summary>`.
