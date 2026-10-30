@@ -85,7 +85,7 @@ basename "$SHELL"
 
 - Before substantive work in a project, read its project page, when one exists, for constraints and gotchas.
 - When `${WEFT_GRAPH}` exists, run `weft-worklog` Mode C as a lifecycle hook around substantive Flow work. Before the work, query the project's or topic's `TODO` / `LATER` / stray `DOING` items. After it, update only the items this session owned, and log the completed work to today's journal.
-- Do not ask for approval of these local worklog writes. Never change unrelated search matches.
+- Do not ask for approval of these local worklog writes. New follow-up `TODO`s and backlog items are the exception: propose them and write only on a yes (`weft-worklog` Mode B). Never change unrelated search matches.
 - `weft-worklog` Mode C says when to mark an item `DOING` or `DONE`, and when to restore its old marker.
 - Keep durable project state, backlog and conventions in Weft. Do not keep them in harness-native memory files or ad-hoc repository backlogs.
 - When you review someone else's PR, you may log the review and advance or close the user's own review item. Never create, pull or promote `TODO` / `LATER` items from that PR's findings: the code belongs to its author.

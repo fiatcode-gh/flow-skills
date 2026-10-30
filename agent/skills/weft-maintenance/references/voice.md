@@ -34,10 +34,10 @@ Examples:
 
 ## Sub-bullets — the hard cap
 
-- At most **3 sub-bullets per DONE**. No exceptions — not for multi-round reviews, not for epic closes. Pick by priority: the most important finding or fix, then why it mattered, then a lesson or TODO that clears the bar. A link carries whatever didn't fit.
+- At most **3 sub-bullets per DONE**. No exceptions — not for multi-round reviews, not for epic closes. Pick by priority: the most important finding or fix, then why it mattered, then a lesson that clears the bar. A link carries whatever didn't fit.
 - Each sub-bullet is 1–2 plain sentences, at most 2 rendered lines.
 - Lead with a role when natural — `fix —`, `why:`, `symptom:`, `lesson:`. Don't force a tag.
-- Follow-up `TODO`s are separate top-level bullets and do not count against the cap. `TODO` for new work, `DONE` for completed, `LATER` only when the user flags it.
+- `DONE` for completed work. Follow-up `TODO`s and backlog items follow `weft-worklog` Mode B: proposed in chat, written only on a yes.
 
 ## Human point of view — work facts only
 
@@ -46,7 +46,7 @@ The journal narrates what the user did, found, and decided. AI agents, lenses, v
 - Cut process observations entirely, even true ones. If removing the tooling leaves nothing, it was process, not work.
 - Keep the fact, lose the machinery: "three lenses converged on X" becomes "X".
 - "The user said / flagged" is the same leak — write first person, or drop the actor.
-- First person is for what the user did or approved. An offer, promise, or position a session took toward others is never "I" — pending, it becomes a top-level `TODO decide:`; once the user has chosen, journal the choice in the user's own verb — "went with X", never "offered X".
+- First person is for what the user did or approved. An offer, promise, or position a session took toward others is never "I" — pending, it is a `TODO decide:` candidate; once the user has chosen, journal the choice in the user's own verb — "went with X", never "offered X".
 - Exception: an entry whose subject is the tooling itself may name its parts — there they are the work.
 
 ## Banned shapes — check the draft before showing it
@@ -57,7 +57,7 @@ Scan every drafted bullet. A hit is deleted, not reworded — verification or pr
 - hashes beyond one commit/PR link (`SHA256`, checksums), `byte-identical`, `re-verified`, `re-run fresh`
 - workspace housekeeping (`worktree`, branch cleanup) and `close-out` narration
 
-Also at this gate: a headline roster moves to one sub-bullet; a `next:` / `left:` follow-up becomes a top-level TODO.
+Also at this gate: a headline roster moves to one sub-bullet; a `next:` / `left:` follow-up becomes a `not checked:` / `still open:` sub-bullet or a follow-up candidate.
 
 ## The lesson bar
 

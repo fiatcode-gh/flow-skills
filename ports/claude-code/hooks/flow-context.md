@@ -106,7 +106,7 @@ Rules:
 - Before substantive work in a project, read its project page, when one exists, for constraints and gotchas.
 - Before substantive work, run `weft-memory` recall for the current project and harness (`## Harness: [[Claude]]`).
 - Run `weft-worklog` Mode C as a lifecycle hook around substantive Flow work. Before the work, query the project's or topic's `TODO` / `LATER` / stray `DOING` items. After it, update only the items this session owned, and log the completed work to today's journal.
-- Do not ask for approval of these worklog writes, or of their `weft_publish`. Never change unrelated search matches.
+- Do not ask for approval of these worklog writes, or of their `weft_publish`. New follow-up `TODO`s and backlog items are the exception: propose them and write only on a yes (`weft-worklog` Mode B). Never change unrelated search matches.
 - Keep durable project state, backlog and conventions in Weft, not in harness-native memory files (`CLAUDE.md`, auto memory) or ad-hoc repository backlogs.
 - When you review someone else's PR, you may log the review and advance or close the user's own review item. Never create, pull or promote `TODO` / `LATER` items from that PR's findings: the code belongs to its author.
 - Name a personal collection project `*-stack`, with a matching `[[X Stack]]` canonical page where applicable.
