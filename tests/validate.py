@@ -1,5 +1,5 @@
 from pathlib import Path
-import json, re, subprocess, sys, yaml
+import json, os, re, subprocess, sys, yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 errors=[]
@@ -594,10 +594,42 @@ migration=(ROOT/'docs/MIGRATION.md').read_text().lower()
 for stale in ['are not overwritten by `omp-stack install`**, so merge', 'bash/forge']:
     if stale in migration: err(f'docs/MIGRATION.md stale installer doctrine survived: {stale}')
 
+# Claude Code port: a plugin in ports/claude-code/, listed by the root marketplace.
+port=ROOT/'ports/claude-code'
+plugin=json.loads((port/'.claude-plugin/plugin.json').read_text())
+market=json.loads((ROOT/'.claude-plugin/marketplace.json').read_text())
+if [(p['name'],p['source']) for p in market['plugins']]!=[(plugin['name'],'./ports/claude-code')]:
+    err('.claude-plugin/marketplace.json: must list exactly the ports/claude-code plugin under its plugin.json name')
+port_skills=list((port/'skills').glob('*/SKILL.md'))
+port_agents=list((port/'agents').glob('*.md'))
+for p in port_skills+port_agents:
+    fm,_=frontmatter(p)
+    expected=p.parent.name if p.name=='SKILL.md' else p.stem
+    if not fm or fm.get('name')!=expected or not fm.get('description'): err(f'{rel(p)}: frontmatter needs name {expected} and a description')
+    if p in port_agents and fm and fm.get('model') not in {'opus','sonnet','haiku','inherit'}: err(f'{rel(p)}: model must be a Claude Code alias')
+port_docs=port_skills+port_agents+list((port/'skills').glob('*/references/*.md'))+list((port/'hooks').glob('*.md'))
+for p in port_docs:
+    text=p.read_text()
+    for omp_only in ['flow_gate','skill://','`hub`','hub wait','@task','@execute','@slow','@smol','@plan','@vision','@review_aux','`sonic`','`scout`']:
+        if omp_only in text: err(f'{rel(p)}: OMP-only mechanic in the Claude Code port: {omp_only}')
+for path in ['skills/flow-tdd/SKILL.md','skills/ui-design/SKILL.md']:
+    if (port/path).read_bytes()!=(ROOT/'agent'/path).read_bytes(): err(f'ports/claude-code/{path}: verbatim mirror drifted from agent/{path}')
+for path in ['skills/weft-worklog/references/voice.md','skills/weft-worklog/references/page-archetypes.md']:
+    if (port/path).read_bytes()!=(ROOT/'agent'/path).read_bytes(): err(f'ports/claude-code/{path}: verbatim mirror drifted from agent/{path}')
+for other,names in [('weft-memory',['conventions.md','voice.md']),('weft-maintenance',['conventions.md','voice.md','page-archetypes.md'])]:
+    for name in names:
+        if (port/'skills/weft-worklog/references'/name).read_bytes()!=(port/'skills'/other/'references'/name).read_bytes(): err(f'ports/claude-code/skills/{other}/references/{name}: Weft reference copies differ')
+for path in ['references/planning-handoff.schema.json','scripts/validate-planning-handoff.py']:
+    if (port/'skills/flow-external-session'/path).read_bytes()!=(ROOT/'agent/skills/flow-external-session'/path).read_bytes(): err(f'ports/claude-code/skills/flow-external-session/{path}: verbatim mirror drifted')
+# Claude Code keeps only about 2 KB of SessionStart hook output in context.
+core=subprocess.run(['sh',str(port/'hooks/session-start.sh')],env={'CLAUDE_PLUGIN_ROOT':str(port),'PATH':os.environ['PATH']},capture_output=True,text=True,check=True).stdout
+if len(core.encode())>1900: err(f'ports/claude-code/hooks/session-start.sh: prints {len(core.encode())} bytes; keep it under 1900')
+if str(port/'hooks/flow-context.md') not in core: err('ports/claude-code/hooks/session-start.sh: core must point at the full flow-context.md path')
+
 # Every file that loads into a session (skills, their references, agents, rules, AGENTS.md)
 # has a byte cap; growth needs a deliberate cap change.
 budget=json.loads((ROOT/'tests/doctrine-budget.json').read_text())
-loaded={rel(p) for p in skills+agents+rules+list((ROOT/'agent/skills').glob('*/references/*.md'))}|{'agent/AGENTS.md'}
+loaded={rel(p) for p in skills+agents+rules+list((ROOT/'agent/skills').glob('*/references/*.md'))+port_docs}|{'agent/AGENTS.md'}
 for path in sorted(loaded-budget.keys()):
     err(f'tests/doctrine-budget.json: no size cap for {path}')
 for path in sorted(budget.keys()-loaded):

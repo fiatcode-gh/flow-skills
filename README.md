@@ -31,6 +31,9 @@ profiles/
 mcp.example.json            MCP server template, copied per profile (see below)
 ports/
   open-webui/               Flow port for the Open WebUI chat (docs/EXTERNAL-INTEROP.md)
+  claude-code/              Flow port as a Claude Code plugin, for local and web sessions
+.claude-plugin/
+  marketplace.json          makes this repository a Claude Code plugin marketplace
 scripts/
   omp-stack                 install / verify / doctor
   flow-sessions             list and render OMP sessions for field-trial audits
@@ -61,6 +64,17 @@ omp --profile commandcode
 ```
 
 See `docs/MIGRATION.md` for moving an existing profile onto the linked config.
+
+## Claude Code (local and on the web)
+
+`ports/claude-code/` packages the Flow skills and agents as a Claude Code plugin named `flow`, and `.claude-plugin/marketplace.json` makes this repository its marketplace. Install it in Claude Code:
+
+```sh
+claude plugin marketplace add fiatcode-gh/omp-stack
+claude plugin install flow@omp-stack
+```
+
+A cloud session starts from a fresh container, so it needs the plugin on every start. `docs/EXTERNAL-INTEROP.md` ("Claude Code port") lists the ways to get it there and what the port leaves out.
 
 ## MCP servers
 

@@ -1,0 +1,16 @@
+{
+  "name": "omp-stack",
+  "owner": {
+    "name": "fiatcode"
+  },
+  "metadata": {
+    "description": "fiatcode's personal coding-agent stack, packaged for Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "flow",
+      "source": "./ports/claude-code",
+      "description": "Flow doctrine from omp-stack for Claude Code, local and on the web."
+    }
+  ]
+}

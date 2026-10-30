@@ -1,0 +1,18 @@
+# PR reviewer mode
+
+Review an existing GitHub pull request. Never modify the contributor branch.
+
+Treat verification commands as writes when they can rewrite tracked files as a side effect — for example toolchain migrations, dependency resolution, code generation, lockfile/config upgrades, formatter/autofix, or similar bootstrap behavior. Do not run such mutation-prone proof directly in the review checkout. Prefer a disposable worktree pinned to the same reviewed head, under the `review_tmp` root from `github-operations.md`. If that is not possible and the proof is materially necessary, snapshot the exact pre-command bytes and path-existence state for every path the command may touch, restore that state afterward, and verify byte-for-byte restoration before using the proof. If the mutation surface cannot be bounded, skip the command and mark that evidence unavailable.
+
+1. Pin exact remote base/head, description/requirements, commits, changed files/stat, required checks and existing discussion. For re-review, identify the last reviewed commit/verdict and verify old findings against the new head before focusing on the delta plus affected callers/contracts.
+2. Build a metadata-only packet; specialists fetch their own diff/context.
+3. Run COR and CRF always; select TTC/SEC by `review-lenses.md`. Fan out the read-only specialists in parallel.
+4. Verify/synthesize findings. A failing required check is blocking; unavailable/ambiguous required-check evidence is comment-only.
+5. Verdict. First set aside findings that are only about craft (CRF): post them as non-blocking comments, even when Important. Then:
+   - a verified Critical/Important finding remains → request changes;
+   - none remains and required checks are green → approve;
+   - evidence is incomplete, pending or conflicted → comment.
+
+   Example: the only finding is dead code and required checks are green → approve, with one non-blocking comment on the dead code.
+6. Draft one concise summary and only valuable changed-line inline comments. Show exact action/text/inline set to the user.
+7. After approval, re-query head. Head moved → publish nothing and rebuild. Use one batched review (`github-operations.md`). Partial write → report exactly what posted; never retry blindly.
