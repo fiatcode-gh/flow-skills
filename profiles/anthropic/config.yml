@@ -34,11 +34,12 @@ modelRoles:
   # Spend the larger Team Premium allowance where controller reliability and
   # unresolved judgment have the most leverage.
   default: anthropic/claude-opus-5-5:medium
-  plan: anthropic/claude-opus-5-5:medium
   slow: anthropic/claude-opus-5-5:medium
 
-  # Explicit-only frontier escalation. High is deliberate: max would consume
-  # Team Premium allowance too aggressively for a reusable baseline.
+  # Planning runs on Fable 5.1 at `high`, Anthropic's default and recommended
+  # starting effort for it. `critical` stays explicit-only on the same tier;
+  # max would consume Team Premium allowance too aggressively for a baseline.
+  plan: anthropic/claude-fable-5-1:high
   critical: anthropic/claude-fable-5-1:high
 
 # Native backstop for Flow's external-effect gate. Keep publication commands

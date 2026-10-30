@@ -471,7 +471,7 @@ expected_anthropic={
     'vision':'anthropic/claude-sonnet-5-5:medium',
     'execute':'anthropic/claude-sonnet-5-5:medium',
     'task':'anthropic/claude-sonnet-5-5:high',
-    'plan':'anthropic/claude-opus-5-5:medium',
+    'plan':'anthropic/claude-fable-5-1:high',
     'slow':'anthropic/claude-opus-5-5:medium',
     'review_aux':'anthropic/claude-sonnet-5-5:high',
     'critical':'anthropic/claude-fable-5-1:high',

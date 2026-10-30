@@ -21,7 +21,7 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 | Main/controller | `@default` | GPT-6 Luna auto | Opus 5.5 medium | GLM-5.3 Flash high |
 | execution-grade plan follower | `flow-plan-executor` / `@execute` | GPT-6 Luna xhigh | Sonnet 5.5 medium | DeepSeek V4.1 Flash high |
 | residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GPT-6.1 Sol medium | Sonnet 5.5 high | GLM-5.3 Flash high |
-| deliberate execution planning | `flow-planner` / `@plan` | GPT-6.1 Sol high | Opus 5.5 medium | GLM-5.3 high |
+| deliberate execution planning | `flow-planner` / `@plan` | GPT-6.1 Sol high | Fable 5.1 high | GLM-5.3 high |
 | final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | Opus 5.5 medium | Kimi K3 high |
 | TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GPT-6.1 Sol high | Sonnet 5.5 high | DeepSeek V4.1 Flash high |
 | vision / multimodal inspection | `@vision` | GPT-6 Luna medium | Sonnet 5.5 medium | DeepSeek V4.1 Flash high |
@@ -49,8 +49,8 @@ OMP discovers Codex models from the signed-in account, so a model newer than OMP
 
 - **Claude Haiku 5.5 medium** owns `tiny` only. Its 100k context window is too small for scout exploration, mechanical-edit leaves and large commit diffs, but title and metadata generation never comes near it. Haiku 5.5 uses adaptive thinking with the same effort ladder as Sonnet/Opus/Fable; `medium` is Anthropic's default for it.
 - **Claude Sonnet 5.5** owns `smol` / `commit` / `execute` / `task` / `vision` / `review_aux`: it is the high-throughput constrained-execution, semantic-implementation and multimodal lane, while auxiliary review stays independent from the Opus correctness lane. Sonnet 5.5 recalibrated its effort levels, so the Sonnet 5 `high` setting is not carried over. `smol` and `commit` run at `low`: they take Haiku's former leaves for the larger context window, not for more reasoning. Anthropic recommends `medium` for well-specified agentic work and `high` for harder or longer work: `execute` (decision-complete plans) and `vision` run at `medium`; `task` (unresolved judgment, debugging) and `review_aux` (independent review) run at `high`.
-- **Claude Opus 5.5 medium** owns `default` / `plan` / `slow`: the Team Premium profile spends its larger allowance on controller reliability, long-horizon orchestration, architecture and primary correctness reasoning rather than making Main another implementation-tier session. `medium` is Anthropic's default for Opus 5.5 and matches or beats Opus 5 at `high` on agentic tasks.
-- **Claude Fable 5.1 high** owns `critical`: the role is explicit-only, and `high` is deliberate. Do not pin `max` here; maximum effort would burn Team Premium allowance too aggressively for a reusable baseline.
+- **Claude Opus 5.5 medium** owns `default` / `slow`: the Team Premium profile spends its larger allowance on controller reliability, long-horizon orchestration and primary correctness reasoning rather than making Main another implementation-tier session. `medium` is Anthropic's default for Opus 5.5 and matches or beats Opus 5 at `high` on agentic tasks.
+- **Claude Fable 5.1 high** owns `plan` and `critical`. Planning is one long, judgment-heavy session per unit, so it gets the frontier tier; `high` is Anthropic's default and recommended starting effort for Fable 5.1. `critical` is explicit-only on the same setting. Do not pin `max` on either; maximum effort would burn Team Premium allowance too aggressively for a reusable baseline.
 
 Authenticate the profile through OMP's Anthropic/Claude OAuth flow so Team entitlement remains profile-local. Do not put account credentials in this repository. Keep exact model IDs under review when OMP or Anthropic changes the first-party catalog.
 

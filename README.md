@@ -127,7 +127,7 @@ Skills and agents use **roles**, never concrete models. Native OMP profiles prov
 
 The OpenAI Codex profile follows OpenAI's GPT-6 model/effort ladder: GPT-6 Luna for Main (adaptive effort), cheap leaves (low), vision (medium) and constrained execution (xhigh); GPT-6.1 Sol for semantic implementation (medium), planning/final acceptance/auxiliary review (high) and explicit critical escalation (xhigh). GPT-6 Astra is left out to protect the ChatGPT Plus allowance.
 
-The Anthropic v8 profile uses Haiku 5.5 medium for tiny metadata only (its 100k context is too small for other leaves), Sonnet 5.5 low for scout/mechanical leaves and commits, Sonnet 5.5 for constrained execution/semantic implementation/vision/auxiliary review, Opus 5.5 for Main/planning/correctness reasoning, and Fable 5.1 high for explicit critical escalation.
+The Anthropic v8 profile uses Haiku 5.5 medium for tiny metadata only (its 100k context is too small for other leaves), Sonnet 5.5 low for scout/mechanical leaves and commits, Sonnet 5.5 for constrained execution/semantic implementation/vision/auxiliary review, Opus 5.5 for Main and correctness reasoning, and Fable 5.1 high for planning and explicit critical escalation.
 
 The Command Code profile runs open models on the GOAT plan: GLM-5.3 Flash high for Main and semantic implementation, DeepSeek V4.1 Flash for cheap leaves (low) and constrained execution/vision/auxiliary review (high), GLM-5.3 high for planning, and Kimi K3 high for final acceptance (max for explicit critical escalation).
 
