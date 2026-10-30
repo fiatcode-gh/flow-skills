@@ -12,7 +12,7 @@
   "agent/agents/flow-ttc-reviewer.md": 1024,
   "agent/rules/flow-artifacts.md": 3072,
   "agent/rules/flow-evidence.md": 5120,
-  "agent/rules/flow-safety.md": 3072,
+  "agent/rules/flow-safety.md": 4096,
   "agent/skills/blog-post/SKILL.md": 15360,
   "agent/skills/flow-debugging/SKILL.md": 3072,
   "agent/skills/flow-design/SKILL.md": 5120,
