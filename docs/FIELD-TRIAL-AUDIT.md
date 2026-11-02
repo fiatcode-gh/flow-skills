@@ -6,7 +6,15 @@ Run the audit in a fresh top-level OMP session in this repository, not in a sess
 
 ## 1. Pick the sessions
 
-A session counts toward a skill only when it **started** after that skill's current baseline. Take the baseline from the `## Current baseline` section of `docs/FIELD-TRIALS.md`; for a skill whose doctrine changed later, use the commit that changed it (`git log -1 --format='%h %cI' -- omp/skills/<skill>`). Shared rule changes (`omp/rules/`, `omp/AGENTS.md`) move the baseline only for skills whose behavior they materially changed.
+A session counts toward a skill only when it **started** after that skill's current baseline. Take the baseline from the `## Current baseline` section of `docs/FIELD-TRIALS.md`; for a skill whose doctrine changed later, use the commit that changed it. The paths moved on 2026-11-02 (`agent/` to `omp/`), so follow the rename across both:
+
+```sh
+git log -1 --format='%h %cI' -M --diff-filter=ACDMT -- omp/skills/<skill> agent/skills/<skill>
+git log -1 --format='%h %cI' -M --diff-filter=ACDMT -- omp/rules agent/rules
+git log -1 --format='%h %cI' -M --diff-filter=ACDMT -- omp/AGENTS.md agent/AGENTS.md
+```
+
+Without `-M --diff-filter=ACDMT` every skill reports the 2026-11-02 layout commit. The 2026-11-02 layout and name-reference commits move no baseline, even where the command lists one (it does for `weft-memory`, whose later edits there only changed the repository name or wording): take the newest earlier commit instead. Shared rule changes (`omp/rules/`, `omp/AGENTS.md`) move the baseline only for skills whose behavior they materially changed.
 
 ```sh
 omp/bin/flow-sessions list --since <ISO timestamp>
