@@ -192,5 +192,9 @@ for target in "$OLD/../elsewhere/skills" "$OLD/./elsewhere/skills" "$OLD/x/.." "
   case $out in *"outside $(readlink -f "$NEW")"*) ;; *) echo "FAIL: refusal for $target did not name the root: $out" >&2; exit 1 ;; esac
   [ "$(readlink "$H3/.omp/profiles/anthropic/agent/skills")" = "$target" ] || { echo "FAIL: installer changed the link to $target" >&2; exit 1; }
 done
+# Called through a symlink elsewhere (e.g. ~/.local/bin), the installer still finds the checkout.
+mkdir -p "$TMP_OLD/bin" "$TMP_OLD/home-symlink"; ln -s "$ROOT/omp/bin/flow-omp" "$TMP_OLD/bin/flow-omp"
+HOME="$TMP_OLD/home-symlink" PATH="/usr/bin:/bin" "$TMP_OLD/bin/flow-omp" install >/dev/null 2>&1 || { echo 'FAIL: install through a symlinked launcher failed' >&2; exit 1; }
+[ "$(readlink -f "$TMP_OLD/home-symlink/.omp/profiles/anthropic/agent/AGENTS.md")" = "$(readlink -f "$ROOT/omp/AGENTS.md")" ] || { echo 'FAIL: symlinked launcher linked the wrong checkout' >&2; exit 1; }
 rm -rf "$TMP_OLD"
 echo 'ok: profile installer safety/idempotence'
