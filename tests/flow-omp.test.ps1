@@ -259,10 +259,12 @@ exit 0
         $a3 = Join-Path $h3 '.omp/profiles/anthropic/agent'
         New-Item -ItemType Directory -Force -Path $a3 | Out-Null
         New-FixtureLink $target (Join-Path $a3 'skills') -Dir
+        # Windows stores an absolute target in its own form; compare against what was stored.
+        $stored = RawTarget (Join-Path $a3 'skills')
         $r = Invoke-Flow $h3 @() @('install') @{} $newFlow
         if ($r.Code -eq 0) { fail "installer replaced a link to $target under the previous name" }
         if (-not $r.Out.Contains("outside $(Norm $new)")) { fail "refusal for $target did not name the root: $($r.Out)" }
-        if ((RawTarget (Join-Path $a3 'skills')) -ne $target) { fail "installer changed the link to $target" }
+        if ((RawTarget (Join-Path $a3 'skills')) -ne $stored) { fail "installer changed the link to $target" }
     }
 
     # install.test.sh 195-198: called through a symlinked launcher, the installer still finds the checkout.
