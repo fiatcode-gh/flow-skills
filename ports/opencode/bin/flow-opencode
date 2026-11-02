@@ -1,0 +1,320 @@
+#!/usr/bin/env sh
+set -eu
+
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT=$(readlink -f "$HERE/../../..")
+PORT="$ROOT/ports/opencode"
+CONFIG_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+LINKED="AGENTS.md skills agents profiles"
+
+info() { printf '%s\n' "$*"; }
+fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
+
+# Stems of the profile files shipped with the port, space separated.
+profile_stems() {
+  for f in "$PORT"/profiles/*.json; do
+    [ -e "$f" ] || continue
+    b=${f##*/}
+    printf '%s ' "${b%.json}"
+  done
+}
+
+# Refuses a missing source, a foreign symlink and a real file or directory.
+check_owned() { # source dest
+  src=$1 dst=$2
+  [ -e "$src" ] || fail "missing source $src"
+  if [ -L "$dst" ]; then
+    target=$(readlink -f "$dst" 2>/dev/null || readlink "$dst")
+    case $target in
+      "$ROOT" | "$ROOT"/*) ;;
+      *) fail "$dst is a symlink to $target, outside $ROOT; move or remove it manually" ;;
+    esac
+  elif [ -e "$dst" ]; then
+    fail "$dst exists and is not a symlink; move/merge it manually"
+  fi
+}
+
+# Replaces only a missing destination or a symlink into this repository.
+link_owned() { # source dest
+  src=$1 dst=$2
+  check_owned "$src" "$dst"
+  ln -sfn "$src" "$dst" || fail "could not link $dst -> $src"
+  info "linked $dst -> $src"
+}
+
+link_config() {
+  cfg="$CONFIG_ROOT/opencode.json"
+  template="$PORT/opencode.json"
+  if [ -L "$cfg" ] || [ ! -e "$cfg" ]; then
+    link_owned "$template" "$cfg"
+    return 0
+  fi
+  if cmp -s "$cfg" "$template"; then
+    ln -sfn "$template" "$cfg" || fail "could not link $cfg -> $template"
+    info "replaced identical copy: $cfg -> $template"
+    return 0
+  fi
+  info "WARN: $cfg differs from $template; left untouched (merge it, then rerun install)"
+  return 1
+}
+
+verify_link() { # source dest
+  src=$(readlink -f "$1")
+  [ -L "$2" ] || { info "FAIL: $2 is not a symlink"; return 1; }
+  dst=$(readlink -f "$2" 2>/dev/null || true)
+  [ "$src" = "$dst" ] || { info "FAIL: $2 -> ${dst:-dangling}, expected $src"; return 1; }
+  info "ok: $2"
+}
+
+# OpenCode also scans ~/.claude/skills and ~/.agents/skills. A skill of the
+# same name there is a second source; report it, never delete it.
+report_duplicates() {
+  drc=0
+  for dir in "$PORT"/skills/*/; do
+    [ -d "$dir" ] || continue
+    name=${dir%/}
+    name=${name##*/}
+    for other in "$HOME/.claude/skills/$name/SKILL.md" "$HOME/.agents/skills/$name/SKILL.md"; do
+      if [ -e "$other" ] || [ -L "$other" ]; then
+        info "WARN: duplicate skill $name at $other; OpenCode scans that directory too, so remove or move it"
+        drc=1
+      fi
+    done
+  done
+  return "$drc"
+}
+
+install() {
+  rc=0
+  mkdir -p -- "$CONFIG_ROOT" || fail "could not create $CONFIG_ROOT"
+  # Check every destination first so one refusal changes nothing. A real
+  # opencode.json is link_config's call (relink or WARN); a symlink is checked here.
+  for name in $LINKED; do
+    check_owned "$PORT/$name" "$CONFIG_ROOT/$name"
+  done
+  [ ! -L "$CONFIG_ROOT/opencode.json" ] || check_owned "$PORT/opencode.json" "$CONFIG_ROOT/opencode.json"
+  for name in $LINKED; do
+    link_owned "$PORT/$name" "$CONFIG_ROOT/$name"
+  done
+  link_config || rc=1
+  report_duplicates || rc=1
+  info "run 'opencode reload' so the background service picks up the config"
+  [ "$rc" -eq 0 ] || info "nothing was overwritten"
+  return "$rc"
+}
+
+verify() {
+  rc=0
+  for name in $LINKED opencode.json; do
+    verify_link "$PORT/$name" "$CONFIG_ROOT/$name" || rc=1
+  done
+  report_duplicates || rc=1
+  return "$rc"
+}
+
+run() { # profile [opencode args...]
+  [ "$#" -ge 1 ] || { usage >&2; exit 2; }
+  profile=$1
+  shift
+  p="$CONFIG_ROOT/profiles/$profile.json"
+  case $profile in
+    */* | "" | .*) fail "unknown profile '$profile'; profiles: $(profile_stems)" ;;
+  esac
+  [ -f "$p" ] || fail "unknown profile '$profile'; profiles: $(profile_stems)"
+  command -v opencode >/dev/null 2>&1 || fail "opencode not found on PATH"
+  OPENCODE_CONFIG="$p" exec opencode "$@" --standalone
+}
+
+# --- doctor ----------------------------------------------------------------
+
+drc=0
+# Prints a check report and records whether it holds a FAIL line.
+report() {
+  [ -z "$1" ] || printf '%s\n' "$1"
+  case $1 in
+    *"FAIL: "*) drc=1 ;;
+  esac
+}
+
+# Runs a checker and reports its output. A non-zero exit or empty output is a
+# FAIL: a crashed checker must not read as a pass.
+run_check() { # checker args...
+  name=$1
+  st=0
+  out=$("$@") || st=$?
+  report "$out"
+  if [ "$st" -ne 0 ]; then
+    report "FAIL: checker $name exited $st"
+  elif [ -z "$out" ]; then
+    report "FAIL: checker $name printed nothing"
+  fi
+}
+
+# Reads the `debug agents` JSON in $1. Mode `base`: every agent is a subagent
+# and the build agent asks for pushes and PR creation. Mode `profile`: every
+# agent resolved to the profile's model and the base asks still apply.
+check_agents() { # file mode agents profile-file label
+  python3 - "$@" <<'PY'
+import json, sys
+path, mode, agents, pfile, label = sys.argv[1:6]
+try:
+    rows = {r['id']: r for r in json.load(open(path))}
+except Exception as exc:
+    print(f'FAIL: {label}could not read the agent list: {exc}')
+    raise SystemExit
+build = rows.get('build', {}).get('permissions', [])
+if mode == 'base':
+    for a in agents.split():
+        if rows.get(a, {}).get('mode') == 'subagent':
+            print(f'ok: agent {a} is a subagent')
+        else:
+            print(f'FAIL: agent {a} missing or not a subagent')
+else:
+    want = json.load(open(pfile))['agent']
+    for a in agents.split():
+        got = rows.get(a, {}).get('model') or {}
+        got = f"{got.get('providerID')}/{got.get('id')}"
+        exp = want.get(a, {}).get('model')
+        if got == exp:
+            print(f'ok: {label}{a} -> {got}')
+        else:
+            print(f'FAIL: {label}{a} resolved to {got}, expected {exp}')
+for res in ('git push*', 'gh pr create*'):
+    if {'action': 'shell', 'resource': res, 'effect': 'ask'} in build:
+        print(f'ok: {label}base config asks for {res}' if mode == 'base' else
+              f'ok: {label}base asks still apply ({res})')
+    else:
+        print(f'FAIL: {label}build agent has no ask for {res}')
+PY
+}
+
+check_main_model() { # file profile-file stem rc
+  python3 - "$@" <<'PY'
+import json, sys
+path, pfile, stem, rc = sys.argv[1:5]
+label = f'profile {stem}: main model'
+want = json.load(open(pfile))['model']
+try:
+    if rc != '0':
+        raise ValueError(f'opencode api exited {rc}')
+    data = json.load(open(path))['data']
+    got = f"{data['providerID']}/{data['modelID']}"
+except Exception as exc:
+    print(f'FAIL: {label} unavailable: {exc}')
+    raise SystemExit
+if got == want:
+    print(f'ok: {label} {got}')
+elif data['providerID'] != stem:
+    print(f'SKIP: {label} (provider {stem} not available)')
+else:
+    print(f'FAIL: {label} resolved to {got}, expected {want}')
+PY
+}
+
+check_skills() { # file expected-skills prefix
+  python3 - "$@" <<'PY'
+import json, sys
+path, skills, prefix = sys.argv[1:4]
+try:
+    rows = json.load(open(path))['data']
+except Exception as exc:
+    print(f'FAIL: skill list unreadable: {exc}')
+    raise SystemExit
+for s in skills.split():
+    found = [r for r in rows if r.get('id') == s]
+    if not found:
+        print(f'FAIL: skill {s} missing')
+    elif len(found) > 1:
+        print(f'FAIL: skill {s} listed {len(found)} times')
+    elif not found[0].get('path', '').startswith(prefix):
+        print(f"FAIL: skill {s} loaded from {found[0].get('path')}, expected {prefix}")
+    else:
+        print(f"ok: skill {s} at {found[0]['path']}")
+PY
+}
+
+doctor() {
+  command -v opencode >/dev/null 2>&1 || fail "doctor needs opencode on PATH"
+  command -v python3 >/dev/null 2>&1 || fail "doctor needs python3 on PATH"
+  unset OPENCODE_CONFIG
+  tmp=$(mktemp -d) || fail "could not create a temporary directory"
+  pid=
+  trap 'if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi; rm -rf "$tmp"' EXIT HUP INT TERM
+  mkdir -p "$tmp/wd"
+  git init -q "$tmp/wd" || fail "could not create a scratch repository"
+  cd "$tmp/wd"
+
+  agents=
+  for f in "$PORT"/agents/*.md; do
+    b=${f##*/}
+    agents="$agents ${b%.md}"
+  done
+  skills=
+  for d in "$PORT"/skills/*/; do
+    b=${d%/}
+    skills="$skills ${b##*/}"
+  done
+
+  if opencode debug agents --standalone >"$tmp/agents.json" 2>"$tmp/agents.err"; then
+    run_check check_agents "$tmp/agents.json" base "$agents" '' ''
+  else
+    report "FAIL: opencode debug agents failed: $(cat "$tmp/agents.err")"
+  fi
+
+  set -- "$CONFIG_ROOT"/profiles/*.json
+  [ -e "$1" ] || report "FAIL: no profiles found in $CONFIG_ROOT/profiles"
+  for pfile in "$@"; do
+    [ -e "$pfile" ] || continue
+    stem=${pfile##*/}
+    stem=${stem%.json}
+    if OPENCODE_CONFIG="$pfile" opencode debug agents --standalone >"$tmp/pagents.json" 2>"$tmp/pagents.err"; then
+      run_check check_agents "$tmp/pagents.json" profile "$agents" "$pfile" "profile $stem: "
+    else
+      report "FAIL: profile $stem: opencode debug agents failed: $(cat "$tmp/pagents.err")"
+    fi
+    mrc=0
+    OPENCODE_CONFIG="$pfile" opencode api --standalone model.default >"$tmp/model.json" 2>/dev/null || mrc=$?
+    run_check check_main_model "$tmp/model.json" "$pfile" "$stem" "$mrc"
+  done
+
+  pw=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+  OPENCODE_SERVER_PASSWORD=$pw opencode serve --port 0 --hostname 127.0.0.1 >"$tmp/serve.log" 2>&1 &
+  pid=$!
+  waited=0 cap=${FLOW_OPENCODE_SERVE_WAIT:-30} line=
+  while [ "$waited" -lt "$cap" ]; do
+    line=$(grep -m1 'server listening on ' "$tmp/serve.log" 2>/dev/null || true)
+    [ -z "$line" ] || break
+    sleep 1
+    waited=$((waited + 1))
+  done
+  if [ -z "$line" ]; then
+    report "FAIL: server did not report a listening URL within ${cap}s"
+  else
+    url=${line#*server listening on }
+    tries=0 ready=
+    while [ "$tries" -lt 20 ]; do
+      OPENCODE_PASSWORD=$pw opencode api --server "$url" skill.list >"$tmp/skills.json" 2>/dev/null || true
+      if grep -q '"flow-tdd"' "$tmp/skills.json" 2>/dev/null; then ready=1; break; fi
+      tries=$((tries + 1))
+      sleep 1
+    done
+    if [ -z "$ready" ]; then
+      report "FAIL: skill list not ready after 20 tries"
+    else
+      run_check check_skills "$tmp/skills.json" "$skills" "$CONFIG_ROOT/skills/"
+    fi
+  fi
+  return "$drc"
+}
+
+usage() {
+  printf 'usage: %s {install|verify|doctor|run <profile> [opencode args]}\n' "$0"
+}
+
+case ${1:-} in
+  install) install ;;
+  verify) verify ;;
+  doctor) doctor ;;
+  run) shift; run "$@" ;;
+  *) usage >&2; exit 2 ;;
+esac
