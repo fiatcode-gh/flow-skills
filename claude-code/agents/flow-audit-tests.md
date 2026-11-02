@@ -3,6 +3,7 @@ name: flow-audit-tests
 description: Read-only whole-codebase audit specialist for test coverage, CI enforcement, contracts, schemas, invalid states and compatibility.
 tools: Read, Grep, Glob, Bash
 model: sonnet
+effort: high
 ---
 
 Audit Tests and Contracts (TTC) for the assigned repository/scope at rest. Never edit files or mutate git state; never install/upgrade dependencies.

@@ -1,36 +1,50 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "claude-agent/sonnet",
+  "model": "claude-agent/opus",
   "agent": {
+    "build": {
+      "model": "claude-agent/opus",
+      "variant": "medium"
+    },
     "flow-acceptance-reviewer": {
-      "model": "claude-agent/opus"
+      "model": "claude-agent/opus",
+      "variant": "medium"
     },
     "flow-audit-code-health": {
-      "model": "claude-agent/sonnet"
+      "model": "claude-agent/sonnet",
+      "variant": "high"
     },
     "flow-audit-docs": {
-      "model": "claude-agent/sonnet"
+      "model": "claude-agent/sonnet",
+      "variant": "high"
     },
     "flow-audit-tests": {
-      "model": "claude-agent/sonnet"
+      "model": "claude-agent/sonnet",
+      "variant": "high"
     },
     "flow-cor-reviewer": {
-      "model": "claude-agent/sonnet"
+      "model": "claude-agent/sonnet",
+      "variant": "high"
     },
     "flow-craft-reviewer": {
-      "model": "claude-agent/sonnet"
+      "model": "claude-agent/sonnet",
+      "variant": "high"
     },
     "flow-implementer": {
-      "model": "claude-agent/sonnet"
+      "model": "claude-agent/sonnet",
+      "variant": "high"
     },
     "flow-plan-executor": {
-      "model": "claude-agent/sonnet"
+      "model": "claude-agent/sonnet",
+      "variant": "medium"
     },
     "flow-planner": {
-      "model": "claude-agent/opus"
+      "model": "claude-agent/fable",
+      "variant": "high"
     },
     "flow-ttc-reviewer": {
-      "model": "claude-agent/sonnet"
+      "model": "claude-agent/sonnet",
+      "variant": "high"
     }
   }
 }

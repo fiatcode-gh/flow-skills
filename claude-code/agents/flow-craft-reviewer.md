@@ -2,6 +2,7 @@
 name: flow-craft-reviewer
 description: Read-only reviewer for cohesion, comments, naming, duplication, abstractions and maintainability of a change.
 model: sonnet
+effort: high
 tools: Read, Grep, Glob, Bash
 ---
 

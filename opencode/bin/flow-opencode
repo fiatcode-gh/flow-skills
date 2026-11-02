@@ -155,7 +155,8 @@ run_check() { # checker args...
 
 # Reads the `debug agents` JSON in $1. Mode `base`: every agent is a subagent
 # and the build agent asks for pushes and PR creation. Mode `profile`: every
-# agent resolved to the profile's model and the base asks still apply.
+# agent (and build, when the profile names it) resolved to the profile's model
+# and effort, and the base asks still apply.
 check_agents() { # file mode agents profile-file label
   python3 - "$@" <<'PY'
 import json, sys
@@ -174,10 +175,13 @@ if mode == 'base':
             print(f'FAIL: agent {a} missing or not a subagent')
 else:
     want = json.load(open(pfile))['agent']
-    for a in agents.split():
+    for a in agents.split() + (['build'] if 'build' in want else []):
         got = rows.get(a, {}).get('model') or {}
-        got = f"{got.get('providerID')}/{got.get('id')}"
+        got_variant = got.get('variant')
+        got = f"{got.get('providerID')}/{got.get('id')}" + (f'#{got_variant}' if got_variant else '')
         exp = want.get(a, {}).get('model')
+        if want.get(a, {}).get('variant'):
+            exp += '#' + want[a]['variant']
         if got == exp:
             print(f'ok: {label}{a} -> {got}')
         else:
