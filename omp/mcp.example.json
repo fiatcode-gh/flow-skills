@@ -1,6 +1,6 @@
 {
 	"$schema": "https://raw.githubusercontent.com/can1357/oh-my-pi/main/packages/coding-agent/src/config/mcp-schema.json",
-	"_comment": "Copy to each profile agent directory as mcp.json and replace the placeholder API key. scripts/omp-stack intentionally never installs this file because MCP credentials and enablement are profile-owned. Keep the copies identical: agent doctrine assumes every profile sees the same MCP servers.",
+	"_comment": "Copy to each profile agent directory as mcp.json and replace the placeholder API key. omp/bin/flow-omp intentionally never installs this file because MCP credentials and enablement are profile-owned. Keep the copies identical: agent doctrine assumes every profile sees the same MCP servers.",
 	"mcpServers": {
 		"context7": {
 			"command": "npx",

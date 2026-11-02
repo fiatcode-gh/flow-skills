@@ -31,7 +31,7 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 
 ## Provider profiles
 
-`profiles/openai-codex/config.yml`, `profiles/anthropic/config.yml`, and `profiles/commandcode/config.yml` are the single source of truth for each profile's settings, not runtime overlays. `scripts/omp-stack install` symlinks each profile's `config.yml` to its template; a real file is replaced only when it is byte-identical, otherwise the installer warns, leaves it alone, and exits non-zero. Merge a divergent copy into the template, delete the copy, and rerun `install`.
+`omp/profiles/openai-codex/config.yml`, `omp/profiles/anthropic/config.yml`, and `omp/profiles/commandcode/config.yml` are the single source of truth for each profile's settings, not runtime overlays. `omp/bin/flow-omp install` symlinks each profile's `config.yml` to its template; a real file is replaced only when it is byte-identical, otherwise the installer warns, leaves it alone, and exits non-zero. Merge a divergent copy into the template, delete the copy, and rerun `install`.
 
 OMP named profiles isolate the full OMP-native user root, not merely model selection. The installer therefore links the same `AGENTS.md`, agents, rules, skills, extensions and support library into every managed profile root. MCP remains profile-owned and opt-in. Sessions, blobs, `agent.db` and provider authentication remain genuinely separate by design.
 

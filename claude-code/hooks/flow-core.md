@@ -1,4 +1,4 @@
-# Flow (omp-stack)
+# Flow (flow-skills)
 
 The user's standing instructions come from the `flow` plugin. Full text: FLOW_DOC
 

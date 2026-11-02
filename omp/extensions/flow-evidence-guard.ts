@@ -1,5 +1,5 @@
 /**
- * omp-stack — Flow evidence-capsule guard.
+ * flow-skills — Flow evidence-capsule guard.
  *
  * Invariant: every `flow-evidence-verifier` dispatch carries one complete
  * `Evidence capsule:` manifest. Stateless: it reads only the task input.

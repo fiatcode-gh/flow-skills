@@ -1,5 +1,5 @@
-# omp-stack managed baseline for: omp --profile openai-codex
-# scripts/omp-stack symlinks the profile's config.yml to this file; edit
+# flow-skills managed baseline for: omp --profile openai-codex
+# omp/bin/flow-omp symlinks the profile's config.yml to this file; edit
 # settings here and review the result with git diff like any other change.
 providers:
   webSearchOrder: []

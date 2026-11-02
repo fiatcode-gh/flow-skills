@@ -1,5 +1,5 @@
 /**
- * omp-stack — OMP AI-memory slicing for the Weft memory hub.
+ * flow-skills — OMP AI-memory slicing for the Weft memory hub.
  *
  * Reads `${WEFT_GRAPH}/pages/AI Memory.md` and returns only the page intro,
  * exact Global section, matching project section, and matching harness section.

@@ -1,16 +1,16 @@
 {
-  "name": "omp-stack",
+  "name": "flow-skills",
   "owner": {
     "name": "fiatcode"
   },
   "metadata": {
-    "description": "fiatcode's personal coding-agent stack, packaged for Claude Code."
+    "description": "fiatcode's Flow doctrine, packaged for Claude Code."
   },
   "plugins": [
     {
       "name": "flow",
       "source": "./claude-code",
-      "description": "Flow doctrine from omp-stack for Claude Code, local and on the web."
+      "description": "Flow doctrine from flow-skills for Claude Code, local and on the web."
     }
   ]
 }

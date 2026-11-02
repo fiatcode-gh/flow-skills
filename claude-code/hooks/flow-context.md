@@ -1,4 +1,4 @@
-# Flow (omp-stack, Claude Code port)
+# Flow (flow-skills, Claude Code port)
 
 These are the user's standing instructions from the `flow` plugin. Session start loads a short core that points to this file. The plugin namespaces its parts: skills are `flow:<skill>` and agents are `flow:<agent>` (for example `flow:flow-planner`). This file names them without the prefix.
 

@@ -1,6 +1,6 @@
-# Flow (omp-stack, OpenCode port)
+# Flow (flow-skills, OpenCode port)
 
-These are the user's standing instructions, installed from `ports/opencode` of omp-stack. Skills load through the `skill` tool and Flow agents run through the `subagent` tool. This file names both without any prefix.
+These are the user's standing instructions, installed from `opencode/` of flow-skills. Skills load through the `skill` tool and Flow agents run through the `subagent` tool. This file names both without any prefix.
 
 ## Engineering principles
 

@@ -28,7 +28,7 @@ A candidate must be **durable, general enough to matter again, and new**. Dedupe
 Route by retrieval trigger, not topic:
 
 - must be known before the user thinks to ask → hub (`Global`, matching Harness, or Project section);
-- standing practice for every harness → propose an omp-stack `AGENTS.md`/Flow rule change rather than duplicating memory;
+- standing practice for every harness → propose an flow-skills `AGENTS.md`/Flow rule change rather than duplicating memory;
 - project working constraint that is naturally discovered when working there → project page (`Gotchas worth remembering`);
 - long procedure/detail → graduated `AI Memory/<slug>` page + one-line hub trigger pointer.
 

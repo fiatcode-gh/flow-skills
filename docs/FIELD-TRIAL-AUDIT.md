@@ -6,10 +6,10 @@ Run the audit in a fresh top-level OMP session in this repository, not in a sess
 
 ## 1. Pick the sessions
 
-A session counts toward a skill only when it **started** after that skill's current baseline. Take the baseline from the `## Current baseline` section of `docs/FIELD-TRIALS.md`; for a skill whose doctrine changed later, use the commit that changed it (`git log -1 --format='%h %cI' -- agent/skills/<skill>`). Shared rule changes (`agent/rules/`, `agent/AGENTS.md`) move the baseline only for skills whose behavior they materially changed.
+A session counts toward a skill only when it **started** after that skill's current baseline. Take the baseline from the `## Current baseline` section of `docs/FIELD-TRIALS.md`; for a skill whose doctrine changed later, use the commit that changed it (`git log -1 --format='%h %cI' -- omp/skills/<skill>`). Shared rule changes (`omp/rules/`, `omp/AGENTS.md`) move the baseline only for skills whose behavior they materially changed.
 
 ```sh
-scripts/flow-sessions list --since <ISO timestamp>
+omp/bin/flow-sessions list --since <ISO timestamp>
 ```
 
 This lists every top-level session under `$HOME/${PI_CONFIG_DIR:-.omp}/profiles/*/agent/sessions/` with its models, the Flow skills it read, the subagents it started and its `flow_gate` actions. A line that does not decode is skipped with a note on stderr. Subagent transcripts and their final outputs (`<Name>.jsonl`, `<Name>.md`) sit in the directory named like the session file without `.jsonl`.
@@ -21,8 +21,8 @@ Skip this audit session itself and sessions that only chatted. Note sessions tha
 Group the sessions by the kind of work: PR reviews, planned contract→plan→execute work (single-unit or multi-unit), and the rest. Give each group to one auditor subagent (at most three at a time). Each auditor gets:
 
 - the session paths for its group;
-- the doctrine to read: `agent/AGENTS.md`, `agent/rules/*.md`, the `SKILL.md` of every skill it will judge, `agent/agents/*.md`, `agent/extensions/*.ts`, and `docs/FIELD-TRIALS.md`;
-- the renderer: `scripts/flow-sessions render <file.jsonl>` (lines are tagged `[#<line> HH:MM:SS]`; cite evidence as `<short-id>#<line>`);
+- the doctrine to read: `omp/AGENTS.md`, `omp/rules/*.md`, the `SKILL.md` of every skill it will judge, `omp/agents/*.md`, `omp/extensions/*.ts`, and `docs/FIELD-TRIALS.md`;
+- the renderer: `omp/bin/flow-sessions render <file.jsonl>` (lines are tagged `[#<line> HH:MM:SS]`; cite evidence as `<short-id>#<line>`);
 - the instruction to read every user message and every user-facing reply in full, read subagent `.md` receipts first, and open subagent transcripts only when a finding depends on them;
 - the instruction to stay read-only and keep scratch files under a `mktemp -d` directory set through the bash tool's `cwd`, never inside the repository.
 
@@ -67,7 +67,7 @@ Auditor reports are claims. Main opens the cited transcript lines for every tria
 
 ## 6. Check a doctrine change
 
-Do this for every change to a skill, agent, rule or `agent/AGENTS.md`, before you commit it. The principles are in `docs/PRINCIPLES.md` under "Skill design principles".
+Do this for every change to a skill, agent, rule or `omp/AGENTS.md`, before you commit it. The principles are in `docs/PRINCIPLES.md` under "Skill design principles".
 
 1. **Size.** Compare bytes before and after for each changed file. If the file grew, name the session failure the new text prevents. No failure named → remove the text.
 2. **Replace, don't stack.** For each added rule, find the old text it overlaps with. Merge them into one rule, or delete the old one.

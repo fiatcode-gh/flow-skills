@@ -11,7 +11,7 @@ better — kept separate from the human-facing journal/knowledge pages that
 Agent-facing memory lives in four homes. The home is chosen by **how the memory
 gets retrieved**, not by what it is about:
 
-- **Doctrine** (`agent/AGENTS.md` or an always-apply Flow rule in omp-stack) — standing rules
+- **Doctrine** (`omp/AGENTS.md` or an always-apply Flow rule in flow-skills) — standing rules
   the user follows on every machine. Hand-authored, loaded natively by OMP, highest instruction authority. **Not written by this
   skill:** propose the exact text and let the user apply it.
 - **The injected hub** (`${WEFT_GRAPH}/pages/AI Memory.md`) — only what the user
@@ -72,7 +72,7 @@ Each memory is one top-level bullet, one line, in the user's terse register (see
 
 ## Scope-sliced injection
 
-OMP's session-start memory injection (omp-stack's `ai-memory` extension)
+OMP's session-start memory injection (flow-skills's `ai-memory` extension)
 doesn't inject the whole hub — it slices it on **two flat, independent axes**:
 
 - always the intro + the `## Global` section;

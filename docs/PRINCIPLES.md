@@ -4,7 +4,7 @@ This file records what the `ai-stack` skill sweep kept, improved, merged or deli
 
 ## Skill design principles
 
-Apply these whenever you create or change a skill, agent, rule or `agent/AGENTS.md`. Check each one before you commit.
+Apply these whenever you create or change a skill, agent, rule or `omp/AGENTS.md`. Check each one before you commit.
 
 1. **Cheap to run.** Every line costs tokens each time the file loads. Add a line only when a real session went wrong without it. Delete or replace text before you add more.
 2. **Small.** One skill does one job. Write the steps in the order the agent does them. `tests/doctrine-budget.json` caps the size of every file that loads into a session. When a change would push a file over its cap:

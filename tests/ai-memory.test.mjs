@@ -1,4 +1,4 @@
-// Tests for omp-stack omp/lib/ai-memory.ts scope-aware slicing.
+// Tests for flow-skills omp/lib/ai-memory.ts scope-aware slicing.
 // Dependency-free: Node native TypeScript stripping loads the module directly.
 import fs from "node:fs";
 import os from "node:os";
