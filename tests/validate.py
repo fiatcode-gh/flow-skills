@@ -418,7 +418,7 @@ tracked=subprocess.run(['git','ls-files','-z'],cwd=ROOT,capture_output=True,text
 for path in tracked:
     if not path or path.startswith('tests/fixtures/'): continue
     f=ROOT/path
-    if f.suffix in {'.md','.ts','.mjs','.py','.sh','.yml','.json'} or path.startswith('omp/bin/'):
+    if f.suffix in {'.md','.ts','.mjs','.py','.sh','.yml','.json','.ps1'} or path.startswith('omp/bin/'):
         data=f.read_bytes()
         if data and not data.endswith(b'\n'): err(f'{path}: missing final newline')
 
@@ -665,9 +665,9 @@ for other,names in [('weft-memory',['conventions.md','voice.md']),('weft-mainten
 for path in ['references/planning-handoff.schema.json','scripts/validate-planning-handoff.py']:
     if (port/'skills/flow-external-session'/path).read_bytes()!=(ROOT/'omp/skills/flow-external-session'/path).read_bytes(): err(f'claude-code/skills/flow-external-session/{path}: verbatim mirror drifted')
 # Claude Code keeps only about 2 KB of SessionStart hook output in context.
-core=subprocess.run(['sh',str(port/'hooks/session-start.sh')],env={'CLAUDE_PLUGIN_ROOT':str(port),'PATH':os.environ['PATH']},capture_output=True,text=True,check=True).stdout
+core=subprocess.run(['sh',str(port/'hooks/session-start.sh')],env={'CLAUDE_PLUGIN_ROOT':port.as_posix(),'PATH':os.environ['PATH'],**{k:os.environ[k] for k in ('SYSTEMROOT','TEMP','TMP') if k in os.environ}},capture_output=True,text=True,check=True).stdout
 if len(core.encode())>1900: err(f'claude-code/hooks/session-start.sh: prints {len(core.encode())} bytes; keep it under 1900')
-if str(port/'hooks/flow-context.md') not in core: err('claude-code/hooks/session-start.sh: core must point at the full flow-context.md path')
+if (port/'hooks/flow-context.md').as_posix() not in core: err('claude-code/hooks/session-start.sh: core must point at the full flow-context.md path')
 
 # OpenCode port: opencode/, installed under ~/.config/opencode by opencode/bin/flow-opencode.
 oport=ROOT/'opencode'
@@ -829,12 +829,14 @@ if version_path.exists():
     # Each doctor runs with no omp/opencode on PATH and a scratch HOME: it prints its
     # version line, then exits (omp: no config.yml; opencode: no opencode). Output is
     # read as bytes so a stray carriage return is not translated away.
-    with tempfile.TemporaryDirectory() as scratch:
-        bindir=Path(scratch)/'bin'; bindir.mkdir()
-        for tool in ['dirname','readlink']: os.symlink(shutil.which(tool),bindir/tool)
-        for doctor_cmd in [ROOT/'omp/bin/flow-omp',ROOT/'opencode/bin/flow-opencode']:
-            first=subprocess.run(['/bin/sh',str(doctor_cmd),'doctor'],env={'HOME':scratch,'PATH':str(bindir)},capture_output=True).stdout.split(b'\n',1)[0].decode(errors='replace')
-            if first!=f'flow-skills {version}': err(f'{rel(doctor_cmd)}: doctor must print "flow-skills {version}" first, got {first!r}')
+    # The sh doctors are Linux-only; the PowerShell doctors are checked below when pwsh exists.
+    if os.name != 'nt':
+        with tempfile.TemporaryDirectory() as scratch:
+            bindir=Path(scratch)/'bin'; bindir.mkdir()
+            for tool in ['dirname','readlink']: os.symlink(shutil.which(tool),bindir/tool)
+            for doctor_cmd in [ROOT/'omp/bin/flow-omp',ROOT/'opencode/bin/flow-opencode']:
+                first=subprocess.run(['/bin/sh',str(doctor_cmd),'doctor'],env={'HOME':scratch,'PATH':str(bindir)},capture_output=True).stdout.split(b'\n',1)[0].decode(errors='replace')
+                if first!=f'flow-skills {version}': err(f'{rel(doctor_cmd)}: doctor must print "flow-skills {version}" first, got {first!r}')
 
 if errors:
     print('\n'.join('FAIL: '+e for e in errors)); sys.exit(1)
