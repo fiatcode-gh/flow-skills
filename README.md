@@ -32,6 +32,7 @@ mcp.example.json            MCP server template, copied per profile (see below)
 ports/
   open-webui/               Flow port for the Open WebUI chat (docs/EXTERNAL-INTEROP.md)
   claude-code/              Flow port as a Claude Code plugin, for local and web sessions
+  opencode/                 Flow port for OpenCode, installed under ~/.config/opencode (docs/EXTERNAL-INTEROP.md)
 .claude-plugin/
   marketplace.json          makes this repository a Claude Code plugin marketplace
 scripts/
@@ -75,6 +76,28 @@ claude plugin install flow@omp-stack
 ```
 
 A cloud session starts from a fresh container, so it needs the plugin on every start. `docs/EXTERNAL-INTEROP.md` ("Claude Code port") lists the ways to get it there and what the port leaves out.
+
+## OpenCode
+
+`ports/opencode/` holds the Flow doctrine (`AGENTS.md`), skills, agents, a base config with the bash ask-list, one model profile per provider, and the installer `bin/flow-opencode`. The installer symlinks them under `~/.config/opencode/` and writes nothing else.
+
+```sh
+./ports/opencode/bin/flow-opencode install
+opencode reload
+./ports/opencode/bin/flow-opencode verify
+./ports/opencode/bin/flow-opencode doctor
+```
+
+Launch with a model profile, or plain `opencode` for the base config:
+
+```sh
+./ports/opencode/bin/flow-opencode run claude-agent
+./ports/opencode/bin/flow-opencode run opencode
+```
+
+Plain `opencode` uses the background service with the base config only. A profile launch runs a private server (`--standalone`), because the service ignores the profile.
+
+Models live in `ports/opencode/profiles/<provider>.json`; add a provider by adding one file. OpenCode also scans the global skill folders of other agent tools; a same-named copy there is hidden by the installed one, and the installer reports it so it does not drift. See `docs/decisions/opencode-port.md` for the reasons.
 
 ## MCP servers
 

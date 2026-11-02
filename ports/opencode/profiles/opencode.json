@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/big-pickle",
+  "agent": {
+    "flow-acceptance-reviewer": {
+      "model": "opencode/big-pickle"
+    },
+    "flow-audit-code-health": {
+      "model": "opencode/big-pickle"
+    },
+    "flow-audit-docs": {
+      "model": "opencode/big-pickle"
+    },
+    "flow-audit-tests": {
+      "model": "opencode/big-pickle"
+    },
+    "flow-cor-reviewer": {
+      "model": "opencode/big-pickle"
+    },
+    "flow-craft-reviewer": {
+      "model": "opencode/big-pickle"
+    },
+    "flow-implementer": {
+      "model": "opencode/big-pickle"
+    },
+    "flow-plan-executor": {
+      "model": "opencode/big-pickle"
+    },
+    "flow-planner": {
+      "model": "opencode/big-pickle"
+    },
+    "flow-ttc-reviewer": {
+      "model": "opencode/big-pickle"
+    }
+  }
+}

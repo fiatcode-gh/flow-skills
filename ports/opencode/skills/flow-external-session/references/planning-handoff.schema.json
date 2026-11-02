@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fiatcode.dev/flow/planning-handoff-v2.schema.json",
+  "title": "Flow external planning handoff v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "flow_handoff",
+    "source",
+    "repository",
+    "observed_ref",
+    "design_status",
+    "implementation_strategy",
+    "authorization",
+    "artifacts"
+  ],
+  "properties": {
+    "flow_handoff": { "const": 2 },
+    "source": { "type": "string", "minLength": 1 },
+    "repository": { "type": "string", "minLength": 1 },
+    "observed_ref": { "type": "string", "minLength": 1 },
+    "design_status": {
+      "enum": ["settled", "partial", "unresolved", "not_applicable"]
+    },
+    "implementation_strategy": {
+      "enum": ["settled", "partial", "unresolved", "not_needed"]
+    },
+    "authorization": { "const": "not-carried" },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

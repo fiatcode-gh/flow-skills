@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "claude-agent/sonnet",
+  "agent": {
+    "flow-acceptance-reviewer": {
+      "model": "claude-agent/opus"
+    },
+    "flow-audit-code-health": {
+      "model": "claude-agent/sonnet"
+    },
+    "flow-audit-docs": {
+      "model": "claude-agent/sonnet"
+    },
+    "flow-audit-tests": {
+      "model": "claude-agent/sonnet"
+    },
+    "flow-cor-reviewer": {
+      "model": "claude-agent/sonnet"
+    },
+    "flow-craft-reviewer": {
+      "model": "claude-agent/sonnet"
+    },
+    "flow-implementer": {
+      "model": "claude-agent/sonnet"
+    },
+    "flow-plan-executor": {
+      "model": "claude-agent/sonnet"
+    },
+    "flow-planner": {
+      "model": "claude-agent/opus"
+    },
+    "flow-ttc-reviewer": {
+      "model": "claude-agent/sonnet"
+    }
+  }
+}

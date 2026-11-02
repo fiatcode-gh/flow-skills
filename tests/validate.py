@@ -626,10 +626,106 @@ core=subprocess.run(['sh',str(port/'hooks/session-start.sh')],env={'CLAUDE_PLUGI
 if len(core.encode())>1900: err(f'ports/claude-code/hooks/session-start.sh: prints {len(core.encode())} bytes; keep it under 1900')
 if str(port/'hooks/flow-context.md') not in core: err('ports/claude-code/hooks/session-start.sh: core must point at the full flow-context.md path')
 
+# OpenCode port: ports/opencode/, installed under ~/.config/opencode by ports/opencode/bin/flow-opencode.
+oport=ROOT/'ports/opencode'
+OPORT_AGENTS={'flow-acceptance-reviewer','flow-audit-code-health','flow-audit-docs','flow-audit-tests','flow-cor-reviewer','flow-craft-reviewer','flow-implementer','flow-plan-executor','flow-planner','flow-ttc-reviewer'}
+OPORT_READ_ONLY=OPORT_AGENTS-{'flow-implementer','flow-plan-executor','flow-planner'}
+OPORT_AUDIT={'flow-audit-code-health','flow-audit-docs','flow-audit-tests'}
+OPORT_MODEL_LEAK=re.compile(r'claude-agent/|opencode/[a-z0-9.-]*-free|big-pickle|nemotron|flint-40b')
+OPORT_SKILLS={p.parent.name for p in skills}-{'blog-post'}  # `expected` and `names` are rebound by earlier blocks
+oport_skills=list((oport/'skills').glob('*/SKILL.md'))
+oport_agents=list((oport/'agents').glob('*.md'))
+oport_docs=oport_skills+oport_agents+list((oport/'skills').glob('*/references/*.md'))+[oport/'AGENTS.md']
+if {p.parent.name for p in oport_skills}!=OPORT_SKILLS: err(f'ports/opencode/skills: skill set mismatch: {sorted({p.parent.name for p in oport_skills}^OPORT_SKILLS)}')
+if {p.stem for p in oport_agents}!=OPORT_AGENTS: err(f'ports/opencode/agents: agent set mismatch: {sorted({p.stem for p in oport_agents}^OPORT_AGENTS)}')
+for p in oport_skills:
+    fm,_=frontmatter(p)
+    if not fm or fm.get('name')!=p.parent.name or not fm.get('description'): err(f'{rel(p)}: frontmatter needs name {p.parent.name} and a description')
+for path in ['skills/flow-tdd/SKILL.md','skills/ui-design/SKILL.md','skills/weft-worklog/references/voice.md','skills/weft-worklog/references/page-archetypes.md','skills/flow-external-session/references/planning-handoff.schema.json','skills/flow-external-session/references/external-worktree.md','skills/flow-external-session/scripts/validate-planning-handoff.py','skills/flow-review/references/author-operations.md']:
+    if not (oport/path).exists() or (oport/path).read_bytes()!=(ROOT/'agent'/path).read_bytes(): err(f'ports/opencode/{path}: verbatim mirror missing or drifted from agent/{path}')
+for skill,names_ in [('weft-memory',['conventions.md','voice.md']),('weft-maintenance',['conventions.md','voice.md','page-archetypes.md'])]:
+    for name_ in names_:
+        src=oport/'skills/weft-worklog/references'/name_
+        dst=oport/'skills'/skill/'references'/name_
+        if not dst.exists() or not src.exists() or dst.read_bytes()!=src.read_bytes(): err(f'ports/opencode/skills/{skill}/references/{name_}: must be byte-equal to weft-worklog/references/{name_}')
+oport_agents_md=oport/'AGENTS.md'
+if not oport_agents_md.exists(): err('ports/opencode/AGENTS.md: missing')
+else:
+    oport_ctx=oport_agents_md.read_text()
+    for marker in ['# Flow (omp-stack, OpenCode port)','## Approval record','flow_approve() {','flow_check() {','.flow/runtime/approvals.log','`subagent`','`skill`','`general`','`explore`','`flow-plan-executor`','`flow-implementer`','`flow-acceptance-reviewer`','## Harness: [[OpenCode]]','<!-- flow-exclude-guard -->',"printf '/.flow/\\n'",'## Safety','## Evidence','## Flow artifacts','`execute`']:
+        if marker not in oport_ctx: err(f'ports/opencode/AGENTS.md missing marker: {marker!r}')
+    def approval_functions(text):
+        start=text.find('flow_approve() {'); end=text.find('\n}\n',text.find('flow_check() {'))
+        return text[start:end+3] if start>=0 and end>=0 else None
+    if approval_functions(oport_ctx)!=approval_functions((ROOT/'ports/claude-code/hooks/flow-context.md').read_text()) or approval_functions(oport_ctx) is None:
+        err('ports/opencode/AGENTS.md: flow_approve/flow_check bodies must equal ports/claude-code/hooks/flow-context.md')
+for p in oport_agents:
+    fm,_=frontmatter(p)
+    if not fm or fm.get('name')!=p.stem or not fm.get('description'): err(f'{rel(p)}: frontmatter needs name {p.stem} and a description')
+    if fm.get('mode')!='subagent': err(f'{rel(p)}: mode must be subagent')
+    if not set(fm)<={'name','description','mode','permission'}: err(f'{rel(p)}: unexpected frontmatter keys {sorted(set(fm)-{"name","description","mode","permission"})}')
+    permission=fm.get('permission')
+    if p.stem=='flow-plan-executor' and permission!={'task':'deny'}: err(f'{rel(p)}: permission must be exactly task: deny')
+    if p.stem in OPORT_AUDIT and permission!={'edit':'deny','task':{'*':'deny','explore':'allow'}}: err(f'{rel(p)}: audit agent permission must be exactly edit: deny and task: {{"*": deny, explore: allow}}')
+    elif p.stem in OPORT_READ_ONLY and p.stem not in OPORT_AUDIT and permission!={'edit':'deny','task':'deny'}: err(f'{rel(p)}: read-only agent permission must be exactly edit: deny and task: deny')
+    if p.stem in {'flow-planner','flow-implementer'} and 'permission' in fm: err(f'{rel(p)}: must not carry a permission block')
+for p in oport_docs:
+    if not p.exists(): continue
+    text=p.read_text()
+    for omp_only in ['flow_gate','skill://','`hub`','hub wait','@task','@execute','@slow','@smol','@plan','@vision','@review_aux','`sonic`','`scout`','ast_grep','gates.json','flow-evidence-verifier','.flow/evidence/','`todo`']:
+        if omp_only in text: err(f'{rel(p)}: OMP-only mechanic in the OpenCode port: {omp_only}')
+    if re.search(r'(?<![\w-])flow:(?=\w)',text): err(f'{rel(p)}: Claude Code flow: prefix in the OpenCode port')
+    for claude_only in ['CLAUDE_PLUGIN_ROOT','SendMessage','general-purpose','isolation: "worktree"','TaskCreate','TodoWrite','mcp__github__','`Explore`','CLAUDE.md','model: opus','model: sonnet','model: haiku','model: inherit','weft_publish','WEFT_GRAPH_REPO']:
+        if claude_only in text: err(f'{rel(p)}: Claude Code-only mechanic in the OpenCode port: {claude_only}')
+    if MODEL_LEAK.search(text) or OPORT_MODEL_LEAK.search(text): err(f'{rel(p)}: concrete model/provider identifier leaked into the OpenCode port')
+OPORT_FOREIGN_PATHS=['.claude','~/.omp','.omp/','ports/claude-code','ports/open-webui','.claude-plugin']
+oport_cfgs=[oport/'opencode.json']+sorted((oport/'profiles').glob('*.json'))
+for p in oport_docs+oport_cfgs:
+    if not p.exists(): continue
+    text=p.read_text()
+    for foreign in OPORT_FOREIGN_PATHS:
+        if foreign in text: err(f'{rel(p)}: other-harness path in the OpenCode port: {foreign}')
+required_asks=[m for m,a in pattern_lists['anthropic'] if a=='prompt']
+if not (oport/'opencode.json').exists(): err('ports/opencode/opencode.json: missing')
+else:
+    try: base=json.loads((oport/'opencode.json').read_text())
+    except ValueError as e: base=None; err(f'ports/opencode/opencode.json: invalid JSON: {e}')
+    if base is not None:
+        if not isinstance(base,dict) or set(base)!={'$schema','permission'}: err('ports/opencode/opencode.json: top-level keys must be exactly $schema and permission')
+        else:
+            perm=base['permission']
+            if not isinstance(perm,dict) or set(perm)!={'bash'} or not isinstance(perm['bash'],dict): err('ports/opencode/opencode.json: permission must be exactly a bash map')
+            else:
+                if set(perm['bash'])!=set(required_asks): err(f'ports/opencode/opencode.json: permission.bash must list exactly the profile prompt patterns; difference {sorted(set(perm["bash"])^set(required_asks))}')
+                for match,action in perm['bash'].items():
+                    if action!='ask': err(f'ports/opencode/opencode.json: permission.bash {match!r} must be ask, not {action!r}')
+oport_profiles=sorted((oport/'profiles').glob('*.json'))
+if {p.stem for p in oport_profiles}!={'claude-agent','opencode'}: err(f'ports/opencode/profiles: profile set mismatch: {sorted(p.stem for p in oport_profiles)}')
+for p in oport_profiles:
+    try: prof=json.loads(p.read_text())
+    except ValueError as e: err(f'{rel(p)}: invalid JSON: {e}'); continue
+    if not isinstance(prof,dict) or set(prof)!={'$schema','model','agent'}: err(f'{rel(p)}: top-level keys must be exactly $schema, model and agent'); continue
+    if not isinstance(prof['model'],str) or not prof['model'].startswith(f'{p.stem}/'): err(f'{rel(p)}: model must be a string starting with {p.stem}/')
+    mapping=prof['agent']
+    if not isinstance(mapping,dict) or set(mapping)!=OPORT_AGENTS: err(f'{rel(p)}: agent map must name exactly the ten Flow agents'); continue
+    for name,entry in mapping.items():
+        if not (isinstance(entry,dict) and set(entry)=={'model'} and isinstance(entry['model'],str) and entry['model'].startswith(f'{p.stem}/')):
+            err(f'{rel(p)}: agent {name} must be exactly {{"model": "{p.stem}/..."}}')
+
+# Rule 11: the OpenCode port is documented where readers look.
+_readme=(ROOT/'README.md').read_text()
+for marker in ['ports/opencode/','flow-opencode']:
+    if marker not in _readme: err(f'README.md: missing OpenCode port marker: {marker}')
+_interop=(ROOT/'docs/EXTERNAL-INTEROP.md').read_text().lower()
+for marker in ['## opencode port','ports/opencode/','`subagent`','`skill`']:
+    if marker not in _interop: err(f'docs/EXTERNAL-INTEROP.md: missing OpenCode port marker: {marker}')
+if not (ROOT/'docs/decisions/opencode-port.md').exists(): err('docs/decisions/opencode-port.md: missing')
+
 # Every file that loads into a session (skills, their references, agents, rules, AGENTS.md)
 # has a byte cap; growth needs a deliberate cap change.
 budget=json.loads((ROOT/'tests/doctrine-budget.json').read_text())
 loaded={rel(p) for p in skills+agents+rules+list((ROOT/'agent/skills').glob('*/references/*.md'))+port_docs}|{'agent/AGENTS.md'}
+loaded|={rel(p) for p in oport_docs}
 for path in sorted(loaded-budget.keys()):
     err(f'tests/doctrine-budget.json: no size cap for {path}')
 for path in sorted(budget.keys()-loaded):

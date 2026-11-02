@@ -19,6 +19,8 @@ else
 fi
 node --no-warnings tests/bash-patterns.test.mjs
 sh -n scripts/omp-stack
+sh -n ports/opencode/bin/flow-opencode
 ./tests/install.test.sh
+./tests/opencode-install.test.sh
 ./tests/flow-exclude.test.sh
 printf '%s\n' 'ok: shell syntax'

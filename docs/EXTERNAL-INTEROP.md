@@ -64,6 +64,38 @@ A cloud session starts from a fresh container, so the cloud environment installs
 
 Keep `WEFT_GRAPH` on its own clone. A session that has `fiat-codex` attached checks it out on the session's own branch; `weft_publish` pushes to the default branch either way.
 
+## OpenCode port
+
+`ports/opencode/` is installed under `~/.config/opencode/` by `ports/opencode/bin/flow-opencode`. Like Claude Code, OpenCode is a local harness with a shell, a checkout and subagents, so the port carries execution as well as design, planning and review. Every file is translated from the OMP source, not from the Claude Code port.
+
+| Port path | Mirrors |
+|---|---|
+| `AGENTS.md` | `agent/AGENTS.md` sections, the three rules (`flow-safety`, `flow-evidence`, `flow-artifacts`) and the approval record; loaded in full |
+| `skills/flow-tdd`, `skills/ui-design` | verbatim; `tests/validate.py` fails on drift |
+| the other `skills/` | the OMP skills with OMP mechanics reworded |
+| `agents/` | the OMP agents except `flow-evidence-verifier`, plus `flow-cor-reviewer` |
+| `opencode.json` | `bash.patterns` of `profiles/*/config.yml`, as `permission.bash` asks |
+| `profiles/` | `modelRoles`, as `model` and `agent.<name>.model` |
+| `bin/flow-opencode` | `scripts/omp-stack` |
+
+Mechanics map:
+
+| OMP | OpenCode port |
+|---|---|
+| `flow_gate` and the two guard extensions | `flow_approve` / `flow_check` in `AGENTS.md`, logging to `.flow/runtime/approvals.log`; Main checks before dispatch |
+| roles `@plan`, `@slow`, `@execute`, `@task`, `@review_aux` | the profile file maps each agent name to a model |
+| `sonic` (`@smol`), `scout` | the built-in `general` and `explore` subagents |
+| spawning through the OMP task tool | the `subagent` tool |
+| `hub` clarification and `hub wait` | the subagent returns BLOCKED; Main continues it with its `sessionID`; background subagents notify on completion |
+| OMP `todo` | no task-list tool; the stage list stays in the forward pointer |
+| OMP isolation | not used; writers on the same files run one at a time |
+| `skill://<name>` reads | the `skill` tool |
+| `flow-evidence-verifier` | not ported; the checkpoint step keeps Main's own observation or the user's own look |
+| `ai-memory` hub injection | `weft-memory` recall, with `## Harness: [[OpenCode]]` |
+| `bash.patterns` prompts | `permission.bash` asks in `opencode.json` |
+
+Not ported: `blog-post`, `flow-evidence-verifier`, OMP isolation and OMP todo. OpenCode also scans `~/.claude/skills` and `~/.agents/skills`; the installer reports a same-named skill there.
+
 ## Handoff rule
 
 The external chat emits a versioned (schema v2) static `FLOW-HANDOFF.json` + `HANDOFF.md` bundle using the schema in `agent/skills/flow-external-session/references/planning-handoff.md`. When the user explicitly intends to continue in local OMP, that machine-readable bundle is mandatory; a standalone Markdown plan/design is only legacy evidence, not a complete protocol handoff. OMP validates and reconciles the bundle before use. The bundle may carry decisions and implementation strategy, but **never authorization**. Do not use embedded copy/paste kickoff prompts as a second orchestration protocol; the receiving OMP stack owns current mechanics.
@@ -92,3 +124,4 @@ A changed commit SHA triggers targeted revalidation, not automatic rejection or 
 - When the exclude command in `flow-handoff.md` changes, prove it again with fish in a temporary git repository: fresh clone, missing trailing newline, linked worktree, outside a repository.
 - OMP-only execution mechanics do not require a mirror in `ports/open-webui/`. In `ports/claude-code/`, port them by the mechanics map above.
 - When an `agent/` skill, agent, rule or `AGENTS.md` section listed in the Claude Code port table changes, update its port file in the same change cycle.
+- When an `agent/` skill, agent, rule or `AGENTS.md` section changes, update its `ports/opencode/` file in the same change cycle; the validator pins the verbatim ones.
