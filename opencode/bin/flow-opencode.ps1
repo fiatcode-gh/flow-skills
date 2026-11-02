@@ -120,10 +120,12 @@ function Test-SymlinkPermission {
     try {
         [void][IO.File]::CreateSymbolicLink($probe, $PSCommandPath)
     } catch {
-        if ($_.Exception.HResult -eq -2147024574 -or $_.Exception -is [UnauthorizedAccessException]) {
+        # PowerShell wraps .NET method errors; the Win32 error code is on the inner exception.
+        $err = $_.Exception.GetBaseException()
+        if ($err.HResult -eq -2147024574 -or $err -is [UnauthorizedAccessException]) {
             Fail 'cannot create symlinks: enable Windows Developer Mode (Settings > System > For developers) or run this from an elevated PowerShell; nothing was changed'
         }
-        Fail "symlink probe failed: $($_.Exception.Message)"
+        Fail "symlink probe failed: $($err.Message)"
     } finally {
         if (Get-LinkType $probe) { [IO.File]::Delete($probe) }
     }
