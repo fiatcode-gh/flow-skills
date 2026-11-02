@@ -1,5 +1,5 @@
 from pathlib import Path
-import json, os, re, subprocess, sys, yaml
+import json, os, re, shutil, subprocess, sys, tempfile, yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 errors=[]
@@ -734,6 +734,29 @@ for path in sorted(loaded&budget.keys()):
     size=(ROOT/path).stat().st_size
     if size>budget[path]:
         err(f'{path}: {size} bytes, cap {budget[path]}; shrink it, or raise the cap in tests/doctrine-budget.json only with user agreement')
+
+# One SemVer version for the repository. VERSION is the source; the plugin.json
+# version and the Open WebUI first line are hand-kept copies checked against it,
+# and both doctor commands read it.
+version_path=ROOT/'VERSION'
+version_raw=version_path.read_bytes() if version_path.exists() else b''
+version=version_raw.decode(errors='replace').strip()
+if not version_path.exists(): err('VERSION: missing')
+elif not re.fullmatch(rb'(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\n',version_raw): err(f'VERSION: must be MAJOR.MINOR.PATCH and a newline, got {version_raw!r}')
+elif plugin.get('version')!=version: err(f'claude-code/.claude-plugin/plugin.json: version {plugin.get("version")!r} differs from VERSION {version!r}')
+if any('version' in p for p in market['plugins']) or 'version' in market: err('.claude-plugin/marketplace.json: must not set a version; plugin.json owns it')
+if version_path.exists():
+    webui_first=(ROOT/'open-webui/system-prompt.md').read_text().split('\n',1)[0]
+    if webui_first!=f'Flow {version}': err(f'open-webui/system-prompt.md: first line must be "Flow {version}", got {webui_first!r}')
+    # Each doctor runs with no omp/opencode on PATH and a scratch HOME: it prints its
+    # version line, then exits (omp: no config.yml; opencode: no opencode). Output is
+    # read as bytes so a stray carriage return is not translated away.
+    with tempfile.TemporaryDirectory() as scratch:
+        bindir=Path(scratch)/'bin'; bindir.mkdir()
+        for tool in ['dirname','readlink']: os.symlink(shutil.which(tool),bindir/tool)
+        for doctor_cmd in [ROOT/'omp/bin/flow-omp',ROOT/'opencode/bin/flow-opencode']:
+            first=subprocess.run(['/bin/sh',str(doctor_cmd),'doctor'],env={'HOME':scratch,'PATH':str(bindir)},capture_output=True).stdout.split(b'\n',1)[0].decode(errors='replace')
+            if first!=f'flow-skills {version}': err(f'{rel(doctor_cmd)}: doctor must print "flow-skills {version}" first, got {first!r}')
 
 if errors:
     print('\n'.join('FAIL: '+e for e in errors)); sys.exit(1)

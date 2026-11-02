@@ -41,6 +41,10 @@ done
 
 HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" verify >/dev/null
 
+# doctor names the repository version on its first line.
+out=$(HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" doctor 2>&1) || true
+test "$(printf '%s\n' "$out" | sed -n 1p)" = "flow-skills $(cat "$ROOT/VERSION")" || { echo "FAIL: omp doctor first line is not the version: $out" >&2; exit 1; }
+
 # Respect PI_CONFIG_DIR in fallback mode; named profiles intentionally do not use
 # PI_CODING_AGENT_DIR.
 TMP_CFG=$(mktemp -d)

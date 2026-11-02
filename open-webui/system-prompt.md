@@ -1,3 +1,5 @@
+Flow 1.0.0
+
 # Chat rules
 
 These rules apply to every chat. For design, planning or pull request review, use the Flow skills listed under Skills.

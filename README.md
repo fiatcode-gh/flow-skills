@@ -59,6 +59,7 @@ opencode/                     OpenCode port: AGENTS.md, skills, agents, base con
                               profiles/<provider>.json, bin/flow-opencode
 open-webui/                   system prompt and design/planning/review/handoff prompts
 .claude-plugin/marketplace.json   makes this repository a Claude Code marketplace
+VERSION  CHANGELOG.md         the repository's one SemVer version and its release notes
 docs/                         architecture, principles, interop, model routing, field trials
 docs/decisions/               decision records
 tests/                        validation suite; entry point tests/run.sh
@@ -135,6 +136,16 @@ OMP profiles map Flow roles (`default`, `smol`, `execute`, `task`, `plan`, `slow
 - **commandcode:** GLM-5.3 Flash for Main, DeepSeek V4.1 Flash for leaves and execution, GLM-5.3 for planning, Kimi K3 for acceptance.
 
 The Claude Code port sets models in agent frontmatter (`opus`, `sonnet`, and `claude-fable-5-1` for the planner); OpenCode uses its profile files. Reasons and effort levels: `docs/MODEL-ROUTING.md`. Assumptions about OMP itself: `docs/OMP-COMPATIBILITY.md`.
+
+## Versioning
+
+The whole repository has one SemVer version, `MAJOR.MINOR.PATCH`, set in `VERSION`. Three places show it and must match: the Claude Code plugin (`claude-code/.claude-plugin/plugin.json`), the first line of `open-webui/system-prompt.md` (`Flow <version>`), and the first line of both `doctor` commands (`flow-skills <version>`, read from `VERSION`). `tests/validate.py` fails when any of them differ. The marketplace entry sets no version.
+
+- **Major:** you must act (reinstall, relink or re-import) or the approval gates changed.
+- **Minor:** a new or changed rule, skill or agent behavior.
+- **Patch:** wording, docs or tests with no behavior change.
+
+To release: bump `VERSION`, update `plugin.json` and the Open WebUI line to match, add the entry to `CHANGELOG.md`, commit, push `main`, tag `vX.Y.Z`, push the tag and publish the GitHub release with the changelog entry as its notes. The Claude Code plugin only updates when its `version` changes, so a release is what delivers a change to it.
 
 ## Maintaining
 
