@@ -799,6 +799,17 @@ for marker in ['## opencode port','`opencode/`','`subagent`','`skill`']:
     if marker not in _interop: err(f'docs/EXTERNAL-INTEROP.md: missing OpenCode port marker: {marker}')
 if not (ROOT/'docs/decisions/opencode-port.md').exists(): err('docs/decisions/opencode-port.md: missing')
 
+# Windows support is documented where readers look.
+for marker in ['docs/WINDOWS.md','flow-opencode.ps1']:
+    if marker not in _readme: err(f'README.md: missing Windows marker: {marker}')
+_windows=ROOT/'docs/WINDOWS.md'
+if not _windows.exists(): err('docs/WINDOWS.md: missing')
+else:
+    _wtext=_windows.read_text()
+    for marker in ['Developer Mode','Git Bash','OPENCODE_CONFIG_CONTENT','not yet field-tested']:
+        if marker not in _wtext: err(f'docs/WINDOWS.md: missing marker: {marker}')
+if not (ROOT/'docs/decisions/windows-support.md').exists(): err('docs/decisions/windows-support.md: missing')
+
 # Every file that loads into a session (skills, their references, agents, rules, AGENTS.md)
 # has a byte cap; growth needs a deliberate cap change.
 budget=json.loads((ROOT/'tests/doctrine-budget.json').read_text())
@@ -836,6 +847,13 @@ if version_path.exists():
             for tool in ['dirname','readlink']: os.symlink(shutil.which(tool),bindir/tool)
             for doctor_cmd in [ROOT/'omp/bin/flow-omp',ROOT/'opencode/bin/flow-opencode']:
                 first=subprocess.run(['/bin/sh',str(doctor_cmd),'doctor'],env={'HOME':scratch,'PATH':str(bindir)},capture_output=True).stdout.split(b'\n',1)[0].decode(errors='replace')
+                if first!=f'flow-skills {version}': err(f'{rel(doctor_cmd)}: doctor must print "flow-skills {version}" first, got {first!r}')
+    # The PowerShell doctors print the same first line; checked wherever pwsh exists.
+    if shutil.which('pwsh'):
+        with tempfile.TemporaryDirectory() as scratch:
+            env={**os.environ,'HOME':scratch,'USERPROFILE':scratch}
+            for doctor_cmd in [ROOT/'omp/bin/flow-omp.ps1',ROOT/'opencode/bin/flow-opencode.ps1']:
+                first=subprocess.run(['pwsh','-NoProfile','-ExecutionPolicy','Bypass','-File',str(doctor_cmd),'doctor'],env=env,capture_output=True).stdout.split(b'\n',1)[0].decode(errors='replace')
                 if first!=f'flow-skills {version}': err(f'{rel(doctor_cmd)}: doctor must print "flow-skills {version}" first, got {first!r}')
 
 if errors:
