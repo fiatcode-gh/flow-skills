@@ -12,7 +12,7 @@ OMP additionally owns local execution/TDD/debugging/integration, task agents, Hu
 
 ## Open WebUI port
 
-The port's sources live in `ports/open-webui/`. Import each skill file through Workspace > Skills > Import; its frontmatter fills the name and description. Paste `system-prompt.md` as the Open WebUI model's whole system prompt.
+The port's sources live in `open-webui/`. Import each skill file through Workspace > Skills > Import; its frontmatter fills the name and description. Paste `system-prompt.md` as the Open WebUI model's whole system prompt.
 
 The chat reads through GitHub's read-only MCP server and writes nothing: no files, no GitHub writes, no approvals.
 
@@ -28,7 +28,7 @@ The chat reads through GitHub's read-only MCP server and writes nothing: no file
 
 ## Claude Code port
 
-`ports/claude-code/` is a Claude Code plugin named `flow`; `.claude-plugin/marketplace.json` lists it. Unlike the Open WebUI chat, Claude Code has a shell, a checkout and subagents, so the port carries execution as well as design, planning and review.
+`claude-code/` is a Claude Code plugin named `flow`; `.claude-plugin/marketplace.json` lists it. Unlike the Open WebUI chat, Claude Code has a shell, a checkout and subagents, so the port carries execution as well as design, planning and review.
 
 | Port path | Mirrors |
 |---|---|
@@ -59,24 +59,24 @@ Not ported: `blog-post` needs a local site checkout; `flow-evidence-verifier` an
 
 A cloud session starts from a fresh container, so the cloud environment installs the plugin on every start. In the environment's settings:
 
-- Setup script: `claude plugin marketplace add fiatcode-gh/omp-stack && claude plugin install flow@omp-stack || echo "flow plugin install failed"`. This repository is public, so the setup script can fetch it without the repository being attached to the session.
+- Setup script: `claude plugin marketplace add fiatcode-gh/flow-skills && claude plugin install flow@flow-skills || echo "flow plugin install failed"`. This repository is public, so the setup script can fetch it without the repository being attached to the session.
 - Environment variables: `WEFT_GRAPH=/home/user/weft` and `WEFT_GRAPH_REPO=fiatcode-gh/fiat-codex`.
 
 Keep `WEFT_GRAPH` on its own clone. A session that has `fiat-codex` attached checks it out on the session's own branch; `weft_publish` pushes to the default branch either way.
 
 ## OpenCode port
 
-`ports/opencode/` is installed under `~/.config/opencode/` by `ports/opencode/bin/flow-opencode`. Like Claude Code, OpenCode is a local harness with a shell, a checkout and subagents, so the port carries execution as well as design, planning and review. Every file is translated from the OMP source, not from the Claude Code port.
+`opencode/` is installed under `~/.config/opencode/` by `opencode/bin/flow-opencode`. Like Claude Code, OpenCode is a local harness with a shell, a checkout and subagents, so the port carries execution as well as design, planning and review. Every file is translated from the OMP source, not from the Claude Code port.
 
 | Port path | Mirrors |
 |---|---|
-| `AGENTS.md` | `agent/AGENTS.md` sections, the three rules (`flow-safety`, `flow-evidence`, `flow-artifacts`) and the approval record; loaded in full |
+| `AGENTS.md` | `omp/AGENTS.md` sections, the three rules (`flow-safety`, `flow-evidence`, `flow-artifacts`) and the approval record; loaded in full |
 | `skills/flow-tdd`, `skills/ui-design` | verbatim; `tests/validate.py` fails on drift |
 | the other `skills/` | the OMP skills with OMP mechanics reworded |
 | `agents/` | the OMP agents except `flow-evidence-verifier`, plus `flow-cor-reviewer` |
-| `opencode.json` | `bash.patterns` of `profiles/*/config.yml`, as `permission.bash` asks |
+| `opencode.json` | `bash.patterns` of `omp/profiles/*/config.yml`, as `permission.bash` asks |
 | `profiles/` | `modelRoles`, as `model` and `agent.<name>.model` |
-| `bin/flow-opencode` | `scripts/omp-stack` |
+| `bin/flow-opencode` | `omp/bin/flow-omp` |
 
 Mechanics map:
 
@@ -98,7 +98,7 @@ Not ported: `blog-post`, `flow-evidence-verifier`, OMP isolation and OMP todo. O
 
 ## Handoff rule
 
-The external chat emits a versioned (schema v2) static `FLOW-HANDOFF.json` + `HANDOFF.md` bundle using the schema in `agent/skills/flow-external-session/references/planning-handoff.md`. When the user explicitly intends to continue in local OMP, that machine-readable bundle is mandatory; a standalone Markdown plan/design is only legacy evidence, not a complete protocol handoff. OMP validates and reconciles the bundle before use. The bundle may carry decisions and implementation strategy, but **never authorization**. Do not use embedded copy/paste kickoff prompts as a second orchestration protocol; the receiving OMP stack owns current mechanics.
+The external chat emits a versioned (schema v2) static `FLOW-HANDOFF.json` + `HANDOFF.md` bundle using the schema in `omp/skills/flow-external-session/references/planning-handoff.md`. When the user explicitly intends to continue in local OMP, that machine-readable bundle is mandatory; a standalone Markdown plan/design is only legacy evidence, not a complete protocol handoff. OMP validates and reconciles the bundle before use. The bundle may carry decisions and implementation strategy, but **never authorization**. Do not use embedded copy/paste kickoff prompts as a second orchestration protocol; the receiving OMP stack owns current mechanics.
 
 The user saves the bundle at `.flow/handoffs/<slug>/` in the repository checkout (`flow-artifacts`). Local OMP keeps that `<slug>` as the Flow scope, so integration removes the bundle.
 
@@ -119,9 +119,9 @@ A changed commit SHA triggers targeted revalidation, not automatic rejection or 
 
 ## Synchronization discipline
 
-- When shared doctrine changes in OMP (`flow-design`, `flow-planning`, review lens semantics, PR reviewer mode, decision-record handling, the handoff schema, or the rules `system-prompt.md` mirrors), update `ports/open-webui/` in the same change cycle.
+- When shared doctrine changes in OMP (`flow-design`, `flow-planning`, review lens semantics, PR reviewer mode, decision-record handling, the handoff schema, or the rules `system-prompt.md` mirrors), update `open-webui/` in the same change cycle.
 - The table above names what each port file mirrors.
 - When the exclude command in `flow-handoff.md` changes, prove it again with fish in a temporary git repository: fresh clone, missing trailing newline, linked worktree, outside a repository.
-- OMP-only execution mechanics do not require a mirror in `ports/open-webui/`. In `ports/claude-code/`, port them by the mechanics map above.
-- When an `agent/` skill, agent, rule or `AGENTS.md` section listed in the Claude Code port table changes, update its port file in the same change cycle.
-- When an `agent/` skill, agent, rule or `AGENTS.md` section changes, update its `ports/opencode/` file in the same change cycle; the validator pins the verbatim ones.
+- OMP-only execution mechanics do not require a mirror in `open-webui/`. In `claude-code/`, port them by the mechanics map above.
+- When an `omp/` skill, agent, rule or `AGENTS.md` section listed in the Claude Code port table changes, update its port file in the same change cycle.
+- When an `omp/` skill, agent, rule or `AGENTS.md` section changes, update its `opencode/` file in the same change cycle; the validator pins the verbatim ones.

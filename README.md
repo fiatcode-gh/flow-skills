@@ -1,21 +1,21 @@
-# omp-stack
+# flow-skills
 
-Personal, OMP-native coding-agent stack for fiatcode.
+Flow, fiatcode's engineering doctrine for coding agents, with one directory per harness: OMP (the canonical doctrine), Claude Code, OpenCode and Open WebUI.
 
 This repository intentionally does **not** emulate the old cross-harness `ai-stack` layout. OMP owns execution mechanics — Plan mode, task agents, isolation, Agent Hub, built-in review/security — while Flow owns engineering judgment, safety, review lenses, TDD, debugging, durable epic state, and external-effect gates.
 
 ## Dependencies
 
 - `omp` — the harness itself.
-- [`codebase-memory-mcp`](https://github.com/DeusData/codebase-memory-mcp) — the codebase graph that `agent/AGENTS.md` routes structural lookups to. Without it, `Codebase graph lookup` has nothing to query and agents fall back to `grep`/`glob`.
-- `@upstash/context7-mcp` via `npx` — library documentation lookup, also named in `agent/AGENTS.md`.
+- [`codebase-memory-mcp`](https://github.com/DeusData/codebase-memory-mcp) — the codebase graph that `omp/AGENTS.md` routes structural lookups to. Without it, `Codebase graph lookup` has nothing to query and agents fall back to `grep`/`glob`.
+- `@upstash/context7-mcp` via `npx` — library documentation lookup, also named in `omp/AGENTS.md`.
 
 Both MCP servers are configured per profile; see [MCP servers](#mcp-servers).
 
 ## Layout
 
 ```text
-agent/
+omp/                        OMP: the canonical doctrine and its setup
   AGENTS.md                 durable user context
   TITLE_SYSTEM.md           session-title prompt (verb-first kebab-case, 4-5 words)
   rules/                    always-apply Flow invariants
@@ -24,20 +24,15 @@ agent/
   extensions/               auto-discovered OMP extensions
   lib/                      extension support code
   keybindings.yml           shared chord remaps (zellij-safe)
-profiles/
-  openai-codex/config.yml   first-install baseline for `omp --profile openai-codex`
-  anthropic/config.yml      first-install baseline for `omp --profile anthropic`
-  commandcode/config.yml    first-install baseline for `omp --profile commandcode`
-mcp.example.json            MCP server template, copied per profile (see below)
-ports/
-  open-webui/               Flow port for the Open WebUI chat (docs/EXTERNAL-INTEROP.md)
-  claude-code/              Flow port as a Claude Code plugin, for local and web sessions
-  opencode/                 Flow port for OpenCode, installed under ~/.config/opencode (docs/EXTERNAL-INTEROP.md)
+  profiles/<name>/config.yml  first-install baseline for `omp --profile <name>` (openai-codex, anthropic, commandcode)
+  mcp.example.json          MCP server template, copied per profile (see below)
+  bin/flow-omp              install / verify / doctor
+  bin/flow-sessions         list and render OMP sessions for field-trial audits
+claude-code/                Flow port as a Claude Code plugin, for local and web sessions
+opencode/                   Flow port for OpenCode, installed under ~/.config/opencode by bin/flow-opencode (docs/EXTERNAL-INTEROP.md)
+open-webui/                 Flow port for the Open WebUI chat (docs/EXTERNAL-INTEROP.md)
 .claude-plugin/
   marketplace.json          makes this repository a Claude Code plugin marketplace
-scripts/
-  omp-stack                 install / verify / doctor
-  flow-sessions             list and render OMP sessions for field-trial audits
 tests/                      validation suite; entry point tests/run.sh
 docs/
   decisions/                committed decision records
@@ -47,13 +42,13 @@ docs/
 
 ## Install
 
-The installer provisions three native OMP profiles: `openai-codex`, `anthropic`, and `commandcode`. It links `agent/keybindings.yml` into the shared agent directory once — named profiles inherit it and can still override single actions — symlinks the shared Flow surfaces and that profile's `config.yml` into each profile, refuses to clobber real managed-surface files/directories or symlinks that point outside this repository (it names the link and its target), relinks symlinks that point into it, or into the checkout's previous name `omp-stack` (dangling after the folder rename or not), and never writes `mcp.json`.
+The installer provisions three native OMP profiles: `openai-codex`, `anthropic`, and `commandcode`. It links `omp/keybindings.yml` into the shared agent directory once — named profiles inherit it and can still override single actions — symlinks the shared Flow surfaces and that profile's `config.yml` into each profile, refuses to clobber real managed-surface files/directories or symlinks that point outside this repository (it names the link and its target), relinks symlinks that point into it, or into the checkout's previous name `omp-stack` (dangling after the folder rename or not), and never writes `mcp.json`.
 
-`profiles/<name>/config.yml` is the single source of truth: each profile's `config.yml` is a symlink back to it, so a settings change belongs in this repository. An existing real file is replaced by the symlink only when it is already byte-identical to the template; otherwise the installer warns, leaves it alone, and exits non-zero so the divergence is visible. Merge it by hand, then rerun `install`. Editing settings through OMP's own settings UI rewrites the target file in this repository — review it with `git diff` like any other change.
+`omp/profiles/<name>/config.yml` is the single source of truth: each profile's `config.yml` is a symlink back to it, so a settings change belongs in this repository. An existing real file is replaced by the symlink only when it is already byte-identical to the template; otherwise the installer warns, leaves it alone, and exits non-zero so the divergence is visible. Merge it by hand, then rerun `install`. Editing settings through OMP's own settings UI rewrites the target file in this repository — review it with `git diff` like any other change.
 
 ```sh
-./scripts/omp-stack install
-./scripts/omp-stack doctor
+./omp/bin/flow-omp install
+./omp/bin/flow-omp doctor
 ```
 
 Launch OMP directly with the native profile selector:
@@ -68,36 +63,36 @@ See `docs/MIGRATION.md` for moving an existing profile onto the linked config.
 
 ## Claude Code (local and on the web)
 
-`ports/claude-code/` packages the Flow skills and agents as a Claude Code plugin named `flow`, and `.claude-plugin/marketplace.json` makes this repository its marketplace. Install it in Claude Code:
+`claude-code/` packages the Flow skills and agents as a Claude Code plugin named `flow`, and `.claude-plugin/marketplace.json` makes this repository its marketplace. Install it in Claude Code:
 
 ```sh
-claude plugin marketplace add fiatcode-gh/omp-stack
-claude plugin install flow@omp-stack
+claude plugin marketplace add fiatcode-gh/flow-skills
+claude plugin install flow@flow-skills
 ```
 
 A cloud session starts from a fresh container, so it needs the plugin on every start. `docs/EXTERNAL-INTEROP.md` ("Claude Code port") lists the ways to get it there and what the port leaves out.
 
 ## OpenCode
 
-`ports/opencode/` holds the Flow doctrine (`AGENTS.md`), skills, agents, a base config with the bash ask-list, one model profile per provider, and the installer `bin/flow-opencode`. The installer symlinks them under `~/.config/opencode/` and writes nothing else.
+`opencode/` holds the Flow doctrine (`AGENTS.md`), skills, agents, a base config with the bash ask-list, one model profile per provider, and the installer `bin/flow-opencode`. The installer symlinks them under `~/.config/opencode/` and writes nothing else.
 
 ```sh
-./ports/opencode/bin/flow-opencode install
+./opencode/bin/flow-opencode install
 opencode reload
-./ports/opencode/bin/flow-opencode verify
-./ports/opencode/bin/flow-opencode doctor
+./opencode/bin/flow-opencode verify
+./opencode/bin/flow-opencode doctor
 ```
 
 Launch with a model profile, or plain `opencode` for the base config:
 
 ```sh
-./ports/opencode/bin/flow-opencode run claude-agent
-./ports/opencode/bin/flow-opencode run opencode
+./opencode/bin/flow-opencode run claude-agent
+./opencode/bin/flow-opencode run opencode
 ```
 
 Plain `opencode` uses the background service with the base config only. A profile launch runs a private server (`--standalone`), because the service ignores the profile.
 
-Models live in `ports/opencode/profiles/<provider>.json`; add a provider by adding one file. OpenCode also scans the global skill folders of other agent tools; a same-named copy there is hidden by the installed one, and the installer reports it so it does not drift. See `docs/decisions/opencode-port.md` for the reasons.
+Models live in `opencode/profiles/<provider>.json`; add a provider by adding one file. OpenCode also scans the global skill folders of other agent tools; a same-named copy there is hidden by the installed one, and the installer reports it so it does not drift. See `docs/decisions/opencode-port.md` for the reasons.
 
 ## MCP servers
 
@@ -105,11 +100,11 @@ MCP stays profile-owned: the installer never writes or links `mcp.json`, because
 
 ```sh
 for p in openai-codex anthropic commandcode; do
-  cp mcp.example.json "$(omp --profile "$p" config path)/mcp.json"
+  cp omp/mcp.example.json "$(omp --profile "$p" config path)/mcp.json"
 done
 ```
 
-Then replace `ctx7sk-REPLACE-WITH-YOUR-KEY` in each copy with the real Context7 key. A profile whose `mcp.json` is missing simply has no MCP servers; OMP starts normally and the doctrine in `agent/AGENTS.md` falls back to `grep`/`glob` and upstream documentation.
+Then replace `ctx7sk-REPLACE-WITH-YOUR-KEY` in each copy with the real Context7 key. A profile whose `mcp.json` is missing simply has no MCP servers; OMP starts normally and the doctrine in `omp/AGENTS.md` falls back to `grep`/`glob` and upstream documentation.
 
 ClickUp is deliberately **not** in the template: it is configured per project, only in work repositories, as an untracked `<repo>/.omp/mcp.json` hidden through that checkout's `.git/info/exclude` (`/.omp/mcp.json`). OMP reads project MCP config from `<cwd>/.omp/mcp.json` only — no ancestor walk — so each repository needs its own copy and OMP must be launched from the repository root:
 
@@ -162,6 +157,6 @@ See `docs/MODEL-ROUTING.md`. Current OMP assumptions are recorded in `docs/OMP-C
 ./tests/run.sh
 ```
 
-The suite runs `tests/validate.py` (skill/agent/rule frontmatter, role references, removed legacy assumptions, machine-read markers, and the per-file byte caps in `tests/doctrine-budget.json`), behavioral tests for both Flow guards (`tests/flow-evidence-guard.test.mjs`, `tests/flow-governance-guard.test.mjs`), the bash approval patterns (`tests/bash-patterns.test.mjs`), the `.flow/` exclude guard (`tests/flow-exclude.test.sh`), the installer (`tests/install.test.sh`), the planning-handoff validator, `scripts/flow-sessions` (`tests/flow-sessions.test.py`) and AI-memory slicing, plus shell syntax checks.
+The suite runs `tests/validate.py` (skill/agent/rule frontmatter, role references, removed legacy assumptions, machine-read markers, and the per-file byte caps in `tests/doctrine-budget.json`), behavioral tests for both Flow guards (`tests/flow-evidence-guard.test.mjs`, `tests/flow-governance-guard.test.mjs`), the bash approval patterns (`tests/bash-patterns.test.mjs`), the `.flow/` exclude guard (`tests/flow-exclude.test.sh`), the installer (`tests/install.test.sh`), the planning-handoff validator, `omp/bin/flow-sessions` (`tests/flow-sessions.test.py`) and AI-memory slicing, plus shell syntax checks.
 
 CI (`.github/workflows/ci.yml`) runs the same suite on every pull request and on pushes to `main`, with Node 24, Bun and `uv`; the three extension tests run under both runtimes because OMP loads extensions under Bun.

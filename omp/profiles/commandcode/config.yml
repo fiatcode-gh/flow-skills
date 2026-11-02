@@ -1,5 +1,5 @@
-# omp-stack managed baseline for: omp --profile commandcode
-# scripts/omp-stack symlinks the profile's config.yml to this file; edit
+# flow-skills managed baseline for: omp --profile commandcode
+# omp/bin/flow-omp symlinks the profile's config.yml to this file; edit
 # settings here and review the result with git diff like any other change.
 # Authenticate with COMMAND_CODE_API_KEY or OMP's login inside this profile;
 # never store the key in this repository.

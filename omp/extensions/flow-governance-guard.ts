@@ -1,5 +1,5 @@
 /**
- * omp-stack — Flow governance guard.
+ * flow-skills — Flow governance guard.
  *
  * Invariant: a planner, executor, implementer or verifier dispatch runs only
  * against a current recorded approval or acceptance. State:

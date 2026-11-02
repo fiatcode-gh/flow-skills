@@ -1,5 +1,5 @@
 /**
- * omp-stack — OMP adapter for the Weft AI-memory hub.
+ * flow-skills — OMP adapter for the Weft AI-memory hub.
  *
  * Appends the session project's slice from `omp/lib/ai-memory.ts` to OMP's
  * system prompt at `before_agent_start`, inside `<weft-memory>` tags that mark

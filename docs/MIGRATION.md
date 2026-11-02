@@ -21,13 +21,13 @@ Why:
 
 ## Recommended sequence
 
-1. Extract/clone `omp-stack` somewhere stable.
-2. Run `./scripts/omp-stack install`. This provisions `openai-codex`, `anthropic`, and `commandcode` under OMP's native profile roots. A managed path that is already a symlink is relinked only when it points into this repository or its previous name `omp-stack`. A symlink to anywhere else, such as an old `ai-stack` checkout, makes `install` stop and name the link and its target: remove or move that link, then rerun `install`.
-3. If a profile already had a real `config.yml`, the installer links it only when it is byte-identical to `profiles/<name>/config.yml`. Otherwise it warns and leaves the file alone: merge the wanted settings into the repository template, delete the profile copy, and rerun `install` so the profile ends up pointing at the single source of truth.
+1. Extract/clone `flow-skills` somewhere stable.
+2. Run `./omp/bin/flow-omp install`. This provisions `openai-codex`, `anthropic`, and `commandcode` under OMP's native profile roots. A managed path that is already a symlink is relinked only when it points into this repository or its previous name `omp-stack`. A symlink to anywhere else, such as an old `ai-stack` checkout, makes `install` stop and name the link and its target: remove or move that link, then rerun `install`.
+3. If a profile already had a real `config.yml`, the installer links it only when it is byte-identical to `omp/profiles/<name>/config.yml`. Otherwise it warns and leaves the file alone: merge the wanted settings into the repository template, delete the profile copy, and rerun `install` so the profile ends up pointing at the single source of truth.
 4. Remove any old `ai-stack` `extensions:` registrations and `skills.customDirectories` entries from the profile configs.
 5. Authenticate each profile/provider as needed. Named OMP profiles do not inherit runtime/auth state from the default profile or from each other. For the Anthropic Team profile, use OMP's Anthropic/Claude OAuth login inside `omp --profile anthropic`; never commit Team credentials. For the Command Code profile, supply `COMMAND_CODE_API_KEY` or use OMP's login inside `omp --profile commandcode`.
-6. Copy `mcp.example.json` into each profile as `mcp.json` and replace the Context7 key; keep the copies identical so every profile sees the same servers. MCP is intentionally profile-owned and the installer never writes credentials. See the `MCP servers` section in `README.md`.
-7. Run `./scripts/omp-stack verify` and `./scripts/omp-stack doctor`.
+6. Copy `omp/mcp.example.json` into each profile as `mcp.json` and replace the Context7 key; keep the copies identical so every profile sees the same servers. MCP is intentionally profile-owned and the installer never writes credentials. See the `MCP servers` section in `README.md`.
+7. Run `./omp/bin/flow-omp verify` and `./omp/bin/flow-omp doctor`.
 8. Launch with native OMP profile selection:
 
    ```sh
@@ -57,7 +57,7 @@ Anthropic:
 - `default` / `plan` / `slow`: Claude Opus 5.5 medium;
 - `critical`: Claude Fable 5.1 high (explicitly not max).
 
-All three v8 baseline configs add explicit OMP approval prompts for push (including the `git -C`, `git -c` and `env` spellings), PR, issue, review, comment, release, repo, secret and workflow-run writes through direct Bash patterns; `gh api` prompts only when a method or body flag is present. Blanket `tools.approval.eval: prompt` is intentionally unset because it interrupts ordinary eval usage too broadly; do not wrap publication commands in eval to bypass the direct-command prompts. **A divergent installed profile config is never overwritten by `omp-stack install`**: the installer warns and exits non-zero. Merge the wanted settings into `profiles/<name>/config.yml`, delete the profile copy, and rerun `install` so the profile points at the template (step 3 above).
+All three v8 baseline configs add explicit OMP approval prompts for push (including the `git -C`, `git -c` and `env` spellings), PR, issue, review, comment, release, repo, secret and workflow-run writes through direct Bash patterns; `gh api` prompts only when a method or body flag is present. Blanket `tools.approval.eval: prompt` is intentionally unset because it interrupts ordinary eval usage too broadly; do not wrap publication commands in eval to bypass the direct-command prompts. **A divergent installed profile config is never overwritten by `flow-omp install`**: the installer warns and exits non-zero. Merge the wanted settings into `omp/profiles/<name>/config.yml`, delete the profile copy, and rerun `install` so the profile points at the template (step 3 above).
 
 The same configs also prompt for any direct Bash line that names `.flow/runtime` (`*.flow/runtime*`), because only `flow_gate` writes gate state; `docs/OMP-COMPATIBILITY.md` lists what the rule misses, and eval writes are not covered.
 

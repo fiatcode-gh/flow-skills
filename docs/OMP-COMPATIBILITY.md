@@ -36,7 +36,7 @@ After upgrading OMP:
 
 ```sh
 ./tests/run.sh
-./scripts/omp-stack doctor
+./omp/bin/flow-omp doctor
 ```
 
 Then sanity-check `omp --profile openai-codex`, `omp --profile anthropic`, and `omp --profile commandcode`.

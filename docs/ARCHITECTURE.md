@@ -2,15 +2,15 @@
 
 ## Boundary
 
-`omp-stack` is OMP-native. It may borrow content principles from the old multi-harness `ai-stack`, but OMP runtime must not depend on an `ai-stack` checkout.
+`flow-skills` is OMP-native: `omp/` is the canonical doctrine and `claude-code/`, `opencode/` and `open-webui/` are ports of it (`docs/EXTERNAL-INTEROP.md`). It may borrow content principles from the old multi-harness `ai-stack`, but OMP runtime must not depend on an `ai-stack` checkout.
 
 Native surfaces:
 
-- `agent/AGENTS.md` → broad durable user context;
-- `agent/rules/*.md` → always-visible hard invariants;
-- `agent/agents/*.md` → specialist execution identities + role routing;
-- `agent/skills/*/SKILL.md` → optional workflows/domain knowledge;
-- `agent/extensions/*.ts` → OMP runtime extensions.
+- `omp/AGENTS.md` → broad durable user context;
+- `omp/rules/*.md` → always-visible hard invariants;
+- `omp/agents/*.md` → specialist execution identities + role routing;
+- `omp/skills/*/SKILL.md` → optional workflows/domain knowledge;
+- `omp/extensions/*.ts` → OMP runtime extensions.
 
 ## Old → new skill map
 
@@ -61,7 +61,7 @@ For substantial work, Main first reconciles the user's intent with project reali
 
 A sole/sequential semantic owner on a suitable feature checkout is normally non-isolated so it can be messaged/revived. Planned execution uses the same checkout sequentially but treats each task brief as a context boundary: fresh `flow-plan-executor` session per independently provable behavioral slice, repository/artifact continuity instead of model-session continuity. Isolation remains primarily for independent concurrent writers or explicitly disposable experiments.
 
-Child completion can self-deliver, and Main stays interactive whether it yields or uses OMP's native wait primitive. When useful independent controller work exists, Main does that work first; when the next meaningful action depends on a child and nothing useful remains, native `hub wait` is valid. OMP makes that wait interruptible by user steering, so it parks autonomous execution without preventing the user from prompting. Flow avoids progress polling — repeated short waits or repeated `hub jobs` snapshots without new work — but does not override Agent Hub wait semantics. `agent/extensions/flow-evidence-guard.ts` remains the narrow evidence-capsule dispatch preflight; `agent/extensions/flow-governance-guard.ts` separately binds contract/plan authorization and accepted repository state without intercepting Hub waits. Main context is phase-scoped as a **top-level handoff option**, not self-rotation: once durable artifacts make an old transcript unnecessary, quota/context-sensitive runs may checkpoint and start a fresh controller session, but the active Main continues unless the user/harness actually performs that restart.
+Child completion can self-deliver, and Main stays interactive whether it yields or uses OMP's native wait primitive. When useful independent controller work exists, Main does that work first; when the next meaningful action depends on a child and nothing useful remains, native `hub wait` is valid. OMP makes that wait interruptible by user steering, so it parks autonomous execution without preventing the user from prompting. Flow avoids progress polling — repeated short waits or repeated `hub jobs` snapshots without new work — but does not override Agent Hub wait semantics. `omp/extensions/flow-evidence-guard.ts` remains the narrow evidence-capsule dispatch preflight; `omp/extensions/flow-governance-guard.ts` separately binds contract/plan authorization and accepted repository state without intercepting Hub waits. Main context is phase-scoped as a **top-level handoff option**, not self-rotation: once durable artifacts make an old transcript unnecessary, quota/context-sensitive runs may checkpoint and start a fresh controller session, but the active Main continues unless the user/harness actually performs that restart.
 
 Substantial planned work has two explicit human authorization gates: approve the completed WHAT/contract before dispatching the planner, then approve the completed execution-grade HOW/plan before the first production-writing worker. Answers to clarification questions do not themselves approve the completed or materially amended contract unless the user explicitly says so. A generic start/resume command cannot create a missing approval. Main first shows the artifact in chat and ends its turn, so the user reviews it in conversation; a native prompt allows only yes or no. Only after the user agrees in chat does Main call `flow_gate`, which presents the current artifact summary, forces a native OMP approval prompt, and records the exact approved artifact digest in `.flow/runtime/gates.json`; planner and production-writer preflight recompute those digests, so an artifact edit automatically invalidates the old authorization. Plan approval authorizes local implementation within that envelope, not publication.
 

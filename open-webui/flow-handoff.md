@@ -137,7 +137,7 @@ It adds `/.flow/` to the checkout's git exclude file only when missing, adds a n
 ## Validate command
 
 ```fish
-uv run python ~/Development/Projects/fiatcode-gh/omp-stack/agent/skills/flow-external-session/scripts/validate-planning-handoff.py <bundle-dir>
+uv run python ~/Development/Projects/fiatcode-gh/flow-skills/omp/skills/flow-external-session/scripts/validate-planning-handoff.py <bundle-dir>
 ```
 
 A pass prints `ok: planning handoff v2`. A failure is a stop to fix in the chat, not something to repair by hand.

@@ -268,7 +268,7 @@ for required in ['`flow-handoff.json`', '`handoff.md`', '`references/planning-ha
 
 
 interop=(ROOT/'docs/EXTERNAL-INTEROP.md').read_text().lower()
-for required in ['`flow-planning`', '`flow-design`', '`flow-handoff.json`', 'open-webui/`', '## synchronization discipline']:
+for required in ['`flow-planning`', '`flow-design`', '`flow-handoff.json`', '`open-webui/`', '## synchronization discipline']:
     if required not in interop: err(f'docs/EXTERNAL-INTEROP.md missing marker: {required!r}')
 
 compat=(ROOT/'docs/OMP-COMPATIBILITY.md').read_text().lower()
@@ -591,7 +591,7 @@ compat_text=(ROOT/'docs/OMP-COMPATIBILITY.md').read_text()
 for required in ['78b7531', 'tests/bash-patterns.test.mjs', 'GH_TOKEN=x gh api']:
     if required not in compat_text: err(f'OMP compatibility matcher note missing: {required}')
 migration=(ROOT/'docs/MIGRATION.md').read_text().lower()
-for stale in ['are not overwritten by `omp-stack install`**, so merge', 'bash/forge']:
+for stale in ['are not overwritten by `flow-omp install`**, so merge', 'bash/forge']:
     if stale in migration: err(f'docs/MIGRATION.md stale installer doctrine survived: {stale}')
 
 # Claude Code port: a plugin in claude-code/, listed by the root marketplace.
@@ -652,7 +652,7 @@ oport_agents_md=oport/'AGENTS.md'
 if not oport_agents_md.exists(): err('opencode/AGENTS.md: missing')
 else:
     oport_ctx=oport_agents_md.read_text()
-    for marker in ['# Flow (omp-stack, OpenCode port)','## Approval record','flow_approve() {','flow_check() {','.flow/runtime/approvals.log','`subagent`','`skill`','`general`','`explore`','`flow-plan-executor`','`flow-implementer`','`flow-acceptance-reviewer`','## Harness: [[OpenCode]]','<!-- flow-exclude-guard -->',"printf '/.flow/\\n'",'## Safety','## Evidence','## Flow artifacts','`execute`']:
+    for marker in ['# Flow (flow-skills, OpenCode port)','## Approval record','flow_approve() {','flow_check() {','.flow/runtime/approvals.log','`subagent`','`skill`','`general`','`explore`','`flow-plan-executor`','`flow-implementer`','`flow-acceptance-reviewer`','## Harness: [[OpenCode]]','<!-- flow-exclude-guard -->',"printf '/.flow/\\n'",'## Safety','## Evidence','## Flow artifacts','`execute`']:
         if marker not in oport_ctx: err(f'opencode/AGENTS.md missing marker: {marker!r}')
     def approval_functions(text):
         start=text.find('flow_approve() {'); end=text.find('\n}\n',text.find('flow_check() {'))
