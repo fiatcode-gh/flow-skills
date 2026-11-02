@@ -485,8 +485,10 @@ esac
         $cfgd = Cfg $hd
         New-Item -ItemType Directory -Force -Path $cfgd | Out-Null
         New-FixtureLink $target (Join-Path $cfgd 'agents') -Dir
-        # Windows stores an absolute target in its own form; compare against what was stored.
+        # Windows stores an absolute target normalized, dropping the dot segment; such a
+        # link is a plain link under the previous name, which install may replace.
         $stored = RawTarget (Join-Path $cfgd 'agents')
+        if ($stored -notmatch '[\\/]\.\.?([\\/]|$)') { Write-Output "skip: $target is stored as $stored (no dot segment left)"; continue }
         $r = Invoke-Flow $hd @() @('install') @{} $newFlow
         if ($r.Code -eq 0) { fail "installer replaced a link to $target under the previous name" }
         if (-not $r.Out.Contains('outside')) { fail "refusal for $target did not say outside: $($r.Out)" }

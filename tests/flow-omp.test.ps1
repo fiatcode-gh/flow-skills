@@ -259,8 +259,10 @@ exit 0
         $a3 = Join-Path $h3 '.omp/profiles/anthropic/agent'
         New-Item -ItemType Directory -Force -Path $a3 | Out-Null
         New-FixtureLink $target (Join-Path $a3 'skills') -Dir
-        # Windows stores an absolute target in its own form; compare against what was stored.
+        # Windows stores an absolute target normalized, dropping the dot segment; such a
+        # link is a plain link under the previous name, which install may replace.
         $stored = RawTarget (Join-Path $a3 'skills')
+        if ($stored -notmatch '[\\/]\.\.?([\\/]|$)') { Write-Output "skip: $target is stored as $stored (no dot segment left)"; continue }
         $r = Invoke-Flow $h3 @() @('install') @{} $newFlow
         if ($r.Code -eq 0) { fail "installer replaced a link to $target under the previous name" }
         if (-not $r.Out.Contains("outside $(Norm $new)")) { fail "refusal for $target did not name the root: $($r.Out)" }
