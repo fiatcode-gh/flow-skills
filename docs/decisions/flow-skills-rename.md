@@ -21,5 +21,5 @@ Work: `refactor: lay out one directory per harness` through `fix: close the rena
 ## Open questions
 
 - `git log --follow` on the nine byte-identical Claude port mirrors (for example `claude-code/skills/flow-tdd/SKILL.md`) follows the OMP original's history, because git paired the identical blobs in the rename commit.
-- A hand-made dangling link ending in `/..` or `/.` under the old name would still be relinked; no installed link has that shape.
+- (Resolved) Dangling links under the old name that end in `/..` or `/.` are refused like `/../` and `/./`.
 - `main`'s ruleset asks for a pull request and the `test` check; the rename and its follow-ups landed by the owner's bypass.

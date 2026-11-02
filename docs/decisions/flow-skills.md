@@ -18,5 +18,5 @@ Work: the OpenCode port (`feat: add the OpenCode Flow port`) and the rename to `
 
 ## Open questions
 
-- `flow_approve` and `flow_check` accept an empty hash and read the scope as a pattern; both ports share them.
+- (Resolved 2026-11-02) `flow_approve` once recorded an empty hash for a missing file and `flow_check` matched the scope as a pattern; both now refuse or match exactly, in both ports.
 - An OpenCode plugin that enforces the gates, after a field trial.

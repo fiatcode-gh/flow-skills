@@ -49,17 +49,19 @@ Flow has no gate tool here. Bind each approval to the artifact bytes, so a later
 
 ```sh
 flow_approve() { # flow_approve <scope> <kind> <path>   kind: contract | plan | implementation | accept
+  [ -f "$3" ] || { echo "flow_approve: no file $3" >&2; return 1; }
   mkdir -p .flow/runtime && printf '%s %s %s %s\n' "$1" "$2" "$(sha256sum "$3" | cut -d' ' -f1)" "$3" >>.flow/runtime/approvals.log
 }
 flow_check() { # flow_check <scope> <kind> <path>   prints ok, stale or missing
-  line=$(grep "^$1 $2 " .flow/runtime/approvals.log 2>/dev/null | tail -n 1)
+  [ -f "$3" ] || { echo missing; return 1; }
+  line=$(awk -v s="$1" -v k="$2" '$1==s && $2==k' .flow/runtime/approvals.log 2>/dev/null | tail -n 1)
   [ -z "$line" ] && { echo missing; return 1; }
   [ "$(echo "$line" | cut -d' ' -f3)" = "$(sha256sum "$3" | cut -d' ' -f1)" ] && echo ok || { echo stale; return 1; }
 }
 ```
 
 - Shell state does not persist between `shell` calls: paste these functions into each call that uses them.
-- Run `flow_approve` right after the user agrees in chat. For `accept`, write the receipt file first and pass it: a missing path records an empty hash.
+- Run `flow_approve` right after the user agrees in chat. For `accept`, write the receipt file first and pass it; `flow_approve` refuses a missing file.
 - Run `flow_check` for the contract (and plan) before every planner, executor or implementer dispatch; for `Plan: NONE` work run `flow_check <scope> implementation <contract path>` instead of the plan check. `stale` or `missing` blocks the dispatch until the user approves the current artifact.
 - A hand-written log line is not an approval.
 

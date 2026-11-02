@@ -40,10 +40,12 @@ Flow has no gate tool here. Bind each approval to the artifact bytes, so a later
 
 ```sh
 flow_approve() { # flow_approve <scope> <kind> <path>   kind: contract | plan | implementation | accept
+  [ -f "$3" ] || { echo "flow_approve: no file $3" >&2; return 1; }
   mkdir -p .flow/runtime && printf '%s %s %s %s\n' "$1" "$2" "$(sha256sum "$3" | cut -d' ' -f1)" "$3" >>.flow/runtime/approvals.log
 }
 flow_check() { # flow_check <scope> <kind> <path>   prints ok, stale or missing
-  line=$(grep "^$1 $2 " .flow/runtime/approvals.log 2>/dev/null | tail -n 1)
+  [ -f "$3" ] || { echo missing; return 1; }
+  line=$(awk -v s="$1" -v k="$2" '$1==s && $2==k' .flow/runtime/approvals.log 2>/dev/null | tail -n 1)
   [ -z "$line" ] && { echo missing; return 1; }
   [ "$(echo "$line" | cut -d' ' -f3)" = "$(sha256sum "$3" | cut -d' ' -f1)" ] && echo ok || { echo stale; return 1; }
 }

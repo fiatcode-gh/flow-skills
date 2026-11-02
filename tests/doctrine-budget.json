@@ -9,7 +9,7 @@
   "claude-code/agents/flow-plan-executor.md": 3072,
   "claude-code/agents/flow-planner.md": 2048,
   "claude-code/agents/flow-ttc-reviewer.md": 1024,
-  "claude-code/hooks/flow-context.md": 15360,
+  "claude-code/hooks/flow-context.md": 16384,
   "claude-code/hooks/flow-core.md": 2048,
   "claude-code/skills/flow-debugging/SKILL.md": 3072,
   "claude-code/skills/flow-design/SKILL.md": 5120,

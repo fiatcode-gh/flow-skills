@@ -281,12 +281,12 @@ ln -s "$TMP/elsewhere/agents" "$HE/$CFG_REL/agents"
 if out=$(HOME=$HE PATH="/usr/bin:/bin" "$NEW/opencode/bin/flow-opencode" install 2>&1); then fail 'installer replaced a dangling link outside both checkout names'; fi
 case $out in *outside*) ;; *) fail "refusal did not say outside: $out" ;; esac
 [ "$(readlink "$HE/$CFG_REL/agents")" = "$TMP/elsewhere/agents" ] || fail 'installer changed a foreign dangling link'
-for seg in ../elsewhere ./elsewhere; do
+for target in "$OLD/../elsewhere/agents" "$OLD/./elsewhere/agents" "$OLD/x/.." "$OLD/x/."; do
   HD="$TMP/home-dots"; rm -rf "$HD"; mkdir -p "$HD/$CFG_REL"
-  ln -s "$OLD/$seg/agents" "$HD/$CFG_REL/agents"
-  if out=$(HOME=$HD PATH="/usr/bin:/bin" "$NEW/opencode/bin/flow-opencode" install 2>&1); then fail "installer replaced a link through $seg under the previous name"; fi
-  case $out in *outside*) ;; *) fail "refusal for $seg did not say outside: $out" ;; esac
-  [ "$(readlink "$HD/$CFG_REL/agents")" = "$OLD/$seg/agents" ] || fail "installer changed the $seg link"
+  ln -s "$target" "$HD/$CFG_REL/agents"
+  if out=$(HOME=$HD PATH="/usr/bin:/bin" "$NEW/opencode/bin/flow-opencode" install 2>&1); then fail "installer replaced a link to $target under the previous name"; fi
+  case $out in *outside*) ;; *) fail "refusal for $target did not say outside: $out" ;; esac
+  [ "$(readlink "$HD/$CFG_REL/agents")" = "$target" ] || fail "installer changed the link to $target"
 done
 
 # 12. Shell syntax.
