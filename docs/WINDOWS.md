@@ -21,7 +21,7 @@ CI does not cover the OMP extensions' Node and Bun tests, or interactive session
 - **Each harness's own Windows install:**
   - OMP: `irm https://omp.sh/install.ps1 | iex`.
   - Claude Code: follow its documentation. It requires Git for Windows.
-  - OpenCode: `npm install -g opencode-ai`, or scoop or choco.
+  - OpenCode: `npm install -g @opencode/cli`. The older `opencode-ai` package stays on OpenCode 1.x.
 
 ## Install
 
