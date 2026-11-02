@@ -33,7 +33,7 @@ const loadPatterns = `
 import json, sys, yaml
 print(json.dumps([(yaml.safe_load(open(p)) or {}).get("bash", {}).get("patterns") or [] for p in sys.argv[1:]]))
 `;
-const configs = profiles.map((profile) => path.join(root, "profiles", profile, "config.yml"));
+const configs = profiles.map((profile) => path.join(root, "omp", "profiles", profile, "config.yml"));
 const lists = JSON.parse(
 	execFileSync("uv", ["run", "--with", "pyyaml", "python", "-c", loadPatterns, ...configs], { encoding: "utf8" }),
 ).map((patterns) => patterns.filter((rule) => rule.approval === "prompt").map((rule) => rule.match));

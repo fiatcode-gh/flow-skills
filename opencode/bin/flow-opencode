@@ -2,8 +2,8 @@
 set -eu
 
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-ROOT=$(readlink -f "$HERE/../../..")
-PORT="$ROOT/ports/opencode"
+ROOT=$(readlink -f "$HERE/../..")
+PORT="$ROOT/opencode"
 CONFIG_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 LINKED="AGENTS.md skills agents profiles"
 

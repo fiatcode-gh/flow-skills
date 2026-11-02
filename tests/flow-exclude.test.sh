@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Executes the exclude guard exactly as published in agent/rules/flow-artifacts.md
+# Executes the exclude guard exactly as published in omp/rules/flow-artifacts.md
 # and proves the git behaviors the flow-artifacts rule relies on.
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -8,7 +8,7 @@ trap 'rm -rf "$TMP"' EXIT HUP INT TERM
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 
 awk '/<!-- flow-exclude-guard -->/{on=1;next} /<!-- \/flow-exclude-guard -->/{on=0} on && !/^```/' \
-  "$ROOT/agent/rules/flow-artifacts.md" > "$TMP/guard.sh"
+  "$ROOT/omp/rules/flow-artifacts.md" > "$TMP/guard.sh"
 [ -s "$TMP/guard.sh" ] || fail 'guard snippet not found between markers'
 sh -n "$TMP/guard.sh"
 . "$TMP/guard.sh"

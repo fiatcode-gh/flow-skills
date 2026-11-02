@@ -14,7 +14,7 @@ printf '%s\n' 'default sentinel' > "$TMP/.omp/agent/AGENTS.md"
 printf '%s\n' 'modelRoles:' '  default: sentinel/model' > "$TMP/.omp/profiles/commandcode/agent/config.yml"
 cp "$TMP/.omp/profiles/commandcode/agent/config.yml" "$TMP/divergent.before"
 
-if HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null 2>&1; then
+if HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" install >/dev/null 2>&1; then
   echo 'FAIL: installer accepted a divergent profile config' >&2
   exit 1
 fi
@@ -27,24 +27,24 @@ done
 grep -q 'default sentinel' "$TMP/.omp/agent/AGENTS.md"
 
 # An untouched copy that already matches its template becomes a symlink.
-cp "$ROOT/profiles/commandcode/config.yml" "$TMP/.omp/profiles/commandcode/agent/config.yml"
+cp "$ROOT/omp/profiles/commandcode/config.yml" "$TMP/.omp/profiles/commandcode/agent/config.yml"
 
-HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null
-HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null
+HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" install >/dev/null
+HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" install >/dev/null
 
 for profile in openai-codex anthropic commandcode; do
   for name in $LINKED config.yml; do
     test -L "$TMP/.omp/profiles/$profile/agent/$name"
   done
-  cmp -s "$ROOT/profiles/$profile/config.yml" "$TMP/.omp/profiles/$profile/agent/config.yml"
+  cmp -s "$ROOT/omp/profiles/$profile/config.yml" "$TMP/.omp/profiles/$profile/agent/config.yml"
 done
 
-HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" verify >/dev/null
+HOME="$TMP" PATH="/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" verify >/dev/null
 
 # Respect PI_CONFIG_DIR in fallback mode; named profiles intentionally do not use
 # PI_CODING_AGENT_DIR.
 TMP_CFG=$(mktemp -d)
-HOME="$TMP_CFG" PI_CONFIG_DIR=.custom PI_CODING_AGENT_DIR="$TMP_CFG/ignored" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null
+HOME="$TMP_CFG" PI_CONFIG_DIR=.custom PI_CODING_AGENT_DIR="$TMP_CFG/ignored" PATH="/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" install >/dev/null
 test -L "$TMP_CFG/.custom/profiles/openai-codex/agent/skills"
 test -L "$TMP_CFG/.custom/profiles/anthropic/agent/skills"
 test -L "$TMP_CFG/.custom/profiles/commandcode/agent/skills"
@@ -64,7 +64,7 @@ profile=$2
 printf '%s/native/%s/agent\n' "$HOME" "$profile"
 SH
 chmod +x "$TMP_NATIVE/bin/omp"
-HOME="$TMP_NATIVE" PATH="$TMP_NATIVE/bin:/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null
+HOME="$TMP_NATIVE" PATH="$TMP_NATIVE/bin:/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" install >/dev/null
 test -L "$TMP_NATIVE/native/openai-codex/agent/skills"
 test -L "$TMP_NATIVE/native/anthropic/agent/skills"
 test -L "$TMP_NATIVE/native/commandcode/agent/skills"
@@ -73,7 +73,7 @@ rm -rf "$TMP_NATIVE"
 # Refuse to clobber a real managed-surface directory inside a managed profile.
 TMP2=$(mktemp -d)
 mkdir -p "$TMP2/.omp/profiles/commandcode/agent/skills"
-if HOME="$TMP2" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null 2>&1; then
+if HOME="$TMP2" PATH="/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" install >/dev/null 2>&1; then
   echo 'FAIL: installer overwrote/accepted real profile skills directory' >&2
   rm -rf "$TMP2"
   exit 1
@@ -86,7 +86,7 @@ TMP_LINK="$TMP/link-home"
 mkdir -p "$TMP_LINK/.omp/profiles/anthropic/agent" "$TMP_LINK/elsewhere"
 foreign="$TMP_LINK/.omp/profiles/anthropic/agent/skills"
 ln -s "$TMP_LINK/elsewhere" "$foreign"
-if out=$(HOME="$TMP_LINK" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install 2>&1); then
+if out=$(HOME="$TMP_LINK" PATH="/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" install 2>&1); then
   echo 'FAIL: installer replaced a symlink that points outside the repository' >&2
   exit 1
 fi
@@ -96,14 +96,14 @@ case $out in
   *) echo "FAIL: refusal did not name the link and its target: $out" >&2; exit 1 ;;
 esac
 rm "$foreign"
-ln -s "$ROOT/agent/rules" "$foreign"
-HOME="$TMP_LINK" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null
-[ "$(readlink -f "$foreign")" = "$(readlink -f "$ROOT/agent/skills")" ] || { echo 'FAIL: installer did not relink a symlink into the repository' >&2; exit 1; }
+ln -s "$ROOT/omp/rules" "$foreign"
+HOME="$TMP_LINK" PATH="/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" install >/dev/null
+[ "$(readlink -f "$foreign")" = "$(readlink -f "$ROOT/omp/skills")" ] || { echo 'FAIL: installer did not relink a symlink into the repository' >&2; exit 1; }
 # A relative link that climbs out of the repository and a dangling link are refused the same way.
 for target in "../../../../../elsewhere" "$TMP_LINK/missing-target"; do
   rm "$foreign"
   ln -s "$target" "$foreign"
-  if HOME="$TMP_LINK" PATH="/usr/bin:/bin" "$ROOT/scripts/omp-stack" install >/dev/null 2>&1; then
+  if HOME="$TMP_LINK" PATH="/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" install >/dev/null 2>&1; then
     echo "FAIL: installer replaced a symlink to $target" >&2
     exit 1
   fi
@@ -132,7 +132,7 @@ for mode in fail empty root slashes; do
     for cmd in install verify doctor; do
       home="$TMP_BAD/home-$mode-$bad-$cmd"
       mkdir -p "$home"
-      if out=$(BAD_MODE=$mode BAD_PROFILE=$bad HOME="$home" PATH="$TMP_BAD/bin:/usr/bin:/bin" "$ROOT/scripts/omp-stack" "$cmd" 2>&1); then
+      if out=$(BAD_MODE=$mode BAD_PROFILE=$bad HOME="$home" PATH="$TMP_BAD/bin:/usr/bin:/bin" "$ROOT/omp/bin/flow-omp" "$cmd" 2>&1); then
         echo "FAIL: $cmd succeeded with unresolvable profile $bad ($mode)" >&2
         exit 1
       fi

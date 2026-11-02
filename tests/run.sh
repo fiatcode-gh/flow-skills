@@ -18,8 +18,8 @@ else
   printf '%s\n' 'skip: bun not on PATH; extension tests ran under Node only'
 fi
 node --no-warnings tests/bash-patterns.test.mjs
-sh -n scripts/omp-stack
-sh -n ports/opencode/bin/flow-opencode
+sh -n omp/bin/flow-omp
+sh -n opencode/bin/flow-opencode
 ./tests/install.test.sh
 ./tests/opencode-install.test.sh
 ./tests/flow-exclude.test.sh

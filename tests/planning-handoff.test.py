@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / "agent/skills/flow-external-session"
+SKILL = ROOT / "omp/skills/flow-external-session"
 VALIDATOR = SKILL / "scripts/validate-planning-handoff.py"
 
 

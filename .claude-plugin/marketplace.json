@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "flow",
-      "source": "./ports/claude-code",
+      "source": "./claude-code",
       "description": "Flow doctrine from omp-stack for Claude Code, local and on the web."
     }
   ]

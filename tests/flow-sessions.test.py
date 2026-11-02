@@ -1,4 +1,4 @@
-"""Behavioral test for scripts/flow-sessions list and render on fixture transcripts."""
+"""Behavioral test for omp/bin/flow-sessions list and render on fixture transcripts."""
 from __future__ import annotations
 
 import json
@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts/flow-sessions"
+SCRIPT = ROOT / "omp/bin/flow-sessions"
 
 
 def call(*args: str, home: Path, config_dir: str | None) -> subprocess.CompletedProcess[str]:

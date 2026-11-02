@@ -2,8 +2,8 @@
 set -eu
 
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-ROOT=$(CDPATH= cd -- "$HERE/.." && pwd)
-ROOT=$(readlink -f "$ROOT")
+OMP=$(readlink -f "$HERE/..")
+ROOT=$(readlink -f "$HERE/../..")
 PROFILES="openai-codex anthropic commandcode"
 
 info() { printf '%s\n' "$*"; }
@@ -68,7 +68,7 @@ link_owned() { # source dest
 link_config() { # profile dir
   profile=$1 dir=$2
   cfg="$dir/config.yml"
-  template="$ROOT/profiles/$profile/config.yml"
+  template="$OMP/profiles/$profile/config.yml"
   if [ -L "$cfg" ] || [ ! -e "$cfg" ]; then
     link_owned "$template" "$cfg"
     return 0
@@ -87,17 +87,17 @@ install_profile() { # profile dir
   mkdir -p -- "$dir" || fail "could not create $dir"
   prc=0
   for name in AGENTS.md TITLE_SYSTEM.md agents rules skills extensions lib; do
-    link_owned "$ROOT/agent/$name" "$dir/$name"
+    link_owned "$OMP/$name" "$dir/$name"
   done
   link_config "$profile" "$dir" || prc=1
-  info "left $dir/mcp.json untouched; optional example: $ROOT/mcp.example.json"
+  info "left $dir/mcp.json untouched; optional example: $OMP/mcp.example.json"
   return "$prc"
 }
 
 install_shared() { # first profile agent dir
   shared_agent_dir "$1"
   mkdir -p -- "$shared" || fail "could not create $shared"
-  link_owned "$ROOT/agent/keybindings.yml" "$shared/keybindings.yml"
+  link_owned "$OMP/keybindings.yml" "$shared/keybindings.yml"
 }
 
 install() {
@@ -120,15 +120,15 @@ verify_profile() { # profile dir
   prc=0
   info "profile: $profile ($dir)"
   for name in AGENTS.md TITLE_SYSTEM.md agents rules skills extensions lib; do
-    verify_link "$ROOT/agent/$name" "$dir/$name" || prc=1
+    verify_link "$OMP/$name" "$dir/$name" || prc=1
   done
-  verify_link "$ROOT/profiles/$profile/config.yml" "$dir/config.yml" || prc=1
+  verify_link "$OMP/profiles/$profile/config.yml" "$dir/config.yml" || prc=1
   return "$prc"
 }
 
 verify_shared() { # first profile agent dir
   shared_agent_dir "$1"
-  verify_link "$ROOT/agent/keybindings.yml" "$shared/keybindings.yml"
+  verify_link "$OMP/keybindings.yml" "$shared/keybindings.yml"
 }
 
 verify() {

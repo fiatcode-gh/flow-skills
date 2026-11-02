@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-PORT="$ROOT/ports/opencode"
+PORT="$ROOT/opencode"
 FLOW="$PORT/bin/flow-opencode"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT HUP INT TERM
@@ -80,7 +80,7 @@ if out=$(flow install 2>&1); then fail 'install replaced a foreign symlink'; fi
 [ "$(readlink "$CFG/agents")" = "$H/elsewhere" ] || fail 'installer changed a foreign symlink'
 case $out in *outside*) ;; *) fail "missing the foreign-symlink refusal: $out" ;; esac
 rm "$CFG/agents"
-ln -s "$ROOT/agent/agents" "$CFG/agents"
+ln -s "$ROOT/omp/agents" "$CFG/agents"
 flow install >/dev/null 2>&1 || fail 'install failed on a symlink into the repository'
 [ "$(readlink -f "$CFG/agents")" = "$(readlink -f "$PORT/agents")" ] || fail 'a symlink into the repository was not relinked'
 
