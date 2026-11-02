@@ -714,10 +714,10 @@ for p in oport_profiles:
 
 # Rule 11: the OpenCode port is documented where readers look.
 _readme=(ROOT/'README.md').read_text()
-for marker in ['opencode/','flow-opencode']:
+for marker in ['`opencode/`','flow-opencode']:
     if marker not in _readme: err(f'README.md: missing OpenCode port marker: {marker}')
 _interop=(ROOT/'docs/EXTERNAL-INTEROP.md').read_text().lower()
-for marker in ['## opencode port','opencode/','`subagent`','`skill`']:
+for marker in ['## opencode port','`opencode/`','`subagent`','`skill`']:
     if marker not in _interop: err(f'docs/EXTERNAL-INTEROP.md: missing OpenCode port marker: {marker}')
 if not (ROOT/'docs/decisions/opencode-port.md').exists(): err('docs/decisions/opencode-port.md: missing')
 

@@ -180,5 +180,13 @@ ln -s "$TMP_OLD/elsewhere/skills" "$H2/.omp/profiles/anthropic/agent/skills"
 if out=$(HOME=$H2 PATH="/usr/bin:/bin" "$NEW/omp/bin/flow-omp" install 2>&1); then echo 'FAIL: installer replaced a dangling link outside both checkout names' >&2; exit 1; fi
 case $out in *"outside $(readlink -f "$NEW")"*) ;; *) echo "FAIL: refusal did not name the root: $out" >&2; exit 1 ;; esac
 [ "$(readlink "$H2/.omp/profiles/anthropic/agent/skills")" = "$TMP_OLD/elsewhere/skills" ] || { echo 'FAIL: installer changed a foreign dangling link' >&2; exit 1; }
+# A dangling link through a "/../" or "/./" segment under the previous name is refused too.
+for seg in ../elsewhere ./elsewhere; do
+  H3="$TMP_OLD/home3"; rm -rf "$H3"; mkdir -p "$H3/.omp/profiles/anthropic/agent"
+  ln -s "$OLD/$seg/skills" "$H3/.omp/profiles/anthropic/agent/skills"
+  if out=$(HOME=$H3 PATH="/usr/bin:/bin" "$NEW/omp/bin/flow-omp" install 2>&1); then echo "FAIL: installer replaced a link through $seg under the previous name" >&2; exit 1; fi
+  case $out in *"outside $(readlink -f "$NEW")"*) ;; *) echo "FAIL: refusal for $seg did not name the root: $out" >&2; exit 1 ;; esac
+  [ "$(readlink "$H3/.omp/profiles/anthropic/agent/skills")" = "$OLD/$seg/skills" ] || { echo "FAIL: installer changed the $seg link" >&2; exit 1; }
+done
 rm -rf "$TMP_OLD"
 echo 'ok: profile installer safety/idempotence'

@@ -72,7 +72,7 @@ Each memory is one top-level bullet, one line, in the user's terse register (see
 
 ## Scope-sliced injection
 
-OMP's session-start memory injection (flow-skills's `ai-memory` extension)
+OMP's session-start memory injection (the flow-skills `ai-memory` extension)
 doesn't inject the whole hub — it slices it on **two flat, independent axes**:
 
 - always the intro + the `## Global` section;
