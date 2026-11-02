@@ -3,9 +3,6 @@
 # settings here and review the result with git diff like any other change.
 # Authenticate this profile through OMP's Anthropic/Claude OAuth flow; never
 # store Team credentials in this repository.
-providers:
-  webSearchOrder: []
-
 # Do not probe unused local inference endpoints at startup.
 disabledProviders:
   - ollama
