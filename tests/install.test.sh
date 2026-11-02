@@ -149,4 +149,36 @@ for mode in fail empty root slashes; do
   done
 done
 rm -rf "$TMP_BAD"
+# Links into the checkout's previous name (omp-stack) are relinked, dangling or
+# not; any other dangling link is still refused.
+TMP_OLD=$(mktemp -d)
+NEW="$TMP_OLD/flow-skills"; OLD="$TMP_OLD/omp-stack"
+mkdir -p "$NEW/omp/bin" "$NEW/omp/agents" "$NEW/omp/rules" "$NEW/omp/skills" "$NEW/omp/extensions" "$NEW/omp/lib"
+cp "$ROOT/omp/bin/flow-omp" "$NEW/omp/bin/flow-omp"
+for name in AGENTS.md TITLE_SYSTEM.md keybindings.yml; do : > "$NEW/omp/$name"; done
+for profile in openai-codex anthropic commandcode; do
+  mkdir -p "$NEW/omp/profiles/$profile" "$TMP_OLD/home/.omp/profiles/$profile/agent"
+  : > "$NEW/omp/profiles/$profile/config.yml"
+done
+mkdir -p "$TMP_OLD/home/.omp/agent" "$OLD/agent/rules"
+H="$TMP_OLD/home"
+for name in AGENTS.md TITLE_SYSTEM.md agents rules skills extensions lib; do
+  ln -s "$OLD/agent/$name" "$H/.omp/profiles/anthropic/agent/$name"   # dangling except rules
+done
+ln -s "$OLD/profiles/anthropic/config.yml" "$H/.omp/profiles/anthropic/agent/config.yml"
+ln -s "$OLD/agent/keybindings.yml" "$H/.omp/agent/keybindings.yml"
+HOME=$H PATH="/usr/bin:/bin" "$NEW/omp/bin/flow-omp" install >/dev/null || { echo 'FAIL: installer refused links into the previous checkout name' >&2; exit 1; }
+for name in AGENTS.md TITLE_SYSTEM.md agents rules skills extensions lib; do
+  [ "$(readlink -f "$H/.omp/profiles/anthropic/agent/$name")" = "$(readlink -f "$NEW/omp/$name")" ] || { echo "FAIL: $name not relinked from the previous checkout name" >&2; exit 1; }
+done
+[ "$(readlink -f "$H/.omp/profiles/anthropic/agent/config.yml")" = "$(readlink -f "$NEW/omp/profiles/anthropic/config.yml")" ] || { echo 'FAIL: config.yml not relinked from the previous checkout name' >&2; exit 1; }
+[ "$(readlink -f "$H/.omp/agent/keybindings.yml")" = "$(readlink -f "$NEW/omp/keybindings.yml")" ] || { echo 'FAIL: keybindings.yml not relinked from the previous checkout name' >&2; exit 1; }
+HOME=$H PATH="/usr/bin:/bin" "$NEW/omp/bin/flow-omp" verify >/dev/null
+# A dangling link anywhere else is still refused and left as it was.
+H2="$TMP_OLD/home2"; mkdir -p "$H2/.omp/profiles/anthropic/agent"
+ln -s "$TMP_OLD/elsewhere/skills" "$H2/.omp/profiles/anthropic/agent/skills"
+if out=$(HOME=$H2 PATH="/usr/bin:/bin" "$NEW/omp/bin/flow-omp" install 2>&1); then echo 'FAIL: installer replaced a dangling link outside both checkout names' >&2; exit 1; fi
+case $out in *"outside $(readlink -f "$NEW")"*) ;; *) echo "FAIL: refusal did not name the root: $out" >&2; exit 1 ;; esac
+[ "$(readlink "$H2/.omp/profiles/anthropic/agent/skills")" = "$TMP_OLD/elsewhere/skills" ] || { echo 'FAIL: installer changed a foreign dangling link' >&2; exit 1; }
+rm -rf "$TMP_OLD"
 echo 'ok: profile installer safety/idempotence'

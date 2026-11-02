@@ -260,6 +260,28 @@ chmod +x "$TMP/emptypy/python3"
 if out=$(HOME=$H PATH="$TMP/emptypy:$TMP/docbin:/usr/bin:/bin" FIXTURE_DIR=$FX FLOW_OPENCODE_SERVE_WAIT=2 "$FLOW" doctor 2>&1); then fail "doctor F exited 0 although a checker printed nothing: $out"; fi
 case $out in *"FAIL: checker check_agents printed nothing"*) ;; *) fail "doctor F: no 'printed nothing' line: $out" ;; esac
 
+# 11a. Links into the checkout's previous name (omp-stack) are relinked, dangling
+# or not; a link anywhere else is still refused and left as it was.
+NEW="$TMP/flow-skills"; OLD="$TMP/omp-stack"
+mkdir -p "$NEW/opencode/bin" "$NEW/opencode/skills" "$NEW/opencode/agents" "$NEW/opencode/profiles"
+cp "$FLOW" "$NEW/opencode/bin/flow-opencode"
+: > "$NEW/opencode/AGENTS.md"; : > "$NEW/opencode/opencode.json"
+HO="$TMP/home-old"; mkdir -p "$HO/$CFG_REL"
+for name in AGENTS.md skills agents profiles opencode.json; do
+  ln -s "$OLD/ports/opencode/$name" "$HO/$CFG_REL/$name"
+done
+out=$(HOME=$HO PATH="/usr/bin:/bin" "$NEW/opencode/bin/flow-opencode" install 2>&1) || fail "installer refused links into the previous checkout name: $out"
+[ "$(count_lines "$out" '^linked ')" = 5 ] || fail "previous-name relink: expected five linked lines, got: $out"
+for name in AGENTS.md skills agents profiles opencode.json; do
+  [ "$(readlink -f "$HO/$CFG_REL/$name")" = "$(readlink -f "$NEW/opencode/$name")" ] || fail "$name not relinked from the previous checkout name"
+done
+HOME=$HO PATH="/usr/bin:/bin" "$NEW/opencode/bin/flow-opencode" verify >/dev/null || fail 'verify after previous-name relink'
+HE="$TMP/home-else"; mkdir -p "$HE/$CFG_REL"
+ln -s "$TMP/elsewhere/agents" "$HE/$CFG_REL/agents"
+if out=$(HOME=$HE PATH="/usr/bin:/bin" "$NEW/opencode/bin/flow-opencode" install 2>&1); then fail 'installer replaced a dangling link outside both checkout names'; fi
+case $out in *outside*) ;; *) fail "refusal did not say outside: $out" ;; esac
+[ "$(readlink "$HE/$CFG_REL/agents")" = "$TMP/elsewhere/agents" ] || fail 'installer changed a foreign dangling link'
+
 # 12. Shell syntax.
 sh -n "$FLOW" || fail 'sh -n flow-opencode'
 sh -n "$0" || fail 'sh -n opencode-install.test.sh'

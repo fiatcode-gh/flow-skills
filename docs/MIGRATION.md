@@ -22,7 +22,7 @@ Why:
 ## Recommended sequence
 
 1. Extract/clone `omp-stack` somewhere stable.
-2. Run `./scripts/omp-stack install`. This provisions `openai-codex`, `anthropic`, and `commandcode` under OMP's native profile roots. A managed path that is already a symlink is relinked only when it points into this repository. A symlink to anywhere else, such as an old `ai-stack` checkout, makes `install` stop and name the link and its target: remove or move that link, then rerun `install`.
+2. Run `./scripts/omp-stack install`. This provisions `openai-codex`, `anthropic`, and `commandcode` under OMP's native profile roots. A managed path that is already a symlink is relinked only when it points into this repository or its previous name `omp-stack`. A symlink to anywhere else, such as an old `ai-stack` checkout, makes `install` stop and name the link and its target: remove or move that link, then rerun `install`.
 3. If a profile already had a real `config.yml`, the installer links it only when it is byte-identical to `profiles/<name>/config.yml`. Otherwise it warns and leaves the file alone: merge the wanted settings into the repository template, delete the profile copy, and rerun `install` so the profile ends up pointing at the single source of truth.
 4. Remove any old `ai-stack` `extensions:` registrations and `skills.customDirectories` entries from the profile configs.
 5. Authenticate each profile/provider as needed. Named OMP profiles do not inherit runtime/auth state from the default profile or from each other. For the Anthropic Team profile, use OMP's Anthropic/Claude OAuth login inside `omp --profile anthropic`; never commit Team credentials. For the Command Code profile, supply `COMMAND_CODE_API_KEY` or use OMP's login inside `omp --profile commandcode`.
