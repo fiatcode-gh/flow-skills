@@ -849,11 +849,12 @@ if version_path.exists():
                 first=subprocess.run(['/bin/sh',str(doctor_cmd),'doctor'],env={'HOME':scratch,'PATH':str(bindir)},capture_output=True).stdout.split(b'\n',1)[0].decode(errors='replace')
                 if first!=f'flow-skills {version}': err(f'{rel(doctor_cmd)}: doctor must print "flow-skills {version}" first, got {first!r}')
     # The PowerShell doctors print the same first line; checked wherever pwsh exists.
+    # They end lines with the platform newline (CRLF on Windows), so split on that.
     if shutil.which('pwsh'):
         with tempfile.TemporaryDirectory() as scratch:
             env={**os.environ,'HOME':scratch,'USERPROFILE':scratch}
             for doctor_cmd in [ROOT/'omp/bin/flow-omp.ps1',ROOT/'opencode/bin/flow-opencode.ps1']:
-                first=subprocess.run(['pwsh','-NoProfile','-ExecutionPolicy','Bypass','-File',str(doctor_cmd),'doctor'],env=env,capture_output=True).stdout.split(b'\n',1)[0].decode(errors='replace')
+                first=subprocess.run(['pwsh','-NoProfile','-ExecutionPolicy','Bypass','-File',str(doctor_cmd),'doctor'],env=env,capture_output=True).stdout.split(os.linesep.encode(),1)[0].decode(errors='replace')
                 if first!=f'flow-skills {version}': err(f'{rel(doctor_cmd)}: doctor must print "flow-skills {version}" first, got {first!r}')
 
 if errors:
