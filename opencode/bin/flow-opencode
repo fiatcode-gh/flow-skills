@@ -3,6 +3,8 @@ set -eu
 
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT=$(readlink -f "$HERE/../..")
+# Links into the checkout's previous name are repointed too (renamed from omp-stack on 2026-11-02).
+OLD_ROOT=$(dirname -- "$ROOT")/omp-stack
 PORT="$ROOT/opencode"
 CONFIG_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 LINKED="AGENTS.md skills agents profiles"
@@ -26,7 +28,7 @@ check_owned() { # source dest
   if [ -L "$dst" ]; then
     target=$(readlink -f "$dst" 2>/dev/null || readlink "$dst")
     case $target in
-      "$ROOT" | "$ROOT"/*) ;;
+      "$ROOT" | "$ROOT"/* | "$OLD_ROOT" | "$OLD_ROOT"/*) ;;
       *) fail "$dst is a symlink to $target, outside $ROOT; move or remove it manually" ;;
     esac
   elif [ -e "$dst" ]; then
@@ -34,7 +36,7 @@ check_owned() { # source dest
   fi
 }
 
-# Replaces only a missing destination or a symlink into this repository.
+# Replaces only a missing destination or a symlink into this repository or its previous name.
 link_owned() { # source dest
   src=$1 dst=$2
   check_owned "$src" "$dst"
