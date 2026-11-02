@@ -674,7 +674,7 @@ for p in oport_docs:
     text=p.read_text()
     for omp_only in ['flow_gate','skill://','`hub`','hub wait','@task','@execute','@slow','@smol','@plan','@vision','@review_aux','`sonic`','`scout`','ast_grep','gates.json','flow-evidence-verifier','.flow/evidence/','`todo`']:
         if omp_only in text: err(f'{rel(p)}: OMP-only mechanic in the OpenCode port: {omp_only}')
-    if re.search(r'(?<![\w-])flow:(?=\w)',text): err(f'{rel(p)}: Claude Code flow: prefix in the OpenCode port')
+    if re.search(r'(?<![\w-])fiatcode:(?=\w)',text): err(f'{rel(p)}: Claude Code fiatcode: prefix in the OpenCode port')
     for claude_only in ['CLAUDE_PLUGIN_ROOT','SendMessage','general-purpose','isolation: "worktree"','TaskCreate','TodoWrite','mcp__github__','`Explore`','CLAUDE.md','model: opus','model: sonnet','model: haiku','model: inherit','weft_publish','WEFT_GRAPH_REPO']:
         if claude_only in text: err(f'{rel(p)}: Claude Code-only mechanic in the OpenCode port: {claude_only}')
     if MODEL_LEAK.search(text) or OPORT_MODEL_LEAK.search(text): err(f'{rel(p)}: concrete model/provider identifier leaked into the OpenCode port')

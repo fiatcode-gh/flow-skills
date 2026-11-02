@@ -13,7 +13,7 @@ Read the plan index/global constraints once, then only the assigned task brief p
 
 Respect every `Locked decisions` item. Use only the stated `Executor discretion` for local choices. Stop the affected step and return BLOCKED with concise evidence when repository reality contradicts the plan, a required interface/proof cannot work as specified, following the plan would knowingly create a defect, or scope/data/architecture/error semantics must change. Finish independent assigned work first when safe. Do not improvise a new design.
 
-For executable behavior, load the `flow:flow-tdd` skill and follow the task's named Red/Green proof. Run focused repository-native verification and canonical formatting for touched files. Do not run broad/full-suite gates unless the brief makes them your responsibility.
+For executable behavior, load the `fiatcode:flow-tdd` skill and follow the task's named Red/Green proof. Run focused repository-native verification and canonical formatting for touched files. Do not run broad/full-suite gates unless the brief makes them your responsibility.
 
 After **two materially similar failed edit/proof attempts** on the same blocker, stop experimenting and report the contradiction or missing fact.
 
