@@ -25,4 +25,12 @@ sh -n opencode/bin/flow-opencode
 ./tests/flow-exclude.test.sh
 ./tests/approval-record.test.sh
 ./tests/session-start.test.sh
+# The PowerShell launchers and their tests run under pwsh on any OS; CI's Ubuntu has it.
+if command -v pwsh >/dev/null 2>&1; then
+  pwsh -NoProfile -File tests/ps-syntax.ps1
+  pwsh -NoProfile -File tests/flow-omp.test.ps1
+  pwsh -NoProfile -File tests/flow-opencode.test.ps1
+else
+  printf '%s\n' 'skip: pwsh not on PATH; PowerShell tests not run'
+fi
 printf '%s\n' 'ok: shell syntax'
