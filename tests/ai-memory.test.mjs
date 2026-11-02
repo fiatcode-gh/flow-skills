@@ -1,4 +1,4 @@
-// Tests for omp-stack agent/lib/ai-memory.ts scope-aware slicing.
+// Tests for omp-stack omp/lib/ai-memory.ts scope-aware slicing.
 // Dependency-free: Node native TypeScript stripping loads the module directly.
 import fs from "node:fs";
 import os from "node:os";
@@ -10,8 +10,8 @@ import {
 	projectKey,
 	memoryBlock,
 	MEMORY_HEADER,
-} from "../agent/lib/ai-memory.ts";
-import memoryExtension from "../agent/extensions/ai-memory.ts";
+} from "../omp/lib/ai-memory.ts";
+import memoryExtension from "../omp/extensions/ai-memory.ts";
 
 // Exercise the generic harness axis using an existing fixture section. The live
 // OMP adapter supplies "omp"; sliceHub treats harness keys generically.
@@ -394,7 +394,7 @@ check(
 	!hblock.includes("CLAUDEHARNESS_MARK"),
 );
 
-// --- OMP adapter (agent/extensions/ai-memory.ts) ---------------------------
+// --- OMP adapter (omp/extensions/ai-memory.ts) ---------------------------
 
 let beforeStart;
 memoryExtension({

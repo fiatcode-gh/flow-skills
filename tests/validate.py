@@ -20,9 +20,9 @@ def frontmatter(p):
         err(f'{rel(p)}: invalid frontmatter: {e}'); return {}, text
 
 MODEL_LEAK=re.compile(r'(?:openai-codex|anthropic|commandcode)/|gpt-5|gpt-6|claude-(?:haiku|sonnet|opus|fable)|deepseek|glm-|kimi|mimo')
-skills=list((ROOT/'agent/skills').glob('*/SKILL.md'))
-agents=list((ROOT/'agent/agents').glob('*.md'))
-rules=list((ROOT/'agent/rules').glob('*.md'))
+skills=list((ROOT/'omp/skills').glob('*/SKILL.md'))
+agents=list((ROOT/'omp/agents').glob('*.md'))
+rules=list((ROOT/'omp/rules').glob('*.md'))
 
 if len(skills)!=13: err(f'expected 13 skills, got {len(skills)}')
 if len(agents)!=10: err(f'expected 10 agents, got {len(agents)}')
@@ -63,14 +63,14 @@ for p in rules:
     if not fm.get('name') or not fm.get('description'): err(f'{rel(p)}: rule needs name+description')
 
 # Removed old workflow assumptions must not survive outside migration docs.
-for p in (ROOT/'agent').rglob('*'):
+for p in (ROOT/'omp').rglob('*'):
     if not p.is_file() or p.suffix not in {'.md','.ts'}: continue
     text=p.read_text()
     for bad in ['never spawn an agent for work that writes', 'Never pick silently: ask the user which one', 'every new function has a test']:
         if bad.lower() in text.lower(): err(f'{rel(p)}: legacy rule survived: {bad}')
 
 # Nested delegation and live-clarification contract.
-impl_path=ROOT/'agent/agents/flow-implementer.md'
+impl_path=ROOT/'omp/agents/flow-implementer.md'
 impl_fm,impl_body=frontmatter(impl_path)
 spawns=impl_fm.get('spawns')
 if spawns != ['scout','sonic']: err(f'flow-implementer spawns must be exactly scout+sonic, got {spawns!r}')
@@ -79,14 +79,14 @@ if spawns != ['scout','sonic']: err(f'flow-implementer spawns must be exactly sc
 for required in ['## Brief sanity check', '## Nested delegation', '## Self-verification', '`flow-tdd`', '`scout`', '`sonic`', '`hub`']:
     if required not in impl_body: err(f'flow-implementer missing machine-read marker or pointer target: {required!r}')
 
-planner_path=ROOT/'agent/agents/flow-planner.md'
+planner_path=ROOT/'omp/agents/flow-planner.md'
 planner_fm,planner_body=frontmatter(planner_path)
 if planner_fm.get('model') != '@plan': err('flow-planner must use @plan')
 if planner_fm.get('autoloadSkills') != ['flow-planning']: err('flow-planner must autoload flow-planning')
 for required in ['`PLAN.md`', '`plan-tasks/*.md`', '`flow-planning`', '`STATUS`: READY/BLOCKED']:
     if required not in planner_body: err(f'flow-planner missing machine-read marker or pointer target: {required!r}')
 
-executor_path=ROOT/'agent/agents/flow-plan-executor.md'
+executor_path=ROOT/'omp/agents/flow-plan-executor.md'
 executor_fm,executor_body=frontmatter(executor_path)
 if executor_fm.get('model') != '@execute': err('flow-plan-executor must use @execute')
 if executor_fm.get('spawns') not in (None, [], ''): err('flow-plan-executor must not spawn child agents')
@@ -94,13 +94,13 @@ if executor_fm.get('autoloadSkills') != ['flow-tdd']: err('flow-plan-executor mu
 for required in ['`Locked decisions`', '`Executor discretion`', '`flow-tdd`', '`hub`', '200-request warning', '`STATUS`: DONE/BLOCKED/YIELD']:
     if required not in executor_body: err(f'flow-plan-executor missing machine-read marker or pointer target: {required!r}')
 
-accept_path=ROOT/'agent/agents/flow-acceptance-reviewer.md'
+accept_path=ROOT/'omp/agents/flow-acceptance-reviewer.md'
 accept_fm,accept_body=frontmatter(accept_path)
 if accept_fm.get('model') != '@slow': err('flow-acceptance-reviewer must use @slow')
 for required in ['`implementation-defect`', '`plan-drift`', '`plan-defect`', '`unplanned-risk`', '`ACCEPT`', '`CHANGES`']:
     if required not in accept_body: err(f'flow-acceptance-reviewer missing machine-read marker: {required!r}')
 
-verifier_path=ROOT/'agent/agents/flow-evidence-verifier.md'
+verifier_path=ROOT/'omp/agents/flow-evidence-verifier.md'
 verifier_fm,verifier_body=frontmatter(verifier_path)
 if verifier_fm.get('model') != '@vision': err('flow-evidence-verifier must use @vision')
 # The capsule manifest labels are what flow-evidence-guard and Main parse; the
@@ -111,7 +111,7 @@ for required in ['Evidence capsule:\n- ID:', '\n- Owns:', '\n- Independent split
 # The guards' behavior, including passing native hub waits through untouched,
 # is proven by tests/flow-evidence-guard.test.mjs and tests/flow-governance-guard.test.mjs.
 
-design_raw=(ROOT/'agent/skills/flow-design/SKILL.md').read_text()
+design_raw=(ROOT/'omp/skills/flow-design/SKILL.md').read_text()
 # Pin only what tools parse or other files name: the headings, the step 7
 # opener and the "Resume step" name that other files point at, and the
 # tool, skill, agent and path names that route behavior.
@@ -127,7 +127,7 @@ DESIGN_MARKERS=[
 for required in DESIGN_MARKERS:
     if required not in design_raw: err(f'flow-design missing machine-read marker or pointer target: {required!r}')
 
-planning_raw=(ROOT/'agent/skills/flow-planning/SKILL.md').read_text()
+planning_raw=(ROOT/'omp/skills/flow-planning/SKILL.md').read_text()
 planning=planning_raw.lower()
 # Pin only what tools parse or other files name: the headings that other files
 # point at, the Flow gate block the governance guard parses, the section 3 brief
@@ -145,11 +145,11 @@ PLANNING_MARKERS=[
 for required in PLANNING_MARKERS:
     if required not in planning_raw: err(f'flow-planning missing machine-read marker or pointer target: {required!r}')
 
-execution_raw=(ROOT/'agent/skills/flow-execution/SKILL.md').read_text()
+execution_raw=(ROOT/'omp/skills/flow-execution/SKILL.md').read_text()
 execution=execution_raw.lower()
 # Pin only what tools parse or other files name: the brief templates Main copies
 # into task briefs (the guards parse those), the flow_gate strings, and the
-# headings/lane that flow-execution itself, docs/ARCHITECTURE.md and agent/AGENTS.md point at.
+# headings/lane that flow-execution itself, docs/ARCHITECTURE.md and omp/AGENTS.md point at.
 EXECUTION_MARKERS=[
     'Flow gate:\n- Scope: <contract slug>\n- Contract: <approved contract path>\n- Plan: <approved PLAN.md path>\n',
     'Plan: NONE', 'kind=implementation', 'flow_gate action=accept',
@@ -162,35 +162,35 @@ for required in EXECUTION_MARKERS:
 
 # One normative home per doctrine rule. A phrase below may appear only in the
 # files that own its rule; every other surface points at the home by name.
-doctrine_surfaces=list((ROOT/'agent').rglob('*.md'))+[ROOT/'docs/ARCHITECTURE.md', ROOT/'docs/PRINCIPLES.md', ROOT/'README.md']
+doctrine_surfaces=list((ROOT/'omp').rglob('*.md'))+[ROOT/'docs/ARCHITECTURE.md', ROOT/'docs/PRINCIPLES.md', ROOT/'README.md']
 EXCLUSIVE={
-    'synthetic input': {'agent/agents/flow-evidence-verifier.md'},
-    'assistive-technology': {'agent/agents/flow-evidence-verifier.md'},
-    'comparison scheme': {'agent/agents/flow-evidence-verifier.md', 'agent/rules/flow-evidence.md'},
-    'independent split check:': {'agent/agents/flow-evidence-verifier.md', 'agent/skills/flow-execution/SKILL.md'},
-    'reuse of unaffected capsules': {'agent/rules/flow-evidence.md'},
-    'comments that narrate the code or contradict it': {'agent/skills/flow-review/references/review-lenses.md'},
-    'applies to multi-unit work too': {'agent/skills/flow-execution/SKILL.md'},
-    'only what the code and tests cannot show': {'agent/skills/flow-integrating/SKILL.md'},
-    'what it leaves out': {'agent/skills/flow-integrating/SKILL.md'},
-    'no rule edits or deletes a frozen ledger': {'agent/rules/flow-artifacts.md'},
-    'never trust a record you have not checked': {'agent/skills/flow-design/SKILL.md'},
-    'one parent contract': {'agent/skills/flow-design/SKILL.md'},
-    'read that ledger once': {'agent/skills/flow-design/SKILL.md'},
-    'start no unit before the parent is approved': {'agent/skills/flow-design/SKILL.md'},
-    'do not manufacture questions': {'agent/skills/flow-design/SKILL.md'},
-    'still-valid settled decisions': {'agent/skills/flow-design/SKILL.md'},
-    'a validated external bundle may already contain': {'agent/skills/flow-planning/SKILL.md'},
-    'refine only the missing how': {'agent/skills/flow-planning/SKILL.md'},
-    'cor and crf always for the initial coherent change review': {'agent/skills/flow-review/SKILL.md'},
-    'flip that exact item to `doing`': {'agent/skills/weft-worklog/SKILL.md'},
-    'restore the prior': {'agent/skills/weft-worklog/SKILL.md'},
-    'the code belongs to its author': {'agent/AGENTS.md'},
-    'force-pushes': {'agent/rules/flow-safety.md'},
-    'generic safety wrapper': {'agent/rules/flow-safety.md'},
-    'never grants permission, approves a gate': {'agent/rules/flow-safety.md'},
-    'scope proof by ownership': {'agent/rules/flow-evidence.md'},
-    'concise defect statement': {'agent/skills/flow-review/references/review-lenses.md'},
+    'synthetic input': {'omp/agents/flow-evidence-verifier.md'},
+    'assistive-technology': {'omp/agents/flow-evidence-verifier.md'},
+    'comparison scheme': {'omp/agents/flow-evidence-verifier.md', 'omp/rules/flow-evidence.md'},
+    'independent split check:': {'omp/agents/flow-evidence-verifier.md', 'omp/skills/flow-execution/SKILL.md'},
+    'reuse of unaffected capsules': {'omp/rules/flow-evidence.md'},
+    'comments that narrate the code or contradict it': {'omp/skills/flow-review/references/review-lenses.md'},
+    'applies to multi-unit work too': {'omp/skills/flow-execution/SKILL.md'},
+    'only what the code and tests cannot show': {'omp/skills/flow-integrating/SKILL.md'},
+    'what it leaves out': {'omp/skills/flow-integrating/SKILL.md'},
+    'no rule edits or deletes a frozen ledger': {'omp/rules/flow-artifacts.md'},
+    'never trust a record you have not checked': {'omp/skills/flow-design/SKILL.md'},
+    'one parent contract': {'omp/skills/flow-design/SKILL.md'},
+    'read that ledger once': {'omp/skills/flow-design/SKILL.md'},
+    'start no unit before the parent is approved': {'omp/skills/flow-design/SKILL.md'},
+    'do not manufacture questions': {'omp/skills/flow-design/SKILL.md'},
+    'still-valid settled decisions': {'omp/skills/flow-design/SKILL.md'},
+    'a validated external bundle may already contain': {'omp/skills/flow-planning/SKILL.md'},
+    'refine only the missing how': {'omp/skills/flow-planning/SKILL.md'},
+    'cor and crf always for the initial coherent change review': {'omp/skills/flow-review/SKILL.md'},
+    'flip that exact item to `doing`': {'omp/skills/weft-worklog/SKILL.md'},
+    'restore the prior': {'omp/skills/weft-worklog/SKILL.md'},
+    'the code belongs to its author': {'omp/AGENTS.md'},
+    'force-pushes': {'omp/rules/flow-safety.md'},
+    'generic safety wrapper': {'omp/rules/flow-safety.md'},
+    'never grants permission, approves a gate': {'omp/rules/flow-safety.md'},
+    'scope proof by ownership': {'omp/rules/flow-evidence.md'},
+    'concise defect statement': {'omp/skills/flow-review/references/review-lenses.md'},
 }
 for phrase,homes in EXCLUSIVE.items():
     for p in doctrine_surfaces:
@@ -198,28 +198,28 @@ for phrase,homes in EXCLUSIVE.items():
     for home in homes:
         if phrase not in (ROOT/home).read_text().lower(): err(f'{home}: doctrine home lost its rule: {phrase}')
 POINTS_TO={
-    'agent/agents/flow-implementer.md': ['stakeholder-visible write (`flow-safety`)'],
-    'agent/skills/flow-tdd/SKILL.md': ['`flow-evidence` rule'],
-    'agent/skills/flow-integrating/SKILL.md': ['(`flow-safety`)', '`flow-evidence` rule', '`Plan: NONE`'],
-    'agent/skills/flow-review/references/pr-review.md': ['PR-review rule in `AGENTS.md`'],
-    'agent/skills/weft-worklog/SKILL.md': ['PR-review rule in `AGENTS.md`'],
-    'agent/skills/flow-review/references/audit-lenses.md': ['`skill://flow-review/references/review-lenses.md`'],
-    'agent/agents/flow-plan-executor.md': ['stakeholder-visible write (`flow-safety`)'],
-    'agent/agents/flow-evidence-verifier.md': ['stakeholder-visible write (`flow-safety`)'],
-    'agent/skills/flow-execution/SKILL.md': ['Isolation follows the `flow-safety` rule', 'approves nothing (`flow-safety`)', 'defined once in `flow-evidence-verifier`', 'self-consistency rule in `flow-evidence`', 'stability barrier defined in the `flow-evidence` rule', 'change-lens selection in `flow-review`'],
+    'omp/agents/flow-implementer.md': ['stakeholder-visible write (`flow-safety`)'],
+    'omp/skills/flow-tdd/SKILL.md': ['`flow-evidence` rule'],
+    'omp/skills/flow-integrating/SKILL.md': ['(`flow-safety`)', '`flow-evidence` rule', '`Plan: NONE`'],
+    'omp/skills/flow-review/references/pr-review.md': ['PR-review rule in `AGENTS.md`'],
+    'omp/skills/weft-worklog/SKILL.md': ['PR-review rule in `AGENTS.md`'],
+    'omp/skills/flow-review/references/audit-lenses.md': ['`skill://flow-review/references/review-lenses.md`'],
+    'omp/agents/flow-plan-executor.md': ['stakeholder-visible write (`flow-safety`)'],
+    'omp/agents/flow-evidence-verifier.md': ['stakeholder-visible write (`flow-safety`)'],
+    'omp/skills/flow-execution/SKILL.md': ['Isolation follows the `flow-safety` rule', 'approves nothing (`flow-safety`)', 'defined once in `flow-evidence-verifier`', 'self-consistency rule in `flow-evidence`', 'stability barrier defined in the `flow-evidence` rule', 'change-lens selection in `flow-review`'],
     'docs/ARCHITECTURE.md': ['`flow-execution` section 9', '`flow-evidence` rule', '`flow-evidence-verifier` alone defines'],
     'docs/PRINCIPLES.md': ['`flow-evidence-verifier` alone defines', '`flow-evidence` rule alone owns'],
-    'agent/agents/flow-craft-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
-    'agent/agents/flow-acceptance-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
-    'agent/skills/flow-planning/SKILL.md': ['`flow-design` "Multi-unit work"', '`flow-design` step 7 says what counts as that approval', '`flow-execution` section 1 says what does not count as plan approval', '`flow-execution` routes each writer (section 2), orders and isolates the tasks (section 3) and writes the briefs (section 4)'],
-    'agent/AGENTS.md': ['`flow-design` says how to keep settled decisions', '`flow-planning` says when an external plan already counts as execution-grade', 'stakeholder-visible write (`flow-safety`)', '(`flow-planning` section 1, `flow-execution` section 1)', '`flow-review` owns lens review', '`weft-worklog` Mode C says when to mark an item'],
+    'omp/agents/flow-craft-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
+    'omp/agents/flow-acceptance-reviewer.md': ['CRF defect list in `skill://flow-review/references/review-lenses.md`'],
+    'omp/skills/flow-planning/SKILL.md': ['`flow-design` "Multi-unit work"', '`flow-design` step 7 says what counts as that approval', '`flow-execution` section 1 says what does not count as plan approval', '`flow-execution` routes each writer (section 2), orders and isolates the tasks (section 3) and writes the briefs (section 4)'],
+    'omp/AGENTS.md': ['`flow-design` says how to keep settled decisions', '`flow-planning` says when an external plan already counts as execution-grade', 'stakeholder-visible write (`flow-safety`)', '(`flow-planning` section 1, `flow-execution` section 1)', '`flow-review` owns lens review', '`weft-worklog` Mode C says when to mark an item'],
 }
 for path,pointers in POINTS_TO.items():
     text=(ROOT/path).read_text()
     for ptr in pointers:
         if ptr not in text: err(f'{path}: pointer to doctrine home missing: {ptr}')
 
-external_raw=(ROOT/'agent/skills/flow-external-session/SKILL.md').read_text()
+external_raw=(ROOT/'omp/skills/flow-external-session/SKILL.md').read_text()
 external=external_raw.lower()
 # Pin only what tools parse or other files name: the skill name and title, the
 # three mode names and their headings, the reference and script paths, the
@@ -236,8 +236,8 @@ EXTERNAL_MARKERS=[
 for required in EXTERNAL_MARKERS:
     if required not in external_raw: err(f'flow-external-session missing machine-read marker or pointer target: {required!r}')
 
-ph=(ROOT/'agent/skills/flow-external-session/references/planning-handoff.md').read_text().lower()
-schema_path=ROOT/'agent/skills/flow-external-session/references/planning-handoff.schema.json'
+ph=(ROOT/'omp/skills/flow-external-session/references/planning-handoff.md').read_text().lower()
+schema_path=ROOT/'omp/skills/flow-external-session/references/planning-handoff.schema.json'
 if not schema_path.exists(): err('planning-handoff JSON schema missing')
 else:
     schema=json.loads(schema_path.read_text())
@@ -248,11 +248,11 @@ else:
     if not enum_fields: err('planning-handoff schema has no enum fields')
     for field in ('design_status', 'implementation_strategy'):
         if field not in enum_fields: err(f'planning-handoff schema lost the enum for {field}')
-    emitter_path=ROOT/'ports/open-webui/flow-handoff.md'
+    emitter_path=ROOT/'open-webui/flow-handoff.md'
     emitter=emitter_path.read_text() if emitter_path.exists() else ''
-    if not emitter: err('ports/open-webui/flow-handoff.md: handoff emitter missing')
+    if not emitter: err('open-webui/flow-handoff.md: handoff emitter missing')
     # The reference and the Open WebUI emitter restate each enum as a `- \`field\`: \`a\`, \`b\`` line; each must list exactly the schema's values.
-    for label,doc in (('planning-handoff.md', ph), ('ports/open-webui/flow-handoff.md', emitter)):
+    for label,doc in (('planning-handoff.md', ph), ('open-webui/flow-handoff.md', emitter)):
         for field in enum_fields:
             spec=props[field]
             line=next((l for l in doc.splitlines() if l.startswith(f'- `{field}`:')), '')
@@ -260,15 +260,15 @@ else:
             if listed!=spec['enum']: err(f'{label} `{field}` values {listed} differ from the schema enum {spec["enum"]}')
     # The emitter's manifest template names every required field and sets every schema constant.
     for field in schema.get('required',[]):
-        if f'"{field}":' not in emitter: err(f'ports/open-webui/flow-handoff.md: manifest template missing required field {field}')
+        if f'"{field}":' not in emitter: err(f'open-webui/flow-handoff.md: manifest template missing required field {field}')
     for field,spec in props.items():
-        if 'const' in spec and f'"{field}": {json.dumps(spec["const"])}' not in emitter: err(f'ports/open-webui/flow-handoff.md: manifest template must set {field} to {json.dumps(spec["const"])}')
+        if 'const' in spec and f'"{field}": {json.dumps(spec["const"])}' not in emitter: err(f'open-webui/flow-handoff.md: manifest template must set {field} to {json.dumps(spec["const"])}')
 for required in ['`flow-handoff.json`', '`handoff.md`', '`references/planning-handoff.schema.json`', '"flow_handoff": 2', '"authorization": "not-carried"', '`implementation_strategy: settled`', 'validate-planning-handoff.py', '## manifest schema v2', '## receiving-side validation', '## decide what happens next']:
     if required not in ph: err(f'planning-handoff missing machine-read marker or pointer target: {required!r}')
 
 
 interop=(ROOT/'docs/EXTERNAL-INTEROP.md').read_text().lower()
-for required in ['`flow-planning`', '`flow-design`', '`flow-handoff.json`', '`ports/open-webui/`', '## synchronization discipline']:
+for required in ['`flow-planning`', '`flow-design`', '`flow-handoff.json`', 'open-webui/`', '## synchronization discipline']:
     if required not in interop: err(f'docs/EXTERNAL-INTEROP.md missing marker: {required!r}')
 
 compat=(ROOT/'docs/OMP-COMPATIBILITY.md').read_text().lower()
@@ -287,7 +287,7 @@ doctrine_drift=[
 for label,text,bad in doctrine_drift:
     if bad in text: err(f'{label}: stale doctrine survived: {bad}')
 
-evidence_raw=(ROOT/'agent/rules/flow-evidence.md').read_text()
+evidence_raw=(ROOT/'omp/rules/flow-evidence.md').read_text()
 # Pin only what tools parse or other files name: the rule name and title, the
 # claim, tool and receipt names the rule defines, and the concepts that
 # flow-execution, docs/ARCHITECTURE.md and docs/PRINCIPLES.md point at.
@@ -302,31 +302,31 @@ EVIDENCE_MARKERS=[
 for required in EVIDENCE_MARKERS:
     if required not in evidence_raw: err(f'flow-evidence missing machine-read marker or pointer target: {required!r}')
 
-artifacts=(ROOT/'agent/rules/flow-artifacts.md').read_text()
+artifacts=(ROOT/'omp/rules/flow-artifacts.md').read_text()
 for required in ['<!-- flow-exclude-guard -->', '<!-- /flow-exclude-guard -->', "printf '/.flow/\\n'", 'contracts/<slug>.md', 'plans/<slug>/PLAN.md', 'ldd/<epic>/', 'checkpoints/<head>.md', 'evidence/<head>/<capsule-id>/', 'runtime/gates.json', '`docs/decisions/`', '`docs/reports/`', '`.gitignore`', '`.flow/runtime/`', '`flow_gate`', '`flow-integrating`', '## Frozen LDD ledgers', '## Lifecycle']:
     if required not in artifacts: err(f'flow-artifacts missing machine-read marker or pointer target: {required!r}')
 for path,required in [
-    ('agent/skills/flow-design/SKILL.md', '.flow/contracts/<slug>.md'),
-    ('agent/skills/flow-planning/SKILL.md', '.flow/plans/<slug>/PLAN.md'),
-    ('agent/skills/flow-execution/SKILL.md', '.flow/checkpoints/<head>.md'),
-    ('agent/skills/flow-execution/SKILL.md', '.flow/evidence/<head>/<capsule-id>/'),
-    ('agent/agents/flow-evidence-verifier.md', '.flow/evidence/<head>/<capsule-id>/'),
-    ('agent/skills/flow-integrating/SKILL.md', 'flow-artifacts'),
-    ('agent/skills/flow-integrating/SKILL.md', 'docs/decisions/<slug>.md'),
+    ('omp/skills/flow-design/SKILL.md', '.flow/contracts/<slug>.md'),
+    ('omp/skills/flow-planning/SKILL.md', '.flow/plans/<slug>/PLAN.md'),
+    ('omp/skills/flow-execution/SKILL.md', '.flow/checkpoints/<head>.md'),
+    ('omp/skills/flow-execution/SKILL.md', '.flow/evidence/<head>/<capsule-id>/'),
+    ('omp/agents/flow-evidence-verifier.md', '.flow/evidence/<head>/<capsule-id>/'),
+    ('omp/skills/flow-integrating/SKILL.md', 'flow-artifacts'),
+    ('omp/skills/flow-integrating/SKILL.md', 'docs/decisions/<slug>.md'),
     ('docs/PRINCIPLES.md', 'personal exclude guard'),
     ('docs/ARCHITECTURE.md', '## Artifacts'),
     ('README.md', 'flow-artifacts'),
 ]:
     if required not in (ROOT/path).read_text(): err(f'{path}: flow-artifacts path/pointer missing: {required}')
-safety=(ROOT/'agent/rules/flow-safety.md').read_text()
+safety=(ROOT/'omp/rules/flow-safety.md').read_text()
 for required in ['name: flow-safety\n', '\n# Flow safety\n', '`flow-plan-executor`', '`HEAD`', '`main`/`master`']:
     if required not in safety: err(f'flow-safety missing machine-read marker: {required!r}')
 
-tdd=(ROOT/'agent/skills/flow-tdd/SKILL.md').read_text()
+tdd=(ROOT/'omp/skills/flow-tdd/SKILL.md').read_text()
 for required in ['name: flow-tdd\n', '## Cycle', '**RED**', '**GREEN**', '**REFACTOR**', '## Legitimate non-TDD surfaces']:
     if required not in tdd: err(f'flow-tdd missing machine-read marker: {required!r}')
 
-review_raw=(ROOT/'agent/skills/flow-review/SKILL.md').read_text()
+review_raw=(ROOT/'omp/skills/flow-review/SKILL.md').read_text()
 # Pin only what tools parse or other files name: the skill name and title, the
 # mode names and reference paths, the headings and selection rules other files
 # point at, the lens routes, the disposition labels and the two pointer sentences.
@@ -345,11 +345,11 @@ REVIEW_MARKERS=[
 for required in REVIEW_MARKERS:
     if required not in review_raw: err(f'flow-review missing machine-read marker or pointer target: {required!r}')
 
-pr_review=(ROOT/'agent/skills/flow-review/references/pr-review.md').read_text()
+pr_review=(ROOT/'omp/skills/flow-review/references/pr-review.md').read_text()
 for required in ['# PR reviewer mode', 'pinned review checkout', '`review_tmp`', '`github-operations.md`', '`review-lenses.md`', '`references/github-operations.md`']:
     if required not in pr_review: err(f'flow-review pr-review.md missing machine-read marker or pointer target: {required!r}')
 
-github_ops=(ROOT/'agent/skills/flow-review/references/github-operations.md').read_text()
+github_ops=(ROOT/'omp/skills/flow-review/references/github-operations.md').read_text()
 for required in [
     'review_tmp=$(mktemp -d "${TMPDIR:-/tmp}/flow-review.XXXXXX")',
     '"$review_tmp/packet"',
@@ -359,7 +359,7 @@ for required in [
 ]:
     if required not in github_ops:
         err(f'flow-review temporary-workspace invariant missing: {required}')
-author_ops=(ROOT/'agent/skills/flow-review/references/author-operations.md').read_text()
+author_ops=(ROOT/'omp/skills/flow-review/references/author-operations.md').read_text()
 for required in [
     'packet_dir="$review_tmp/feedback"',
     'mkdir -p "$packet_dir"',
@@ -369,11 +369,11 @@ for required in [
 if 'flow-pr-feedback.XXXXXX' in author_ops:
     err('flow-review author-feedback retained a separate temp-root convention')
 
-integrating=(ROOT/'agent/skills/flow-integrating/SKILL.md').read_text()
+integrating=(ROOT/'omp/skills/flow-integrating/SKILL.md').read_text()
 for required in ['## 1. Prove local completion', '## 2. Record the decisions', '## 4. Ask for the integration decision', '## 5. After integration', '`flow_gate action=status`', '`flow_gate action=clear`', '`docs/decisions/<slug>.md`', '`.flow/contracts/<slug>.md`']:
     if required not in integrating: err(f'flow-integrating missing machine-read marker or pointer target: {required!r}')
 
-agents_md=(ROOT/'agent/AGENTS.md').read_text()
+agents_md=(ROOT/'omp/AGENTS.md').read_text()
 # Pin only what other files name and the exact skill, agent and tool names that
 # route behavior: the heading README.md names, the shell-check commands, and the
 # Flow routing names. The prose itself is not pinned.
@@ -386,27 +386,27 @@ AGENTS_MARKERS=[
     '**forward pointer**', 'OMP `eval`', '`weft-worklog`', '`docs/PRINCIPLES.md`',
 ]
 for required in AGENTS_MARKERS:
-    if required not in agents_md: err(f'agent/AGENTS.md missing machine-read marker or pointer target: {required!r}')
+    if required not in agents_md: err(f'omp/AGENTS.md missing machine-read marker or pointer target: {required!r}')
 if 'for ordinary work, the main session may code' in agents_md.lower():
     err('AGENTS: blanket Main coding permission survived')
 
-weft_worklog=(ROOT/'agent/skills/weft-worklog/SKILL.md').read_text()
+weft_worklog=(ROOT/'omp/skills/weft-worklog/SKILL.md').read_text()
 for required in ['## Mode A — query open work', '## Mode B — log completed work', '## Mode C — Flow lifecycle', '**Before work**', '**After work**', '**PR reviewer ownership exception**', '`references/conventions.md`', '`references/voice.md`', '`references/page-archetypes.md`']:
     if required not in weft_worklog: err(f'weft-worklog missing machine-read marker or pointer target: {required!r}')
 
 
 # The Weft reference copies are deliberately duplicated per skill; they must stay byte-identical.
-weft_master=ROOT/'agent/skills/weft-worklog/references'
+weft_master=ROOT/'omp/skills/weft-worklog/references'
 for other,names in [('weft-memory',['conventions.md','voice.md']),('weft-maintenance',['conventions.md','voice.md','page-archetypes.md'])]:
     for name in names:
-        a=weft_master/name; b=ROOT/'agent/skills'/other/'references'/name
+        a=weft_master/name; b=ROOT/'omp/skills'/other/'references'/name
         if not b.exists(): err(f'missing Weft reference copy: {rel(b)}'); continue
         if a.read_bytes()!=b.read_bytes(): err(f'Weft reference copies differ: {rel(a)} vs {rel(b)}')
 
 # Asset references in a SKILL.md resolve from the skill directory; in references/*.md from the reference
 # directory or the skill directory.
 asset_re=re.compile(r'`((?:\.\./)?(?:references|scripts)/[^`\s<>]+)`|\]\(([^)\s]+\.md)\)')
-for doc in skills+list((ROOT/'agent/skills').glob('*/references/*.md')):
+for doc in skills+list((ROOT/'omp/skills').glob('*/references/*.md')):
     bases=[doc.parent] if doc in skills else [doc.parent, doc.parent.parent]
     for m in asset_re.finditer(doc.read_text()):
         asset=m.group(1) or m.group(2)
@@ -418,7 +418,7 @@ tracked=subprocess.run(['git','ls-files','-z'],cwd=ROOT,capture_output=True,text
 for path in tracked:
     if not path or path.startswith('tests/fixtures/'): continue
     f=ROOT/path
-    if f.suffix in {'.md','.ts','.mjs','.py','.sh','.yml','.json'} or path.startswith('scripts/'):
+    if f.suffix in {'.md','.ts','.mjs','.py','.sh','.yml','.json'} or path.startswith('omp/bin/'):
         data=f.read_bytes()
         if data and not data.endswith(b'\n'): err(f'{path}: missing final newline')
 
@@ -426,9 +426,9 @@ for path in tracked:
 # Every native provider profile must expose the same complete role vocabulary.
 required_roles={'default','smol','tiny','vision','execute','task','plan','slow','review_aux','critical','commit'}
 profile_cfgs={
-    'openai-codex': ROOT/'profiles/openai-codex/config.yml',
-    'anthropic': ROOT/'profiles/anthropic/config.yml',
-    'commandcode': ROOT/'profiles/commandcode/config.yml',
+    'openai-codex': ROOT/'omp/profiles/openai-codex/config.yml',
+    'anthropic': ROOT/'omp/profiles/anthropic/config.yml',
+    'commandcode': ROOT/'omp/profiles/commandcode/config.yml',
 }
 profile_roles={}
 for profile,path in profile_cfgs.items():
@@ -462,7 +462,7 @@ expected_openai={
 }
 openai=yaml.safe_load(profile_cfgs['openai-codex'].read_text()).get('modelRoles',{})
 if openai != expected_openai:
-    err('profiles/openai-codex/config.yml: role mapping drifted from documented routing')
+    err('omp/profiles/openai-codex/config.yml: role mapping drifted from documented routing')
 
 expected_anthropic={
     'default':'anthropic/claude-opus-5-5:medium',
@@ -479,7 +479,7 @@ expected_anthropic={
 }
 anthropic=yaml.safe_load(profile_cfgs['anthropic'].read_text()).get('modelRoles',{})
 if anthropic != expected_anthropic:
-    err('profiles/anthropic/config.yml: role mapping drifted from documented routing')
+    err('omp/profiles/anthropic/config.yml: role mapping drifted from documented routing')
 
 expected_commandcode={
     'default':'commandcode/z-ai/glm-5.3-flash:high',
@@ -496,7 +496,7 @@ expected_commandcode={
 }
 commandcode=yaml.safe_load(profile_cfgs['commandcode'].read_text()).get('modelRoles',{})
 if commandcode != expected_commandcode:
-    err('profiles/commandcode/config.yml: role mapping drifted from documented routing')
+    err('omp/profiles/commandcode/config.yml: role mapping drifted from documented routing')
 
 # Every v8 provider baseline carries the external-effect approval backstop.
 # The profiles are the single source of truth for the pattern list; the
@@ -594,12 +594,12 @@ migration=(ROOT/'docs/MIGRATION.md').read_text().lower()
 for stale in ['are not overwritten by `omp-stack install`**, so merge', 'bash/forge']:
     if stale in migration: err(f'docs/MIGRATION.md stale installer doctrine survived: {stale}')
 
-# Claude Code port: a plugin in ports/claude-code/, listed by the root marketplace.
-port=ROOT/'ports/claude-code'
+# Claude Code port: a plugin in claude-code/, listed by the root marketplace.
+port=ROOT/'claude-code'
 plugin=json.loads((port/'.claude-plugin/plugin.json').read_text())
 market=json.loads((ROOT/'.claude-plugin/marketplace.json').read_text())
-if [(p['name'],p['source']) for p in market['plugins']]!=[(plugin['name'],'./ports/claude-code')]:
-    err('.claude-plugin/marketplace.json: must list exactly the ports/claude-code plugin under its plugin.json name')
+if [(p['name'],p['source']) for p in market['plugins']]!=[(plugin['name'],'./claude-code')]:
+    err('.claude-plugin/marketplace.json: must list exactly the claude-code plugin under its plugin.json name')
 port_skills=list((port/'skills').glob('*/SKILL.md'))
 port_agents=list((port/'agents').glob('*.md'))
 for p in port_skills+port_agents:
@@ -613,21 +613,21 @@ for p in port_docs:
     for omp_only in ['flow_gate','skill://','`hub`','hub wait','@task','@execute','@slow','@smol','@plan','@vision','@review_aux','`sonic`','`scout`']:
         if omp_only in text: err(f'{rel(p)}: OMP-only mechanic in the Claude Code port: {omp_only}')
 for path in ['skills/flow-tdd/SKILL.md','skills/ui-design/SKILL.md']:
-    if (port/path).read_bytes()!=(ROOT/'agent'/path).read_bytes(): err(f'ports/claude-code/{path}: verbatim mirror drifted from agent/{path}')
+    if (port/path).read_bytes()!=(ROOT/'omp'/path).read_bytes(): err(f'claude-code/{path}: verbatim mirror drifted from omp/{path}')
 for path in ['skills/weft-worklog/references/voice.md','skills/weft-worklog/references/page-archetypes.md']:
-    if (port/path).read_bytes()!=(ROOT/'agent'/path).read_bytes(): err(f'ports/claude-code/{path}: verbatim mirror drifted from agent/{path}')
+    if (port/path).read_bytes()!=(ROOT/'omp'/path).read_bytes(): err(f'claude-code/{path}: verbatim mirror drifted from omp/{path}')
 for other,names in [('weft-memory',['conventions.md','voice.md']),('weft-maintenance',['conventions.md','voice.md','page-archetypes.md'])]:
     for name in names:
-        if (port/'skills/weft-worklog/references'/name).read_bytes()!=(port/'skills'/other/'references'/name).read_bytes(): err(f'ports/claude-code/skills/{other}/references/{name}: Weft reference copies differ')
+        if (port/'skills/weft-worklog/references'/name).read_bytes()!=(port/'skills'/other/'references'/name).read_bytes(): err(f'claude-code/skills/{other}/references/{name}: Weft reference copies differ')
 for path in ['references/planning-handoff.schema.json','scripts/validate-planning-handoff.py']:
-    if (port/'skills/flow-external-session'/path).read_bytes()!=(ROOT/'agent/skills/flow-external-session'/path).read_bytes(): err(f'ports/claude-code/skills/flow-external-session/{path}: verbatim mirror drifted')
+    if (port/'skills/flow-external-session'/path).read_bytes()!=(ROOT/'omp/skills/flow-external-session'/path).read_bytes(): err(f'claude-code/skills/flow-external-session/{path}: verbatim mirror drifted')
 # Claude Code keeps only about 2 KB of SessionStart hook output in context.
 core=subprocess.run(['sh',str(port/'hooks/session-start.sh')],env={'CLAUDE_PLUGIN_ROOT':str(port),'PATH':os.environ['PATH']},capture_output=True,text=True,check=True).stdout
-if len(core.encode())>1900: err(f'ports/claude-code/hooks/session-start.sh: prints {len(core.encode())} bytes; keep it under 1900')
-if str(port/'hooks/flow-context.md') not in core: err('ports/claude-code/hooks/session-start.sh: core must point at the full flow-context.md path')
+if len(core.encode())>1900: err(f'claude-code/hooks/session-start.sh: prints {len(core.encode())} bytes; keep it under 1900')
+if str(port/'hooks/flow-context.md') not in core: err('claude-code/hooks/session-start.sh: core must point at the full flow-context.md path')
 
-# OpenCode port: ports/opencode/, installed under ~/.config/opencode by ports/opencode/bin/flow-opencode.
-oport=ROOT/'ports/opencode'
+# OpenCode port: opencode/, installed under ~/.config/opencode by opencode/bin/flow-opencode.
+oport=ROOT/'opencode'
 OPORT_AGENTS={'flow-acceptance-reviewer','flow-audit-code-health','flow-audit-docs','flow-audit-tests','flow-cor-reviewer','flow-craft-reviewer','flow-implementer','flow-plan-executor','flow-planner','flow-ttc-reviewer'}
 OPORT_READ_ONLY=OPORT_AGENTS-{'flow-implementer','flow-plan-executor','flow-planner'}
 OPORT_AUDIT={'flow-audit-code-health','flow-audit-docs','flow-audit-tests'}
@@ -636,29 +636,29 @@ OPORT_SKILLS={p.parent.name for p in skills}-{'blog-post'}  # `expected` and `na
 oport_skills=list((oport/'skills').glob('*/SKILL.md'))
 oport_agents=list((oport/'agents').glob('*.md'))
 oport_docs=oport_skills+oport_agents+list((oport/'skills').glob('*/references/*.md'))+[oport/'AGENTS.md']
-if {p.parent.name for p in oport_skills}!=OPORT_SKILLS: err(f'ports/opencode/skills: skill set mismatch: {sorted({p.parent.name for p in oport_skills}^OPORT_SKILLS)}')
-if {p.stem for p in oport_agents}!=OPORT_AGENTS: err(f'ports/opencode/agents: agent set mismatch: {sorted({p.stem for p in oport_agents}^OPORT_AGENTS)}')
+if {p.parent.name for p in oport_skills}!=OPORT_SKILLS: err(f'opencode/skills: skill set mismatch: {sorted({p.parent.name for p in oport_skills}^OPORT_SKILLS)}')
+if {p.stem for p in oport_agents}!=OPORT_AGENTS: err(f'opencode/agents: agent set mismatch: {sorted({p.stem for p in oport_agents}^OPORT_AGENTS)}')
 for p in oport_skills:
     fm,_=frontmatter(p)
     if not fm or fm.get('name')!=p.parent.name or not fm.get('description'): err(f'{rel(p)}: frontmatter needs name {p.parent.name} and a description')
 for path in ['skills/flow-tdd/SKILL.md','skills/ui-design/SKILL.md','skills/weft-worklog/references/voice.md','skills/weft-worklog/references/page-archetypes.md','skills/flow-external-session/references/planning-handoff.schema.json','skills/flow-external-session/references/external-worktree.md','skills/flow-external-session/scripts/validate-planning-handoff.py','skills/flow-review/references/author-operations.md']:
-    if not (oport/path).exists() or (oport/path).read_bytes()!=(ROOT/'agent'/path).read_bytes(): err(f'ports/opencode/{path}: verbatim mirror missing or drifted from agent/{path}')
+    if not (oport/path).exists() or (oport/path).read_bytes()!=(ROOT/'omp'/path).read_bytes(): err(f'opencode/{path}: verbatim mirror missing or drifted from omp/{path}')
 for skill,names_ in [('weft-memory',['conventions.md','voice.md']),('weft-maintenance',['conventions.md','voice.md','page-archetypes.md'])]:
     for name_ in names_:
         src=oport/'skills/weft-worklog/references'/name_
         dst=oport/'skills'/skill/'references'/name_
-        if not dst.exists() or not src.exists() or dst.read_bytes()!=src.read_bytes(): err(f'ports/opencode/skills/{skill}/references/{name_}: must be byte-equal to weft-worklog/references/{name_}')
+        if not dst.exists() or not src.exists() or dst.read_bytes()!=src.read_bytes(): err(f'opencode/skills/{skill}/references/{name_}: must be byte-equal to weft-worklog/references/{name_}')
 oport_agents_md=oport/'AGENTS.md'
-if not oport_agents_md.exists(): err('ports/opencode/AGENTS.md: missing')
+if not oport_agents_md.exists(): err('opencode/AGENTS.md: missing')
 else:
     oport_ctx=oport_agents_md.read_text()
     for marker in ['# Flow (omp-stack, OpenCode port)','## Approval record','flow_approve() {','flow_check() {','.flow/runtime/approvals.log','`subagent`','`skill`','`general`','`explore`','`flow-plan-executor`','`flow-implementer`','`flow-acceptance-reviewer`','## Harness: [[OpenCode]]','<!-- flow-exclude-guard -->',"printf '/.flow/\\n'",'## Safety','## Evidence','## Flow artifacts','`execute`']:
-        if marker not in oport_ctx: err(f'ports/opencode/AGENTS.md missing marker: {marker!r}')
+        if marker not in oport_ctx: err(f'opencode/AGENTS.md missing marker: {marker!r}')
     def approval_functions(text):
         start=text.find('flow_approve() {'); end=text.find('\n}\n',text.find('flow_check() {'))
         return text[start:end+3] if start>=0 and end>=0 else None
-    if approval_functions(oport_ctx)!=approval_functions((ROOT/'ports/claude-code/hooks/flow-context.md').read_text()) or approval_functions(oport_ctx) is None:
-        err('ports/opencode/AGENTS.md: flow_approve/flow_check bodies must equal ports/claude-code/hooks/flow-context.md')
+    if approval_functions(oport_ctx)!=approval_functions((ROOT/'claude-code/hooks/flow-context.md').read_text()) or approval_functions(oport_ctx) is None:
+        err('opencode/AGENTS.md: flow_approve/flow_check bodies must equal claude-code/hooks/flow-context.md')
 for p in oport_agents:
     fm,_=frontmatter(p)
     if not fm or fm.get('name')!=p.stem or not fm.get('description'): err(f'{rel(p)}: frontmatter needs name {p.stem} and a description')
@@ -678,7 +678,7 @@ for p in oport_docs:
     for claude_only in ['CLAUDE_PLUGIN_ROOT','SendMessage','general-purpose','isolation: "worktree"','TaskCreate','TodoWrite','mcp__github__','`Explore`','CLAUDE.md','model: opus','model: sonnet','model: haiku','model: inherit','weft_publish','WEFT_GRAPH_REPO']:
         if claude_only in text: err(f'{rel(p)}: Claude Code-only mechanic in the OpenCode port: {claude_only}')
     if MODEL_LEAK.search(text) or OPORT_MODEL_LEAK.search(text): err(f'{rel(p)}: concrete model/provider identifier leaked into the OpenCode port')
-OPORT_FOREIGN_PATHS=['.claude','~/.omp','.omp/','ports/claude-code','ports/open-webui','.claude-plugin']
+OPORT_FOREIGN_PATHS=['.claude','~/.omp','.omp/','claude-code/','open-webui/','.claude-plugin']
 oport_cfgs=[oport/'opencode.json']+sorted((oport/'profiles').glob('*.json'))
 for p in oport_docs+oport_cfgs:
     if not p.exists(): continue
@@ -686,21 +686,21 @@ for p in oport_docs+oport_cfgs:
     for foreign in OPORT_FOREIGN_PATHS:
         if foreign in text: err(f'{rel(p)}: other-harness path in the OpenCode port: {foreign}')
 required_asks=[m for m,a in pattern_lists['anthropic'] if a=='prompt']
-if not (oport/'opencode.json').exists(): err('ports/opencode/opencode.json: missing')
+if not (oport/'opencode.json').exists(): err('opencode/opencode.json: missing')
 else:
     try: base=json.loads((oport/'opencode.json').read_text())
-    except ValueError as e: base=None; err(f'ports/opencode/opencode.json: invalid JSON: {e}')
+    except ValueError as e: base=None; err(f'opencode/opencode.json: invalid JSON: {e}')
     if base is not None:
-        if not isinstance(base,dict) or set(base)!={'$schema','permission'}: err('ports/opencode/opencode.json: top-level keys must be exactly $schema and permission')
+        if not isinstance(base,dict) or set(base)!={'$schema','permission'}: err('opencode/opencode.json: top-level keys must be exactly $schema and permission')
         else:
             perm=base['permission']
-            if not isinstance(perm,dict) or set(perm)!={'bash'} or not isinstance(perm['bash'],dict): err('ports/opencode/opencode.json: permission must be exactly a bash map')
+            if not isinstance(perm,dict) or set(perm)!={'bash'} or not isinstance(perm['bash'],dict): err('opencode/opencode.json: permission must be exactly a bash map')
             else:
-                if set(perm['bash'])!=set(required_asks): err(f'ports/opencode/opencode.json: permission.bash must list exactly the profile prompt patterns; difference {sorted(set(perm["bash"])^set(required_asks))}')
+                if set(perm['bash'])!=set(required_asks): err(f'opencode/opencode.json: permission.bash must list exactly the profile prompt patterns; difference {sorted(set(perm["bash"])^set(required_asks))}')
                 for match,action in perm['bash'].items():
-                    if action!='ask': err(f'ports/opencode/opencode.json: permission.bash {match!r} must be ask, not {action!r}')
+                    if action!='ask': err(f'opencode/opencode.json: permission.bash {match!r} must be ask, not {action!r}')
 oport_profiles=sorted((oport/'profiles').glob('*.json'))
-if {p.stem for p in oport_profiles}!={'claude-agent','opencode'}: err(f'ports/opencode/profiles: profile set mismatch: {sorted(p.stem for p in oport_profiles)}')
+if {p.stem for p in oport_profiles}!={'claude-agent','opencode'}: err(f'opencode/profiles: profile set mismatch: {sorted(p.stem for p in oport_profiles)}')
 for p in oport_profiles:
     try: prof=json.loads(p.read_text())
     except ValueError as e: err(f'{rel(p)}: invalid JSON: {e}'); continue
@@ -714,17 +714,17 @@ for p in oport_profiles:
 
 # Rule 11: the OpenCode port is documented where readers look.
 _readme=(ROOT/'README.md').read_text()
-for marker in ['ports/opencode/','flow-opencode']:
+for marker in ['opencode/','flow-opencode']:
     if marker not in _readme: err(f'README.md: missing OpenCode port marker: {marker}')
 _interop=(ROOT/'docs/EXTERNAL-INTEROP.md').read_text().lower()
-for marker in ['## opencode port','ports/opencode/','`subagent`','`skill`']:
+for marker in ['## opencode port','opencode/','`subagent`','`skill`']:
     if marker not in _interop: err(f'docs/EXTERNAL-INTEROP.md: missing OpenCode port marker: {marker}')
 if not (ROOT/'docs/decisions/opencode-port.md').exists(): err('docs/decisions/opencode-port.md: missing')
 
 # Every file that loads into a session (skills, their references, agents, rules, AGENTS.md)
 # has a byte cap; growth needs a deliberate cap change.
 budget=json.loads((ROOT/'tests/doctrine-budget.json').read_text())
-loaded={rel(p) for p in skills+agents+rules+list((ROOT/'agent/skills').glob('*/references/*.md'))+port_docs}|{'agent/AGENTS.md'}
+loaded={rel(p) for p in skills+agents+rules+list((ROOT/'omp/skills').glob('*/references/*.md'))+port_docs}|{'omp/AGENTS.md'}
 loaded|={rel(p) for p in oport_docs}
 for path in sorted(loaded-budget.keys()):
     err(f'tests/doctrine-budget.json: no size cap for {path}')

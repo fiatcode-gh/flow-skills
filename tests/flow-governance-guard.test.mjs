@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import guardExtension from "../agent/extensions/flow-governance-guard.ts";
+import guardExtension from "../omp/extensions/flow-governance-guard.ts";
 
 const schema = {
 	describe() {

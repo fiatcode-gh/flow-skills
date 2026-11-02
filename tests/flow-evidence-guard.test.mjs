@@ -1,7 +1,7 @@
 // Behavioral tests for the narrow Flow runtime evidence-capsule preflight.
 // Dependency-free: Node native TypeScript stripping loads the extension directly.
 import assert from "node:assert/strict";
-import guardExtension from "../agent/extensions/flow-evidence-guard.ts";
+import guardExtension from "../omp/extensions/flow-evidence-guard.ts";
 
 let toolCall;
 guardExtension({

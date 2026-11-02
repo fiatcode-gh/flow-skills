@@ -1,7 +1,7 @@
 /**
  * omp-stack — OMP adapter for the Weft AI-memory hub.
  *
- * Appends the session project's slice from `agent/lib/ai-memory.ts` to OMP's
+ * Appends the session project's slice from `omp/lib/ai-memory.ts` to OMP's
  * system prompt at `before_agent_start`, inside `<weft-memory>` tags that mark
  * it as data. Missing/unreadable memory is a no-op so the extension can never
  * block session start.
