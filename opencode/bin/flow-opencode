@@ -237,6 +237,8 @@ PY
 }
 
 doctor() {
+  { read -r version || [ -n "$version" ]; } <"$ROOT/VERSION" || fail "cannot read $ROOT/VERSION"
+  info "flow-skills $version"
   command -v opencode >/dev/null 2>&1 || fail "doctor needs opencode on PATH"
   command -v python3 >/dev/null 2>&1 || fail "doctor needs python3 on PATH"
   unset OPENCODE_CONFIG

@@ -203,6 +203,7 @@ doctor() { HOME=$H PATH="$TMP/docbin:/usr/bin:/bin" FIXTURE_DIR=$FX FLOW_OPENCOD
 
 # A: everything good.
 out=$(doctor) || fail "doctor failed on good fixtures: $out"
+[ "$(printf '%s\n' "$out" | sed -n 1p)" = "flow-skills $(cat "$ROOT/VERSION")" ] || fail "doctor A: first line is not the version: $out"
 for s in $(ls "$PORT/skills"); do
   case $out in *"ok: skill $s at "*) ;; *) fail "doctor A: no ok line for skill $s: $out" ;; esac
 done

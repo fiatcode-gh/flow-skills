@@ -176,6 +176,8 @@ doctor_profile() { # profile dir
 }
 
 doctor() {
+  { read -r version || [ -n "$version" ]; } <"$ROOT/VERSION" || fail "cannot read $ROOT/VERSION"
+  info "flow-skills $version"
   each_profile : doctor_profile
 }
 
