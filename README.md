@@ -115,11 +115,13 @@ opencode reload
 
 The installer links `AGENTS.md`, `skills/`, `agents/`, `profiles/` and the base `opencode.json` into `~/.config/opencode/`. The base config only adds approval prompts for publication commands (`git push`, `gh pr create`, ...).
 
-Models are chosen per provider. Each `opencode/profiles/<provider>.json` maps every Flow agent to a model; add a provider by adding one file. Launch with a profile:
+Models are chosen per provider. Each `opencode/profiles/<provider>.json` maps every Flow agent to a model and an effort, following the OMP profile of the same role; add a provider by adding one file. Launch with a profile:
 
 ```sh
-./opencode/bin/flow-opencode run claude-agent   # or: run opencode
+./opencode/bin/flow-opencode run claude-agent   # or: run commandcode, run opencode
 ```
+
+The `commandcode` profile uses OpenCode's built-in Command Code provider. Add the key once, in OpenCode: `/connect`, pick Command Code (or, under Other, provider id `commandcode`) and paste it. The key stays in OpenCode's own credential store; no profile or repository file holds it.
 
 A profile launch runs a private server (`--standalone`) because the background service ignores per-launch config; plain `opencode` uses the base config. OpenCode also scans other tools' global skill folders; the installer reports any same-named copy there so it does not drift. Details: `docs/decisions/opencode-port.md`.
 
@@ -133,9 +135,9 @@ OMP profiles map Flow roles (`default`, `smol`, `execute`, `task`, `plan`, `slow
 
 - **anthropic:** Opus 5.5 for Main and acceptance, Sonnet 5.5 for execution, implementation and leaves, Haiku 5.5 for titles, Fable 5.1 for planning and critical escalation.
 - **openai-codex:** GPT-6 Luna for Main, leaves and execution; GPT-6.1 Sol for implementation, planning and review.
-- **commandcode:** GLM-5.3 Flash for Main, DeepSeek V4.1 Flash for leaves and execution, GLM-5.3 for planning, Kimi K3 for acceptance.
+- **commandcode:** DeepSeek V4.1 Flash for Main, planning, implementation, execution and leaves; GLM-5.3 for acceptance.
 
-The Claude Code port sets models in agent frontmatter (`opus`, `sonnet`, and `claude-fable-5-1` for the planner); OpenCode uses its profile files. Reasons and effort levels: `docs/MODEL-ROUTING.md`. Assumptions about OMP itself: `docs/OMP-COMPATIBILITY.md`.
+The Claude Code port sets `model` and `effort` in agent frontmatter (`opus`, `sonnet`, and `claude-fable-5-1` for the planner); OpenCode sets `model` and `variant` in its profile files, with the same role-to-model map as OMP's `anthropic` and `commandcode` profiles. Reasons, effort levels and the per-port table: `docs/MODEL-ROUTING.md`. Assumptions about OMP itself: `docs/OMP-COMPATIBILITY.md`.
 
 ## Versioning
 

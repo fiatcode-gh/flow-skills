@@ -18,14 +18,14 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 | commit/changelog generation | `@commit` | GPT-6 Luna low | Sonnet 5.5 low | DeepSeek V4.1 Flash low |
 | repo exploration | bundled `scout` / `@smol` | GPT-6 Luna low | Sonnet 5.5 low | DeepSeek V4.1 Flash low |
 | behavior-preserving mechanical work / diagnosed exact correction | bundled `sonic` / `@smol` | GPT-6 Luna low | Sonnet 5.5 low | DeepSeek V4.1 Flash low |
-| Main/controller | `@default` | GPT-6 Luna auto | Opus 5.5 medium | GLM-5.3 Flash high |
+| Main/controller | `@default` | GPT-6 Luna auto | Opus 5.5 medium | DeepSeek V4.1 Flash high |
 | execution-grade plan follower | `flow-plan-executor` / `@execute` | GPT-6 Luna xhigh | Sonnet 5.5 medium | DeepSeek V4.1 Flash high |
-| residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GPT-6.1 Sol medium | Sonnet 5.5 high | GLM-5.3 Flash high |
-| deliberate execution planning | `flow-planner` / `@plan` | GPT-6.1 Sol high | Fable 5.1 high | GLM-5.3 high |
-| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | Opus 5.5 medium | Kimi K3 high |
+| residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GPT-6.1 Sol medium | Sonnet 5.5 high | DeepSeek V4.1 Flash high |
+| deliberate execution planning | `flow-planner` / `@plan` | GPT-6.1 Sol high | Fable 5.1 high | DeepSeek V4.1 Flash high |
+| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | Opus 5.5 medium | GLM-5.3 high |
 | TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GPT-6.1 Sol high | Sonnet 5.5 high | DeepSeek V4.1 Flash high |
 | vision / multimodal inspection | `@vision` | GPT-6 Luna medium | Sonnet 5.5 medium | DeepSeek V4.1 Flash high |
-| exceptional security/concurrency/data-integrity escalation | `@critical` | GPT-6.1 Sol xhigh | Fable 5.1 high | Kimi K3 max |
+| exceptional security/concurrency/data-integrity escalation | `@critical` | GPT-6.1 Sol xhigh | Fable 5.1 high | GLM-5.3 high |
 
 `slow` intentionally stops below the most expensive explicit escalation. `critical` is the escape hatch; no automatic Flow agent binds `@critical` on purpose. Escalation should be a conscious model/session choice, not accidental fan-out.
 
@@ -56,14 +56,45 @@ Authenticate the profile through OMP's Anthropic/Claude OAuth flow so Team entit
 
 ## Command Code selection rationale
 
-The profile runs open models on the Command Code GOAT plan ($10 a month, with usage limits of $14 per 5 hours, $35 per week and $70 per month). Flow sessions resend a large, mostly cached prompt (`AGENTS.md`, rules, skill text, tool output) on every turn, so for long tool loops the cache-read price decides the cost, not the output price. At about 100k cached tokens a turn, DeepSeek V4.1 Flash costs well under a tenth of a cent, GLM-5.3 Flash about $0.003, and GLM-5.3 or Kimi K3 about $0.03.
+The profile runs open models on the Command Code [GOAT plan](https://commandcode.ai/docs/plans/goat) ($10 a month, with usage limits of up to $20 per 5 hours, $50 per week and $100 per month). Flow sessions resend a large, mostly cached prompt (`AGENTS.md`, rules, skill text, tool output) on every turn, so for long tool loops the cache-read price decides the cost, not the output price. At about 100k cached tokens a turn, DeepSeek V4.1 Flash costs well under a tenth of a cent and GLM-5.3 about $0.03.
 
-- **GLM-5.3 Flash high** owns `default` / `task`: cheap cache reads for the two roles that run long semantic tool loops. MiMo V2.6 Pro was the first choice for both, but it proved weaker in field use and is not used. If GLM-5.3 Flash also falls short, GLM-5.3 high is the stronger option at roughly ten times the cache-read price.
-- **DeepSeek V4.1 Flash** owns `smol` / `tiny` / `commit` at `low` and `execute` / `vision` / `review_aux` at `high`: the cheapest image-capable model, enough for mechanical leaves, locked-plan execution and long evidence sessions. Auxiliary review stays on a different family from the Main and `@task` work it reviews.
-- **GLM-5.3 high** owns `plan`, **Kimi K3 high** owns `slow`: both run rarely, so their higher price is affordable. Planner, executor and acceptance reviewer come from three different families, so acceptance can challenge the plan as well as the code.
-- **Kimi K3 max** owns `critical`: explicit-only, one effort step above `slow`.
+The rule is that DeepSeek produces and GLM-5.3 judges. Acceptance runs in a different family from everything it reviews.
 
-Authenticate with `COMMAND_CODE_API_KEY` or OMP's login inside `omp --profile commandcode`; never commit the key. Catalog IDs are case-sensitive (`zai-org/GLM-5.3`, `moonshotai/Kimi-K3`); keep them under review when Command Code changes its catalog.
+- **DeepSeek V4.1 Flash** owns `default`, `task`, `execute`, `plan`, `vision` and `review_aux` at `high`, and `smol`, `tiny` and `commit` at `low`. In Bito's runs of real coding sessions it scored 80% against 74% for GLM-5.3 and 72% for Kimi K3, at $0.14 a long session against $2.86 for GLM-5.3 and $2.46 for Kimi K3, and it led on failure analysis, planning and self-audit ([Bito](https://bito.ai/blog/best-open-weight-model-for-coding-kimi-k3-1-pro-glm-5-3-deepseek/)). It is also the cheapest image-capable model.
+- **GLM-5.3 high** owns `slow` and `critical`. Its audit score in Bito's runs (59%) ties Kimi K3's, so it is chosen for family separation (it is not DeepSeek, so acceptance does not grade work from its own family) and for its better overall (74% against 72%) and short-question (83% against 80%) scores. `critical` stays explicit-only and uses the same model and effort as `slow`.
+- **GLM-5.3 Flash is not used.** Users report recurring tool-call failures and broken sessions with it across more than ten sessions ([Kilo Code issue 14475](https://github.com/Kilo-Org/kilocode/issues/14475)).
+- **Kimi K3 is not used.** A hands-on review found it close to Opus on simple tasks but failing 36% of trap tasks against 8% for Opus, though the tester built those traps to target Kimi's known weaknesses, so the everyday gap is likely smaller ([MindStudio](https://www.mindstudio.ai/blog/kimi-k3-real-world-coding-review)). Bito's audit score for it was 59% against 70% for DeepSeek, so it is not the better checker either; the acceptance reviewer's job is checking a change.
+- **MiMo V2.6 Pro is not used.** It proved weaker in field use.
+
+DeepSeek V4.1 Flash costs about double at peak hours: 01:00 to 04:00 and 06:00 to 10:00 UTC, Monday to Friday. Schedule long runs outside them when that matters. In long OpenCode sessions DeepSeek can fall into repetition loops ([OpenCode issue 57377](https://github.com/anomalyco/opencode/issues/57377)); `/compact` or a new session usually clears it.
+
+Authenticate with `COMMAND_CODE_API_KEY` or OMP's login inside `omp --profile commandcode`; never commit the key. Catalog IDs are case-sensitive (`zai-org/GLM-5.3`); keep them under review when Command Code changes its catalog.
+
+## Ports
+
+The Claude Code and OpenCode ports route each Flow agent the way OMP routes its role, so a role means the same thing in every harness. Each agent takes the role from `omp/agents/<name>.md`; the COR reviewer exists only in the ports and takes `review_aux`. `tests/validate.py` checks every agent's model and effort, OpenCode's top-level `model` and its `build` agent against the matching OMP profile (`anthropic` for Claude Code and `claude-agent`, `commandcode` for `commandcode`), mapping OMP's Anthropic ids to each port's names.
+
+| Role | Flow agents | Claude Code | OpenCode `claude-agent` | OpenCode `commandcode` |
+|---|---|---|---|---|
+| `default` (Main) | OpenCode `build` and `model` | session model | `opus` medium | `deepseek/deepseek-v4.1-flash` high |
+| `plan` | `flow-planner` | `claude-fable-5-1` high | `fable` high | `deepseek/deepseek-v4.1-flash` high |
+| `slow` | `flow-acceptance-reviewer` | `opus` medium | `opus` medium | `zai-org/GLM-5.3` high |
+| `execute` | `flow-plan-executor` | `sonnet` medium | `sonnet` medium | `deepseek/deepseek-v4.1-flash` high |
+| `task` | `flow-implementer` | `sonnet` high | `sonnet` high | `deepseek/deepseek-v4.1-flash` high |
+| `review_aux` | `flow-cor-reviewer`, `flow-ttc-reviewer`, `flow-craft-reviewer`, the three audit agents | `sonnet` high | `sonnet` high | `deepseek/deepseek-v4.1-flash` high |
+
+The OpenCode `opencode` profile stays on `opencode/big-pickle` for every agent, with no effort, until models are picked for it.
+
+**Claude Code.** `model` and `effort` sit in each agent's frontmatter; the planner names the full `claude-fable-5-1` id because the `fable` alias resolves to Fable 5 in Claude apps gateway sessions.
+
+**OpenCode.** OpenCode 2.2.5 calls an effort a *variant* (`low`, `medium`, `high`, `xhigh`, `max`). Two probes showed where a variant takes effect:
+
+- `agent.<name>.variant` is applied. For `claude-agent` the spawned `claude` process runs with `--effort=<variant>`; for `commandcode` the request body carries `reasoning_effort`.
+- A `#variant` suffix on the top-level `model` or on an agent's `model` is ignored, and an agent `model` with a `#` suffix does not resolve at all. Only the `-m provider/model#variant` flag honours it.
+
+So a profile sets `variant` next to `model` on each agent. The top-level `model` cannot carry an effort, so the profile also overrides the built-in `build` agent (OpenCode's default primary agent) with Main's model and variant. `build` must use the top-level `model`.
+
+`claude-agent/fable` is "Fable 5.1" in the provider's catalog, the same model as `claude-fable-5-1`, so the planner uses the alias; the catalog has no `claude-fable-5-1` id. The provider passes the alias to `claude --model=fable`, so in a Claude apps gateway session the OpenCode planner may get Fable 5 (not tested). `commandcode` is a built-in OpenCode provider with both profile models in its catalog and a `low`/`high`/`max` variant ladder, so the profile has no `provider` block. The key comes from OpenCode's own credential store (`/connect`, provider `commandcode`) and never appears in the repository. `tests/validate.py` requires `build` in each profile with an OMP counterpart, rejects any `apiKey` or `headers` object in a profile, and any `provider` block for another provider id.
 
 ## Routing principle
 

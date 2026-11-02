@@ -482,16 +482,16 @@ if anthropic != expected_anthropic:
     err('omp/profiles/anthropic/config.yml: role mapping drifted from documented routing')
 
 expected_commandcode={
-    'default':'commandcode/z-ai/glm-5.3-flash:high',
+    'default':'commandcode/deepseek/deepseek-v4.1-flash:high',
     'smol':'commandcode/deepseek/deepseek-v4.1-flash:low',
     'tiny':'commandcode/deepseek/deepseek-v4.1-flash:low',
     'vision':'commandcode/deepseek/deepseek-v4.1-flash:high',
     'execute':'commandcode/deepseek/deepseek-v4.1-flash:high',
-    'task':'commandcode/z-ai/glm-5.3-flash:high',
-    'plan':'commandcode/zai-org/GLM-5.3:high',
-    'slow':'commandcode/moonshotai/Kimi-K3:high',
+    'task':'commandcode/deepseek/deepseek-v4.1-flash:high',
+    'plan':'commandcode/deepseek/deepseek-v4.1-flash:high',
+    'slow':'commandcode/zai-org/GLM-5.3:high',
     'review_aux':'commandcode/deepseek/deepseek-v4.1-flash:high',
-    'critical':'commandcode/moonshotai/Kimi-K3:max',
+    'critical':'commandcode/zai-org/GLM-5.3:high',
     'commit':'commandcode/deepseek/deepseek-v4.1-flash:low',
 }
 commandcode=yaml.safe_load(profile_cfgs['commandcode'].read_text()).get('modelRoles',{})
@@ -607,6 +607,49 @@ for p in port_skills+port_agents:
     expected=p.parent.name if p.name=='SKILL.md' else p.stem
     if not fm or fm.get('name')!=expected or not fm.get('description'): err(f'{rel(p)}: frontmatter needs name {expected} and a description')
     if p in port_agents and fm and not re.fullmatch(r'opus|sonnet|haiku|inherit|claude-(?:fable|opus|sonnet|haiku)-\d+-\d+', str(fm.get('model'))): err(f'{rel(p)}: model must be a Claude Code alias or a claude-<family>-<n>-<n> id')
+# Routing by OMP role: agents that share a role share a model and an effort in each port,
+# and effort follows the matching OMP profile. The COR reviewer exists only in the ports.
+ROLE_OF={}
+for _p in (ROOT/'omp/agents').glob('*.md'):
+    _fm,_=frontmatter(_p)
+    if str(_fm.get('model','')).startswith('@'): ROLE_OF[_fm['name']]=_fm['model'][1:]
+ROLE_OF['flow-cor-reviewer']='review_aux'
+EFFORTS={'low','medium','high','xhigh','max'}
+def omp_route(profile,role):
+    value=yaml.safe_load(profile_cfgs[profile].read_text())['modelRoles'][role]
+    model,sep,effort=value.rpartition(':')
+    return (model,effort) if sep else (value,None)
+def omp_model(profile,role): return omp_route(profile,role)[0]
+def omp_effort(profile,role): return omp_route(profile,role)[1]
+# OMP's Anthropic model ids under each Claude port's own names: (Claude Code, claude-agent).
+ANTHROPIC_PORT_NAMES={
+    'anthropic/claude-opus-5-5':('opus','opus'),
+    'anthropic/claude-sonnet-5-5':('sonnet','sonnet'),
+    'anthropic/claude-haiku-5-5':('haiku','haiku'),
+    'anthropic/claude-fable-5-1':('claude-fable-5-1','fable'),
+}
+def port_model(profile,harness,role):
+    """The OMP role's model as the harness (`claude-code`, `claude-agent` or `commandcode`) names it."""
+    model=omp_model(profile,role)
+    if profile!='anthropic': return model
+    if model not in ANTHROPIC_PORT_NAMES: err(f'{rel(profile_cfgs[profile])}: no Claude port name for {model}'); return None
+    code,agent=ANTHROPIC_PORT_NAMES[model]
+    return code if harness=='claude-code' else f'claude-agent/{agent}'
+def check_roles(label,rows):
+    by_role={}
+    for name,route in rows.items():
+        if name not in ROLE_OF: err(f'{label}: agent {name} has no OMP role'); continue
+        by_role.setdefault(ROLE_OF[name],{}).setdefault(route,[]).append(name)
+    for role,routes in by_role.items():
+        if len(routes)>1: err(f'{label}: agents of role {role} disagree on model/effort: {sorted(map(str,routes))}')
+claude_routes={}
+for p in port_agents:
+    fm,_=frontmatter(p)
+    claude_routes[p.stem]=(fm.get('model'),fm.get('effort'))
+    if fm.get('effort') not in EFFORTS: err(f'{rel(p)}: effort must be one of {sorted(EFFORTS)}, got {fm.get("effort")!r}')
+    elif p.stem in ROLE_OF and fm['effort']!=omp_effort('anthropic',ROLE_OF[p.stem]): err(f'{rel(p)}: effort {fm["effort"]} differs from the OMP anthropic profile ({omp_effort("anthropic",ROLE_OF[p.stem])}) for role {ROLE_OF[p.stem]}')
+    if p.stem in ROLE_OF and fm.get('model')!=port_model('anthropic','claude-code',ROLE_OF[p.stem]): err(f'{rel(p)}: model {fm.get("model")} differs from the OMP anthropic profile ({port_model("anthropic","claude-code",ROLE_OF[p.stem])}) for role {ROLE_OF[p.stem]}')
+check_roles('claude-code/agents',claude_routes)
 port_docs=port_skills+port_agents+list((port/'skills').glob('*/references/*.md'))+list((port/'hooks').glob('*.md'))
 for p in port_docs:
     text=p.read_text()
@@ -700,17 +743,52 @@ else:
                 for match,action in perm['bash'].items():
                     if action!='ask': err(f'opencode/opencode.json: permission.bash {match!r} must be ask, not {action!r}')
 oport_profiles=sorted((oport/'profiles').glob('*.json'))
-if {p.stem for p in oport_profiles}!={'claude-agent','opencode'}: err(f'opencode/profiles: profile set mismatch: {sorted(p.stem for p in oport_profiles)}')
+if {p.stem for p in oport_profiles}!={'claude-agent','commandcode','opencode'}: err(f'opencode/profiles: profile set mismatch: {sorted(p.stem for p in oport_profiles)}')
+# A profile names the OMP profile whose routing it follows; `opencode` has none (free models, no effort).
+OPORT_OMP_PROFILE={'claude-agent':'anthropic','commandcode':'commandcode'}
+# No credential in a profile: OpenCode keeps keys in its own store (`/connect`).
+OPORT_CREDENTIAL_KEY=re.compile(r'api[-_]?key|authorization|cookie|secret|token',re.I)
+OPORT_HEADERS_KEY=re.compile(r'^headers?$',re.I)
+def keys_matching(node,pattern,path=''):
+    if isinstance(node,dict):
+        for key,value in node.items():
+            if pattern.search(str(key)): yield f'{path}/{key}'
+            yield from keys_matching(value,pattern,f'{path}/{key}')
+    elif isinstance(node,list):
+        for i,value in enumerate(node): yield from keys_matching(value,pattern,f'{path}/{i}')
 for p in oport_profiles:
     try: prof=json.loads(p.read_text())
     except ValueError as e: err(f'{rel(p)}: invalid JSON: {e}'); continue
-    if not isinstance(prof,dict) or set(prof)!={'$schema','model','agent'}: err(f'{rel(p)}: top-level keys must be exactly $schema, model and agent'); continue
+    if not isinstance(prof,dict) or not {'$schema','model','agent'}<=set(prof)<={'$schema','model','agent','provider'}: err(f'{rel(p)}: top-level keys must be $schema, model and agent, plus an optional provider block for {p.stem} only'); continue
+    if 'provider' in prof and (not isinstance(prof['provider'],dict) or set(prof['provider'])!={p.stem}): err(f'{rel(p)}: provider block may configure only {p.stem}')
+    # A header can smuggle a credential under any name, so a provider block carries none.
+    for key_path in keys_matching(prof.get('provider'),OPORT_HEADERS_KEY,'/provider'): err(f'{rel(p)}: {key_path}: a provider block carries no headers')
+    for key_path in keys_matching(prof,OPORT_CREDENTIAL_KEY): err(f'{rel(p)}: credential key {key_path}; add keys with /connect, never in a profile')
     if not isinstance(prof['model'],str) or not prof['model'].startswith(f'{p.stem}/'): err(f'{rel(p)}: model must be a string starting with {p.stem}/')
     mapping=prof['agent']
-    if not isinstance(mapping,dict) or set(mapping)!=OPORT_AGENTS: err(f'{rel(p)}: agent map must name exactly the ten Flow agents'); continue
+    # `build` is the primary agent: it carries Main's model and effort, which the top-level `model` cannot.
+    if not isinstance(mapping,dict) or set(mapping) not in (OPORT_AGENTS,OPORT_AGENTS|{'build'}): err(f'{rel(p)}: agent map must name the ten Flow agents, plus an optional build'); continue
+    rows={}
     for name,entry in mapping.items():
-        if not (isinstance(entry,dict) and set(entry)=={'model'} and isinstance(entry['model'],str) and entry['model'].startswith(f'{p.stem}/')):
-            err(f'{rel(p)}: agent {name} must be exactly {{"model": "{p.stem}/..."}}')
+        if not (isinstance(entry,dict) and set(entry)<={'model','variant'} and isinstance(entry.get('model'),str) and entry['model'].startswith(f'{p.stem}/') and isinstance(entry.get('variant','x'),str)):
+            err(f'{rel(p)}: agent {name} must be {{"model": "{p.stem}/...", "variant": optional string}}'); break
+        if name=='build' and entry['model']!=prof['model']: err(f'{rel(p)}: build must use the top-level model')
+        rows[name]=(entry['model'],entry.get('variant'))
+    else:
+        omp_profile=OPORT_OMP_PROFILE.get(p.stem)
+        unmapped=sorted(n for n in rows if n!='build' and n not in ROLE_OF)
+        if unmapped: err(f'{rel(p)}: agents with no OMP role: {unmapped}'); continue
+        check_roles(rel(p),{n:v for n,v in rows.items() if n!='build'})
+        if not omp_profile:
+            for name,(model,variant) in rows.items():
+                if variant is not None: err(f'{rel(p)}: {name} has a variant; the free {p.stem} profile has no effort')
+            continue
+        if 'build' not in rows: err(f'{rel(p)}: build is required: it carries Main model and effort')
+        for name,(model,variant) in rows.items():
+            role='default' if name=='build' else ROLE_OF[name]
+            if variant!=omp_effort(omp_profile,role): err(f'{rel(p)}: {name} variant {variant!r} differs from the OMP {omp_profile} profile effort {omp_effort(omp_profile,role)!r} for role {role}')
+            if model!=port_model(omp_profile,p.stem,role): err(f'{rel(p)}: {name} model {model} differs from the OMP {omp_profile} profile model {port_model(omp_profile,p.stem,role)} for role {role}')
+        if prof['model']!=port_model(omp_profile,p.stem,'default'): err(f'{rel(p)}: model differs from the OMP {omp_profile} default role')
 
 # Rule 11: the OpenCode port is documented where readers look.
 _readme=(ROOT/'README.md').read_text()

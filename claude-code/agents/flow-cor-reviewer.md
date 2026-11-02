@@ -2,6 +2,7 @@
 name: flow-cor-reviewer
 description: Read-only reviewer for correctness, regressions, edge cases, compatibility, architecture and failure paths of a change.
 model: sonnet
+effort: high
 tools: Read, Grep, Glob, Bash
 ---
 

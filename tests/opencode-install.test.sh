@@ -175,13 +175,16 @@ port, out, prefix = sys.argv[1:4]
 agents = sorted(f[:-3] for f in os.listdir(f'{port}/agents') if f.endswith('.md'))
 skills = sorted(os.listdir(f'{port}/skills'))
 asks = [{'action': 'shell', 'resource': r, 'effect': 'ask'} for r in ('git push*', 'gh pr create*')]
-def agent_list(models):
-    rows = [{'id': 'build', 'mode': 'primary', 'permissions': asks}]
-    for a in agents:
-        row = {'id': a, 'mode': 'subagent', 'permissions': asks}
-        if models:
-            p, _, m = models[a].partition('/')
+def agent_list(routes):
+    rows = []
+    for a in ['build'] + agents:
+        row = {'id': a, 'mode': 'primary' if a == 'build' else 'subagent', 'permissions': asks}
+        if routes and a in routes:
+            model, variant = routes[a]
+            p, _, m = model.partition('/')
             row['model'] = {'providerID': p, 'id': m}
+            if variant:
+                row['model']['variant'] = variant
         rows.append(row)
     return rows
 def dump(name, value):
@@ -190,7 +193,7 @@ def dump(name, value):
 dump('agents-base.json', agent_list(None))
 for stem in sorted(f[:-5] for f in os.listdir(f'{port}/profiles')):
     prof = json.load(open(f'{port}/profiles/{stem}.json'))
-    dump(f'agents-{stem}.json', agent_list({a: v['model'] for a, v in prof['agent'].items()}))
+    dump(f'agents-{stem}.json', agent_list({a: (v['model'], v.get('variant')) for a, v in prof['agent'].items()}))
     p, _, m = prof['model'].partition('/')
     dump(f'model-{stem}.json', {'data': {'providerID': p, 'modelID': m}})
 dump('skills.json', {'data': [{'id': 'opencode', 'path': '/builtin'}] + [{'id': s, 'path': f'{prefix}/{s}/SKILL.md'} for s in skills]})
@@ -225,6 +228,23 @@ json.dump(rows, open(p, 'w'))
 PY
 if out=$(doctor); then fail 'doctor B exited 0 with a missing agent'; fi
 case $out in *"FAIL: agent flow-planner"*) ;; *) fail "doctor B: missing the agent FAIL: $out" ;; esac
+
+# G: a resolved effort that differs from the profile, and a profile that names build.
+make_fixtures "$FX" "$H/$CFG_REL/skills"
+out=$(doctor) || fail "doctor G: failed on good fixtures: $out"
+case $out in *"ok: profile claude-agent: build -> claude-agent/opus#medium"*) ;; *) fail "doctor G: no build mapping line with its effort: $out" ;; esac
+case $out in *"ok: profile claude-agent: flow-planner -> claude-agent/fable#high"*) ;; *) fail "doctor G: no flow-planner line with its effort: $out" ;; esac
+python3 - "$FX/agents-claude-agent.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+rows = json.load(open(p))
+for r in rows:
+    if r['id'] == 'flow-planner':
+        r['model']['variant'] = 'low'
+json.dump(rows, open(p, 'w'))
+PY
+if out=$(doctor); then fail 'doctor G exited 0 with a wrong effort'; fi
+case $out in *"FAIL: profile claude-agent: flow-planner resolved to claude-agent/fable#low, expected claude-agent/fable#high"*) ;; *) fail "doctor G: missing the effort FAIL: $out" ;; esac
 
 # C: a skill loaded from outside the config root.
 make_fixtures "$FX" "$H/$CFG_REL/skills"

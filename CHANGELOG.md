@@ -2,6 +2,21 @@
 
 Versions follow SemVer as described in the Versioning section of the README.
 
+## 1.1.0 — 2026-11-02
+
+Flow agents in the Claude Code and OpenCode ports now run on the model and effort of their OMP role, OpenCode gains a Command Code profile, and the Command Code routing changes after a look at real-world reports.
+
+### Added
+- OpenCode `commandcode` profile (`flow-opencode run commandcode`), using OpenCode's built-in Command Code provider. Store the key once with `/connect` (provider `commandcode`); it never goes into the repository.
+- Effort levels for every Flow agent: `effort` in the Claude Code agents, `variant` in the OpenCode profiles, matching the OMP profile's roles.
+
+### Changed
+- Command Code routing, in OMP and OpenCode: DeepSeek V4.1 Flash now plans, builds and reviews (Main, planner, implementer, executor, lens reviewers and leaves), and GLM-5.3 does acceptance and critical escalation. GLM-5.3 Flash and Kimi K3 are no longer used. Users report recurring tool-call breakage on GLM-5.3 Flash and rate Kimi K3 weak and slow at checking a change, while DeepSeek V4.1 Flash led real-task tests on planning and self-review.
+- OpenCode `claude-agent` profile: Main on Opus (was Sonnet) and the planner on Fable 5.1 (was Opus), matching OMP and Claude Code.
+- `flow-opencode doctor` checks each agent's model and effort, including OpenCode's `build` agent, which carries Main's effort.
+- The validator checks every port agent's model and effort against its OMP role, and rejects API keys, headers or another provider's block in a profile.
+- `docs/MODEL-ROUTING.md` has a per-port routing table and the reasons for the Command Code routing.
+
 ## 1.0.0 — 2026-11-02
 
 First versioned release. Flow is now one repository with one directory per harness, each installing on its own.

@@ -2,6 +2,7 @@
 name: flow-ttc-reviewer
 description: Read-only reviewer for behavioral tests, contracts, types, schemas, migrations and regression coverage of a change.
 model: sonnet
+effort: high
 tools: Read, Grep, Glob, Bash
 ---
 

@@ -15,34 +15,32 @@ disabledProviders:
 defaultThinkingLevel: auto
 
 modelRoles:
-  # Open models on the Command Code GOAT plan. Agentic loops resend a large
-  # cached prompt every turn, so cache-read price decides the cost of the
-  # high-volume roles (Main, execute, task, leaves).
+  # Open models on the Command Code GOAT plan. DeepSeek produces, GLM-5.3
+  # judges: acceptance runs in a different family from everything it reviews.
+  # Agentic loops resend a large cached prompt every turn, so cache-read price
+  # decides the cost of the high-volume roles.
 
   # Cheap background / mechanical roles.
   smol: commandcode/deepseek/deepseek-v4.1-flash:low
   tiny: commandcode/deepseek/deepseek-v4.1-flash:low
   commit: commandcode/deepseek/deepseek-v4.1-flash:low
 
-  # Main and semantic implementation: cheap cache reads keep long tool loops
-  # affordable. MiMo V2.6 Pro proved weaker in field use and is not used.
-  default: commandcode/z-ai/glm-5.3-flash:high
-  task: commandcode/z-ai/glm-5.3-flash:high
-
-  # Constrained plan execution, long evidence sessions and auxiliary review
-  # stay on the cheapest image-capable model; review_aux is a different family
-  # from the Main and task work it reviews.
+  # Main, planning and every producing role run on DeepSeek V4.1 Flash, the
+  # model that did best on real coding tasks and costs least per cached turn.
+  default: commandcode/deepseek/deepseek-v4.1-flash:high
+  task: commandcode/deepseek/deepseek-v4.1-flash:high
   execute: commandcode/deepseek/deepseek-v4.1-flash:high
+  plan: commandcode/deepseek/deepseek-v4.1-flash:high
+
+  # Vision and auxiliary review stay on DeepSeek, the cheapest image-capable
+  # model; the acceptance reviewer below is the independent family.
   vision: commandcode/deepseek/deepseek-v4.1-flash:high
   review_aux: commandcode/deepseek/deepseek-v4.1-flash:high
 
-  # Planner, executor and acceptance reviewer use three different families so
-  # acceptance can challenge the plan as well as the code.
-  plan: commandcode/zai-org/GLM-5.3:high
-  slow: commandcode/moonshotai/Kimi-K3:high
-
-  # Explicit frontier escalation only.
-  critical: commandcode/moonshotai/Kimi-K3:max
+  # Acceptance and explicit escalation judge on GLM-5.3, a different family
+  # from the DeepSeek work it checks.
+  slow: commandcode/zai-org/GLM-5.3:high
+  critical: commandcode/zai-org/GLM-5.3:high
 
 # Native backstop for Flow's external-effect gate. Keep publication commands
 # on the direct Bash/gh surface so these explicit prompt policies apply.

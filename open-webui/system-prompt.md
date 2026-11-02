@@ -1,4 +1,4 @@
-Flow 1.0.0
+Flow 1.1.0
 
 # Chat rules
 

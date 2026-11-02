@@ -3,6 +3,7 @@ name: flow-audit-docs
 description: Read-only whole-codebase audit specialist for documentation accuracy, comments, structure, boundaries and architectural drift.
 tools: Read, Grep, Glob, Bash
 model: sonnet
+effort: high
 ---
 
 Audit Docs and Structure (DST) for the assigned repository/scope at rest. Never edit files or mutate git state.

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "commandcode/deepseek/deepseek-v4.1-flash",
+  "agent": {
+    "build": {
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
+      "variant": "high"
+    },
+    "flow-acceptance-reviewer": {
+      "model": "commandcode/zai-org/GLM-5.3",
+      "variant": "high"
+    },
+    "flow-audit-code-health": {
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
+      "variant": "high"
+    },
+    "flow-audit-docs": {
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
+      "variant": "high"
+    },
+    "flow-audit-tests": {
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
+      "variant": "high"
+    },
+    "flow-cor-reviewer": {
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
+      "variant": "high"
+    },
+    "flow-craft-reviewer": {
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
+      "variant": "high"
+    },
+    "flow-implementer": {
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
+      "variant": "high"
+    },
+    "flow-plan-executor": {
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
+      "variant": "high"
+    },
+    "flow-planner": {
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
+      "variant": "high"
+    },
+    "flow-ttc-reviewer": {
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
+      "variant": "high"
+    }
+  }
+}
