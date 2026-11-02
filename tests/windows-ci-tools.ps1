@@ -64,7 +64,8 @@ foreach ($line in Get-Content omp/profiles/anthropic/config.yml) {
 if (-not $default) { Fail 'no modelRoles default in omp/profiles/anthropic/config.yml' }
 $cfg = (& omp --profile anthropic config list --scope global | Out-String)
 if ($cfg -notmatch 'modelRoles =') { Fail "omp config list lacks 'modelRoles ='" }
-if (-not $cfg.Contains("default: $default")) { Fail "omp config list lacks 'default: $default'" }
+# OMP prints modelRoles as JSON: modelRoles = {"default":"<model>",...}
+if ($cfg -notmatch ('"default"\s*:\s*"' + [regex]::Escape($default) + '"')) { Fail "omp config list lacks modelRoles default $default" }
 Ok 'omp config list shows the profile model roles'
 
 # 4. Every skill resolves through the profile.
