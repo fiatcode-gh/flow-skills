@@ -485,10 +485,12 @@ esac
         $cfgd = Cfg $hd
         New-Item -ItemType Directory -Force -Path $cfgd | Out-Null
         New-FixtureLink $target (Join-Path $cfgd 'agents') -Dir
+        # Windows stores an absolute target in its own form; compare against what was stored.
+        $stored = RawTarget (Join-Path $cfgd 'agents')
         $r = Invoke-Flow $hd @() @('install') @{} $newFlow
         if ($r.Code -eq 0) { fail "installer replaced a link to $target under the previous name" }
         if (-not $r.Out.Contains('outside')) { fail "refusal for $target did not say outside: $($r.Out)" }
-        if ((RawTarget (Join-Path $cfgd 'agents')) -ne $target) { fail "installer changed the link to $target" }
+        if ((RawTarget (Join-Path $cfgd 'agents')) -ne $stored) { fail "installer changed the link to $target" }
     }
 
     # 12. Called through a symlinked launcher, the installer still finds the port.
