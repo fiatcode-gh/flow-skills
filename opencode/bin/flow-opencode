@@ -28,7 +28,7 @@ check_owned() { # source dest
   if [ -L "$dst" ]; then
     target=$(readlink -f "$dst" 2>/dev/null || readlink "$dst")
     case $target in
-      */../* | */./*) fail "$dst is a symlink to $target, outside $ROOT; move or remove it manually" ;;
+      */../* | */./* | */.. | */.) fail "$dst is a symlink to $target, outside $ROOT; move or remove it manually" ;;
       "$ROOT" | "$ROOT"/* | "$OLD_ROOT" | "$OLD_ROOT"/*) ;;
       *) fail "$dst is a symlink to $target, outside $ROOT; move or remove it manually" ;;
     esac
