@@ -1,102 +1,91 @@
 # flow-skills
 
-Flow, fiatcode's engineering doctrine for coding agents, with one directory per harness: OMP (the canonical doctrine), Claude Code, OpenCode and Open WebUI.
+Flow is fiatcode's engineering doctrine for coding agents: how an agent turns a request into an agreed contract, an execution-grade plan, verified code and a change the user chooses how to integrate. This repository holds Flow for four harnesses, one directory each, with each harness's setup next to its doctrine.
 
-This repository intentionally does **not** emulate the old cross-harness `ai-stack` layout. OMP owns execution mechanics — Plan mode, task agents, isolation, Agent Hub, built-in review/security — while Flow owns engineering judgment, safety, review lenses, TDD, debugging, durable epic state, and external-effect gates.
+| Harness | Directory | Installs into | How |
+|---|---|---|---|
+| [OMP](https://github.com/can1357/oh-my-pi) (canonical) | `omp/` | `~/.omp/profiles/<profile>/agent/` | `omp/bin/flow-omp install` |
+| Claude Code | `claude-code/` | Claude Code's plugin cache | `claude plugin install fiatcode@flow-skills` |
+| OpenCode | `opencode/` | `~/.config/opencode/` | `opencode/bin/flow-opencode install` |
+| Open WebUI | `open-webui/` | a model's system prompt and prompts | manual import |
 
-## Dependencies
+Each harness installs from its own directory and keeps working when the others are removed from the machine.
 
-- `omp` — the harness itself.
-- [`codebase-memory-mcp`](https://github.com/DeusData/codebase-memory-mcp) — the codebase graph that `omp/AGENTS.md` routes structural lookups to. Without it, `Codebase graph lookup` has nothing to query and agents fall back to `grep`/`glob`.
-- `@upstash/context7-mcp` via `npx` — library documentation lookup, also named in `omp/AGENTS.md`.
+## What Flow does
 
-Both MCP servers are configured per profile; see [MCP servers](#mcp-servers).
+Flow adds engineering judgment and gates on top of each harness's own mechanics (subagents, plan mode, tools):
+
+- **Contract first.** Substantial work starts with a short WHAT/WHY contract (`flow-design`). The user approves it in chat before planning starts.
+- **Execution-grade plans.** A planner settles files, interfaces, tests and error handling up front (`flow-planning`), so cheaper constrained executors can implement without redesigning. The user approves the plan before any production code is written.
+- **Gates bound to bytes.** An approval is recorded against the artifact's hash. Editing an approved contract or plan makes the approval stale until the user approves the new text.
+- **Evidence over claims.** No "done" or "fixed" without fresh proof. Agent reports are claims; the controller checks them.
+- **One acceptance review**, then the user picks how to integrate: merge, pull request, or keep the branch (`flow-integrating`). Every push, PR or comment needs the user's explicit yes.
+- **Safety.** Pre-existing changes are the user's; no reset, stash or discard. Credentials are never printed.
+
+Working state (contracts, plans, checkpoints, approvals) lives in the project's `.flow/` directory, which the always-on `flow-artifacts` rule hides from git through `.git/info/exclude`. Only decision records under `docs/decisions/` and requested audit reports are committed.
+
+### Skills
+
+| Skill | Use |
+|---|---|
+| `flow-design` | Agree the WHAT/WHY contract before substantial work |
+| `flow-planning` | Write the execution-grade plan |
+| `flow-execution` | Route plan tasks to executors, verify, run acceptance |
+| `flow-tdd` | Behavior-first Red/Green/Refactor |
+| `flow-debugging` | Root cause before any fix |
+| `flow-review` | Local change, PR reviewer, PR author feedback, codebase audit |
+| `flow-integrating` | Final evidence and the user's integration choice |
+| `flow-external-session` | External worktrees and planning handoffs |
+| `ui-design` | Interface design |
+| `weft-worklog`, `weft-memory`, `weft-maintenance` | The user's Weft knowledge graph (`WEFT_GRAPH`) |
+| `blog-post` | Blog write-ups (OMP only) |
+
+Agents: `flow-planner`, `flow-plan-executor`, `flow-implementer`, `flow-acceptance-reviewer`, the TTC, craft and (outside OMP) COR lens reviewers, and three audit agents. Skills and agents name roles, never concrete models; each harness's setup maps roles to models.
 
 ## Layout
 
 ```text
-omp/                        OMP: the canonical doctrine and its setup
-  AGENTS.md                 durable user context
-  TITLE_SYSTEM.md           session-title prompt (verb-first kebab-case, 4-5 words)
-  rules/                    always-apply Flow invariants
-  agents/                   role-backed OMP task agents
-  skills/                   optional workflow/domain capabilities
-  extensions/               auto-discovered OMP extensions
-  lib/                      extension support code
-  keybindings.yml           shared chord remaps (zellij-safe)
-  profiles/<name>/config.yml  first-install baseline for `omp --profile <name>` (openai-codex, anthropic, commandcode)
-  mcp.example.json          MCP server template, copied per profile (see below)
-  bin/flow-omp              install / verify / doctor
-  bin/flow-sessions         list and render OMP sessions for field-trial audits
-claude-code/                Flow port as a Claude Code plugin, for local and web sessions
-opencode/                   Flow port for OpenCode, installed under ~/.config/opencode by bin/flow-opencode (docs/EXTERNAL-INTEROP.md)
-open-webui/                 Flow port for the Open WebUI chat (docs/EXTERNAL-INTEROP.md)
-.claude-plugin/
-  marketplace.json          makes this repository a Claude Code plugin marketplace
-tests/                      validation suite; entry point tests/run.sh
-docs/
-  decisions/                committed decision records
-  FIELD-TRIALS.md           per-skill field-trial marks and rules
-  FIELD-TRIAL-AUDIT.md      how to run a field-trial audit
+omp/                          OMP: the canonical doctrine and its setup
+  AGENTS.md                   always-on user instructions
+  rules/                      always-apply invariants (flow-safety, flow-evidence, flow-artifacts)
+  agents/  skills/            task agents and skills
+  extensions/  lib/           OMP extensions (flow_gate, evidence guard, AI memory) and support code
+  profiles/<name>/config.yml  per-provider model roles and bash approval prompts
+  keybindings.yml  TITLE_SYSTEM.md  mcp.example.json
+  bin/flow-omp                install / verify / doctor
+  bin/flow-sessions           list and render OMP sessions for field-trial audits
+claude-code/                  Claude Code plugin: skills, agents, session-start hook
+opencode/                     OpenCode port: AGENTS.md, skills, agents, base config,
+                              profiles/<provider>.json, bin/flow-opencode
+open-webui/                   system prompt and design/planning/review/handoff prompts
+.claude-plugin/marketplace.json   makes this repository a Claude Code marketplace
+docs/                         architecture, principles, interop, model routing, field trials
+docs/decisions/               decision records
+tests/                        validation suite; entry point tests/run.sh
 ```
 
 ## Install
 
-The installer provisions three native OMP profiles: `openai-codex`, `anthropic`, and `commandcode`. It links `omp/keybindings.yml` into the shared agent directory once — named profiles inherit it and can still override single actions — symlinks the shared Flow surfaces and that profile's `config.yml` into each profile, refuses to clobber real managed-surface files/directories or symlinks that point outside this repository (it names the link and its target), relinks symlinks that point into it, or into the checkout's previous name `omp-stack` (dangling after the folder rename or not), and never writes `mcp.json`.
+Clone the repository; the OMP and OpenCode installers link into the clone, so keep it where it is.
 
-`omp/profiles/<name>/config.yml` is the single source of truth: each profile's `config.yml` is a symlink back to it, so a settings change belongs in this repository. An existing real file is replaced by the symlink only when it is already byte-identical to the template; otherwise the installer warns, leaves it alone, and exits non-zero so the divergence is visible. Merge it by hand, then rerun `install`. Editing settings through OMP's own settings UI rewrites the target file in this repository — review it with `git diff` like any other change.
+```sh
+git clone git@github.com:fiatcode-gh/flow-skills.git ~/Development/Projects/fiatcode-gh/flow-skills
+cd ~/Development/Projects/fiatcode-gh/flow-skills
+```
+
+Both installers follow the same rules: they create symlinks, replace only a missing file or a link they own (into this checkout, or into its previous name `omp-stack`), refuse anything else and name it, and never write credentials. `verify` checks the links; `doctor` checks the harness sees what it should.
+
+### OMP
 
 ```sh
 ./omp/bin/flow-omp install
 ./omp/bin/flow-omp doctor
+omp --profile anthropic        # or openai-codex, commandcode
 ```
 
-Launch OMP directly with the native profile selector:
+The installer links `AGENTS.md`, `rules/`, `agents/`, `skills/`, `extensions/`, `lib/` and the profile's `config.yml` into each of the three profiles, and `keybindings.yml` into the shared agent directory. `omp/profiles/<name>/config.yml` is the source of truth: OMP's settings screen writes through the link into this repository, so review those edits with `git diff`. An existing real `config.yml` is replaced only when it is identical to the template; otherwise the installer warns and exits non-zero. See `docs/MIGRATION.md`.
 
-```sh
-omp --profile openai-codex
-omp --profile anthropic
-omp --profile commandcode
-```
-
-See `docs/MIGRATION.md` for moving an existing profile onto the linked config.
-
-## Claude Code (local and on the web)
-
-`claude-code/` packages the Flow skills and agents as a Claude Code plugin named `flow`, and `.claude-plugin/marketplace.json` makes this repository its marketplace. Install it in Claude Code:
-
-```sh
-claude plugin marketplace add fiatcode-gh/flow-skills
-claude plugin install fiatcode@flow-skills
-```
-
-A cloud session starts from a fresh container, so it needs the plugin on every start. `docs/EXTERNAL-INTEROP.md` ("Claude Code port") lists the ways to get it there and what the port leaves out.
-
-## OpenCode
-
-`opencode/` holds the Flow doctrine (`AGENTS.md`), skills, agents, a base config with the bash ask-list, one model profile per provider, and the installer `bin/flow-opencode`. The installer symlinks them under `~/.config/opencode/` and writes nothing else.
-
-```sh
-./opencode/bin/flow-opencode install
-opencode reload
-./opencode/bin/flow-opencode verify
-./opencode/bin/flow-opencode doctor
-```
-
-Launch with a model profile, or plain `opencode` for the base config:
-
-```sh
-./opencode/bin/flow-opencode run claude-agent
-./opencode/bin/flow-opencode run opencode
-```
-
-Plain `opencode` uses the background service with the base config only. A profile launch runs a private server (`--standalone`), because the service ignores the profile.
-
-Models live in `opencode/profiles/<provider>.json`; add a provider by adding one file. OpenCode also scans the global skill folders of other agent tools; a same-named copy there is hidden by the installed one, and the installer reports it so it does not drift. See `docs/decisions/opencode-port.md` for the reasons.
-
-## MCP servers
-
-MCP stays profile-owned: the installer never writes or links `mcp.json`, because the file carries credentials and per-profile enablement. Every profile is meant to see the **same** servers, so copy the template into each one and keep the copies identical:
+**MCP servers.** The installer never touches `mcp.json`, because it holds credentials. Copy the template into each profile and add the Context7 key:
 
 ```sh
 for p in openai-codex anthropic commandcode; do
@@ -104,59 +93,60 @@ for p in openai-codex anthropic commandcode; do
 done
 ```
 
-Then replace `ctx7sk-REPLACE-WITH-YOUR-KEY` in each copy with the real Context7 key. A profile whose `mcp.json` is missing simply has no MCP servers; OMP starts normally and the doctrine in `omp/AGENTS.md` falls back to `grep`/`glob` and upstream documentation.
+The template configures [`codebase-memory-mcp`](https://github.com/DeusData/codebase-memory-mcp) (code graph lookups) and Context7 (library docs). Without them the doctrine falls back to `grep`, `glob` and upstream documentation. ClickUp is configured per work repository as an untracked `<repo>/.omp/mcp.json`; OMP reads project MCP config only from the launch directory.
 
-ClickUp is deliberately **not** in the template: it is configured per project, only in work repositories, as an untracked `<repo>/.omp/mcp.json` hidden through that checkout's `.git/info/exclude` (`/.omp/mcp.json`). OMP reads project MCP config from `<cwd>/.omp/mcp.json` only — no ancestor walk — so each repository needs its own copy and OMP must be launched from the repository root:
-
-```json
-{
-	"mcpServers": {
-		"clickup": { "type": "http", "url": "https://mcp.clickup.com/mcp" }
-	}
-}
-```
-
-The entry needs no secret. OAuth runs on first use (`/mcp reauth clickup`), and the credential is stored per profile, keyed by URL, so one sign-in per profile covers every repository that defines it.
-
-`codebase-memory-mcp` keeps its own per-account index and background watcher outside this repository (`~/.cache/codebase-memory-mcp`). It indexes a project on explicit `index_repository` and re-indexes on git-detected change; `auto_index` is off by default, so a never-indexed repository answers nothing until it is indexed once. Never commit the optional `.codebase-memory/graph.db.zst` export — the watcher rewrites it constantly.
-
-## Flow shape
-
-The old 24-skill surface is reduced to 13 skills in the v8 trial:
-
-* `flow-design` — material product/architecture decisions only.
-* `flow-planning` — execution-grade HOW planning; front-loads interfaces/tests/ownership and lens concerns so implementation can be constrained.
-* `flow-execution` — routes execution-grade work to cheap constrained executors, preserves semantic fallback, layered verification and bounded acceptance review.
-* `flow-tdd` — behavior-first Red/Green/Refactor.
-* `flow-debugging` — root-cause-first diagnosis.
-* `flow-review` — local change, PR reviewer, PR author-feedback, and codebase-audit modes.
-* `flow-integrating` — final evidence and user-owned integration decision.
-* `flow-external-session` — external worktrees and static planning/worker handoffs.
-* `ui-design`, `blog-post` — domain capabilities.
-* `weft-worklog`, `weft-memory`, `weft-maintenance` — grouped Weft operations.
-
-Flow working state (contracts, plans, checkpoints, evidence, runtime approval/acceptance bindings) lives in the project's `.flow/` directory, hidden from git through `.git/info/exclude` by the always-on `flow-artifacts` rule; only decision records under `docs/decisions/` and requested audit reports are tracked.
-
-The old bootstrap (`flow-using-skills`), normal workspace ceremony and standalone verification skill remain gone. v8 deliberately restores **Flow planning doctrine** on top of native OMP Plan/model mechanics: substantial work becomes contract → execution-grade plan → constrained `@execute` implementation → one strong `@slow` acceptance review. `@task` remains the semantic/debugging fallback and `@smol` the mechanical lane. Review lenses are not deleted: they move left into the plan quality gate for planned work and remain specialist reviewers for unplanned/PR/audit paths. Writers still own focused proof, Main owns integration/final evidence, and integration distills each contract into a short committed decision record.
-
-## Model philosophy
-
-Skills and agents use **roles**, never concrete models. Native OMP profiles provide provider-specific role maps while the Flow content stays shared.
-
-The OpenAI Codex profile follows OpenAI's GPT-6 model/effort ladder: GPT-6 Luna for Main (adaptive effort), cheap leaves (low), vision (medium) and constrained execution (xhigh); GPT-6.1 Sol for semantic implementation (medium), planning/final acceptance/auxiliary review (high) and explicit critical escalation (xhigh). GPT-6 Astra is left out to protect the ChatGPT Plus allowance.
-
-The Anthropic v8 profile uses Haiku 5.5 medium for tiny metadata only (its 100k context is too small for other leaves), Sonnet 5.5 low for scout/mechanical leaves and commits, Sonnet 5.5 for constrained execution/semantic implementation/vision/auxiliary review, Opus 5.5 for Main and correctness reasoning, and Fable 5.1 high for planning and explicit critical escalation.
-
-The Command Code profile runs open models on the GOAT plan: GLM-5.3 Flash high for Main and semantic implementation, DeepSeek V4.1 Flash for cheap leaves (low) and constrained execution/vision/auxiliary review (high), GLM-5.3 high for planning, and Kimi K3 high for final acceptance (max for explicit critical escalation).
-
-See `docs/MODEL-ROUTING.md`. Current OMP assumptions are recorded in `docs/OMP-COMPATIBILITY.md`.
-
-## Validation
+### Claude Code
 
 ```sh
-./tests/run.sh
+claude plugin marketplace add fiatcode-gh/flow-skills
+claude plugin install fiatcode@flow-skills
 ```
 
-The suite runs `tests/validate.py` (skill/agent/rule frontmatter, role references, removed legacy assumptions, machine-read markers, and the per-file byte caps in `tests/doctrine-budget.json`), behavioral tests for both Flow guards (`tests/flow-evidence-guard.test.mjs`, `tests/flow-governance-guard.test.mjs`), the bash approval patterns (`tests/bash-patterns.test.mjs`), the `.flow/` exclude guard (`tests/flow-exclude.test.sh`), the installer (`tests/install.test.sh`), the planning-handoff validator, `omp/bin/flow-sessions` (`tests/flow-sessions.test.py`) and AI-memory slicing, plus shell syntax checks.
+The plugin namespaces its parts: skills are `fiatcode:<skill>`, agents `fiatcode:<agent>`. A session-start hook prints a short core and points at the full instructions. Approvals are recorded by two shell functions, `flow_approve` and `flow_check`. Cloud sessions install the plugin from the environment's setup script; see `docs/EXTERNAL-INTEROP.md`.
 
-CI (`.github/workflows/ci.yml`) runs the same suite on every pull request and on pushes to `main`, with Node 24, Bun and `uv`; the three extension tests run under both runtimes because OMP loads extensions under Bun.
+### OpenCode
+
+```sh
+./opencode/bin/flow-opencode install
+opencode reload
+./opencode/bin/flow-opencode doctor
+```
+
+The installer links `AGENTS.md`, `skills/`, `agents/`, `profiles/` and the base `opencode.json` into `~/.config/opencode/`. The base config only adds approval prompts for publication commands (`git push`, `gh pr create`, ...).
+
+Models are chosen per provider. Each `opencode/profiles/<provider>.json` maps every Flow agent to a model; add a provider by adding one file. Launch with a profile:
+
+```sh
+./opencode/bin/flow-opencode run claude-agent   # or: run opencode
+```
+
+A profile launch runs a private server (`--standalone`) because the background service ignores per-launch config; plain `opencode` uses the base config. OpenCode also scans other tools' global skill folders; the installer reports any same-named copy there so it does not drift. Details: `docs/decisions/opencode-port.md`.
+
+### Open WebUI
+
+Import `open-webui/system-prompt.md` as a model's system prompt and the other files as prompts. Open WebUI has no shell or checkout, so it covers design, planning, review and handoff to a local harness (`flow-handoff.md`), not execution. See `docs/EXTERNAL-INTEROP.md`.
+
+## Model routing
+
+OMP profiles map Flow roles (`default`, `smol`, `execute`, `task`, `plan`, `slow`, `critical`, ...) to models:
+
+- **anthropic:** Opus 5.5 for Main and acceptance, Sonnet 5.5 for execution, implementation and leaves, Haiku 5.5 for titles, Fable 5.1 for planning and critical escalation.
+- **openai-codex:** GPT-6 Luna for Main, leaves and execution; GPT-6.1 Sol for implementation, planning and review.
+- **commandcode:** GLM-5.3 Flash for Main, DeepSeek V4.1 Flash for leaves and execution, GLM-5.3 for planning, Kimi K3 for acceptance.
+
+The Claude Code port sets models in agent frontmatter (`opus`, `sonnet`, and `claude-fable-5-1` for the planner); OpenCode uses its profile files. Reasons and effort levels: `docs/MODEL-ROUTING.md`. Assumptions about OMP itself: `docs/OMP-COMPATIBILITY.md`.
+
+## Maintaining
+
+- **OMP is the source.** Change doctrine in `omp/` first, then carry the change into each port in the same commit. A port translates harness mechanics only; a rule that exists in one port but not in OMP is a bug. `docs/EXTERNAL-INTEROP.md` maps each OMP mechanic to its port equivalent.
+- **Run the suite** before committing:
+
+  ```sh
+  sh tests/run.sh
+  ```
+
+  It checks skill, agent and rule frontmatter and role references; that each port contains no other harness's mechanics or model ids; that verbatim copies have not drifted; per-file byte caps (`tests/doctrine-budget.json`, raised only deliberately); both installers' safety; the OMP extensions (under Node and Bun); the bash approval patterns against OMP's matcher; and the `.flow/` exclude guard. CI runs the same suite on pull requests and pushes to `main`.
+- **Decisions** are recorded in `docs/decisions/<slug>.md`: what was chosen, why, what was rejected. Field-trial results per skill are in `docs/FIELD-TRIALS.md`; how to run an audit is in `docs/FIELD-TRIAL-AUDIT.md`.
+- **Writing doctrine:** `docs/PRINCIPLES.md`. **How the parts fit:** `docs/ARCHITECTURE.md`.
+
+Commits follow Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
