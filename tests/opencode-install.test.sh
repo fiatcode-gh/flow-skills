@@ -310,6 +310,12 @@ for target in "$OLD/../elsewhere/agents" "$OLD/./elsewhere/agents" "$OLD/x/.." "
   [ "$(readlink "$HD/$CFG_REL/agents")" = "$target" ] || fail "installer changed the link to $target"
 done
 
+# 12a. Called through a symlink elsewhere (e.g. ~/.local/bin), the installer still finds the port.
+BIN="$TMP/bin"; mkdir -p "$BIN"; ln -s "$FLOW" "$BIN/flow-opencode"
+H="$TMP/h-symlink"; mkdir -p "$H"
+HOME=$H PATH="/usr/bin:/bin" "$BIN/flow-opencode" install >/dev/null 2>&1 || fail 'install through a symlinked launcher failed'
+[ "$(readlink -f "$H/$CFG_REL/AGENTS.md")" = "$(readlink -f "$PORT/AGENTS.md")" ] || fail 'symlinked launcher linked the wrong port'
+
 # 12. Shell syntax.
 sh -n "$FLOW" || fail 'sh -n flow-opencode'
 sh -n "$0" || fail 'sh -n opencode-install.test.sh'
