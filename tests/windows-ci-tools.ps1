@@ -14,6 +14,10 @@ function Ok([string]$msg) { Write-Output "ok: $msg" }
 function Normalize([string]$p) {
     [IO.Path]::GetFullPath($p).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
 }
+# Runs a launcher the way a user does: as its own pwsh process. The launchers print through
+# [Console]::Out, which an in-process `&` call would not capture.
+$PWSH = (Get-Process -Id $PID).Path
+function Launch { & $PWSH -NoProfile -ExecutionPolicy Bypass -File @args }
 
 # Git Bash only, never `bash` from PATH (on Windows that can be WSL's System32 bash.exe).
 function Resolve-GitBash {
@@ -42,11 +46,11 @@ if (-not [IO.Path]::IsPathRooted($dir) -or $dir -notmatch '(?i)[\\/]\.omp[\\/]pr
 Ok "omp profile dir $dir"
 
 # 2. OMP launcher.
-& omp/bin/flow-omp.ps1 install
+Launch omp/bin/flow-omp.ps1 install
 if ($LASTEXITCODE -ne 0) { Fail 'flow-omp.ps1 install' }
-& omp/bin/flow-omp.ps1 verify
+Launch omp/bin/flow-omp.ps1 verify
 if ($LASTEXITCODE -ne 0) { Fail 'flow-omp.ps1 verify' }
-$doctor = @(& omp/bin/flow-omp.ps1 doctor 2>&1 | ForEach-Object { "$_" })
+$doctor = @(Launch omp/bin/flow-omp.ps1 doctor 2>&1 | ForEach-Object { "$_" })
 if ($doctor.Count -eq 0 -or $doctor[0] -ne "flow-skills $version") { Fail "flow-omp.ps1 doctor first line: $($doctor[0])" }
 Ok 'flow-omp.ps1 install, verify, doctor'
 
@@ -76,14 +80,14 @@ Ok 'omp reads every skill through the profile'
 
 # 5. OpenCode launcher.
 & opencode --version
-& opencode/bin/flow-opencode.ps1 install
+Launch opencode/bin/flow-opencode.ps1 install
 if ($LASTEXITCODE -ne 0) { Fail 'flow-opencode.ps1 install' }
-& opencode/bin/flow-opencode.ps1 verify
+Launch opencode/bin/flow-opencode.ps1 verify
 if ($LASTEXITCODE -ne 0) { Fail 'flow-opencode.ps1 verify' }
 Ok 'flow-opencode.ps1 install, verify'
 
 # 6. OpenCode doctor.
-$out = @(& opencode/bin/flow-opencode.ps1 doctor 2>&1 | ForEach-Object { "$_" })
+$out = @(Launch opencode/bin/flow-opencode.ps1 doctor 2>&1 | ForEach-Object { "$_" })
 $doctorExit = $LASTEXITCODE
 $out | ForEach-Object { Write-Output $_ }
 if ($doctorExit -ne 0) { Fail "flow-opencode.ps1 doctor exited $doctorExit" }
@@ -101,7 +105,7 @@ Ok 'flow-opencode.ps1 doctor'
 # 7. run sets the shell to Git Bash.
 $bash = Resolve-GitBash
 if (-not $bash) { Fail 'Git for Windows not found' }
-$json = (& opencode/bin/flow-opencode.ps1 run claude-agent debug config | Out-String) | ConvertFrom-Json
+$json = (Launch opencode/bin/flow-opencode.ps1 run claude-agent debug config | Out-String) | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0) { Fail "flow-opencode.ps1 run debug config exited $LASTEXITCODE" }
 $shell = @($json)[-1].info.shell
 if (-not $shell -or -not [string]::Equals((Normalize $shell), (Normalize $bash), [StringComparison]::OrdinalIgnoreCase)) {
@@ -110,7 +114,7 @@ if (-not $shell -or -not [string]::Equals((Normalize $shell), (Normalize $bash),
 Ok 'run sets shell to Git Bash'
 
 # 8. run lists every Flow agent.
-$agents = (& opencode/bin/flow-opencode.ps1 run claude-agent debug agents | Out-String) | ConvertFrom-Json
+$agents = (Launch opencode/bin/flow-opencode.ps1 run claude-agent debug agents | Out-String) | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0) { Fail "flow-opencode.ps1 run debug agents exited $LASTEXITCODE" }
 $ids = @($agents | ForEach-Object { $_.id ?? $_.name })
 foreach ($f in Get-ChildItem opencode/agents -Filter *.md -File) {
