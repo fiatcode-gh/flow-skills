@@ -55,6 +55,8 @@ Mechanics map:
 | `ai-memory` hub injection | `weft-memory` recall at the start of substantive work, with `## Harness: [[Claude]]` |
 | `gh` publication behind `bash.patterns` prompts | GitHub MCP tools; the cloud harness pushes the session branch and opens a draft pull request |
 
+On Windows the hook and the Bash tool run in Git Bash; see `docs/WINDOWS.md`.
+
 Not ported: `blog-post` needs a local site checkout; `flow-evidence-verifier` and the checkpoint step serve device and manual acceptance, which a cloud container has no use for; frozen LDD ledgers; codebase-memory and shell-awareness doctrine.
 
 A cloud session starts from a fresh container, so the cloud environment installs the plugin on every start. In the environment's settings:
@@ -93,6 +95,8 @@ Mechanics map:
 | `flow-evidence-verifier` | not ported; the checkpoint step keeps Main's own observation or the user's own look |
 | `ai-memory` hub injection | `weft-memory` recall, with `## Harness: [[OpenCode]]` |
 | `bash.patterns` prompts | `permission.bash` asks in `opencode.json` |
+
+On Windows `flow-opencode.ps1 run` sets OpenCode's shell to Git Bash; see `docs/WINDOWS.md`.
 
 Not ported: `blog-post`, `flow-evidence-verifier`, OMP isolation and OMP todo. OpenCode also scans `~/.claude/skills` and `~/.agents/skills`; the installer reports a same-named skill there.
 

@@ -53,14 +53,15 @@ omp/                          OMP: the canonical doctrine and its setup
   profiles/<name>/config.yml  per-provider model roles and bash approval prompts
   keybindings.yml  TITLE_SYSTEM.md  mcp.example.json
   bin/flow-omp                install / verify / doctor
+  bin/flow-omp.ps1            the same for Windows (PowerShell 7)
   bin/flow-sessions           list and render OMP sessions for field-trial audits
 claude-code/                  Claude Code plugin: skills, agents, session-start hook
 opencode/                     OpenCode port: AGENTS.md, skills, agents, base config,
-                              profiles/<provider>.json, bin/flow-opencode
+                              profiles/<provider>.json, bin/flow-opencode, bin/flow-opencode.ps1
 open-webui/                   system prompt and design/planning/review/handoff prompts
 .claude-plugin/marketplace.json   makes this repository a Claude Code marketplace
 VERSION  CHANGELOG.md         the repository's one SemVer version and its release notes
-docs/                         architecture, principles, interop, model routing, field trials
+docs/                         architecture, principles, interop, model routing, field trials, Windows
 docs/decisions/               decision records
 tests/                        validation suite; entry point tests/run.sh
 ```
@@ -129,6 +130,41 @@ A profile launch runs a private server (`--standalone`) because the background s
 
 Import `open-webui/system-prompt.md` as a model's system prompt and the other files as prompts. Open WebUI has no shell or checkout, so it covers design, planning, review and handoff to a local harness (`flow-handoff.md`), not execution. See `docs/EXTERNAL-INTEROP.md`.
 
+### Windows
+
+Prerequisites: Windows 10 or 11, [Git for Windows](https://git-scm.com/download/win), PowerShell 7.2 or newer, and Developer Mode on (Settings > System > For developers) or an elevated shell. Allow local scripts once: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+
+```powershell
+git clone https://github.com/fiatcode-gh/flow-skills $HOME\Development\Projects\fiatcode-gh\flow-skills
+cd $HOME\Development\Projects\fiatcode-gh\flow-skills
+
+.\omp\bin\flow-omp.ps1 install            # OMP
+.\omp\bin\flow-omp.ps1 doctor
+
+claude plugin marketplace add fiatcode-gh/flow-skills   # Claude Code, same commands as above
+claude plugin install fiatcode@flow-skills
+
+.\opencode\bin\flow-opencode.ps1 install  # OpenCode
+opencode reload
+.\opencode\bin\flow-opencode.ps1 doctor
+.\opencode\bin\flow-opencode.ps1 run claude-agent
+```
+
+The launchers create real symlinks, and stop before any change when Windows does not allow it.
+
+To run the launchers from anywhere, link them into a folder on `PATH` and add the `oc` shortcut to your PowerShell profile:
+
+```powershell
+$bin = "$HOME\.local\bin"; New-Item -ItemType Directory -Force $bin | Out-Null
+$repo = "$HOME\Development\Projects\fiatcode-gh\flow-skills"
+[IO.File]::CreateSymbolicLink("$bin\flow-omp.ps1", "$repo\omp\bin\flow-omp.ps1")
+[IO.File]::CreateSymbolicLink("$bin\flow-opencode.ps1", "$repo\opencode\bin\flow-opencode.ps1")
+# add $bin to your user PATH, then put this in $PROFILE:
+function oc { flow-opencode run @args }
+```
+
+Windows support is CI-tested on `windows-latest` and not yet field-tested on a real machine. Shell rules, paths and what CI covers: `docs/WINDOWS.md`.
+
 ## Model routing
 
 OMP profiles map Flow roles (`default`, `smol`, `execute`, `task`, `plan`, `slow`, `critical`, ...) to models:
@@ -158,7 +194,7 @@ To release: bump `VERSION`, update `plugin.json` and the Open WebUI line to matc
   sh tests/run.sh
   ```
 
-  It checks skill, agent and rule frontmatter and role references; that each port contains no other harness's mechanics or model ids; that verbatim copies have not drifted; per-file byte caps (`tests/doctrine-budget.json`, raised only deliberately); both installers' safety; the OMP extensions (under Node and Bun); the bash approval patterns against OMP's matcher; and the `.flow/` exclude guard. CI runs the same suite on pull requests and pushes to `main`.
+  On Windows: `pwsh tests/run.ps1`. It checks skill, agent and rule frontmatter and role references; that each port contains no other harness's mechanics or model ids; that verbatim copies have not drifted; per-file byte caps (`tests/doctrine-budget.json`, raised only deliberately); both installers' safety; the PowerShell launchers (under `pwsh`, on any OS); the OMP extensions (under Node and Bun); the bash approval patterns against OMP's matcher; and the `.flow/` exclude guard. CI runs the same suite on pull requests and pushes to `main`, and a Windows job.
 - **Decisions** are recorded in `docs/decisions/<slug>.md`: what was chosen, why, what was rejected. Field-trial results per skill are in `docs/FIELD-TRIALS.md`; how to run an audit is in `docs/FIELD-TRIAL-AUDIT.md`.
 - **Writing doctrine:** `docs/PRINCIPLES.md`. **How the parts fit:** `docs/ARCHITECTURE.md`.
 
