@@ -305,7 +305,7 @@ exit 0
             $r = Invoke-Flow $hz @() $viaHelper @{} $helper
             if ($r.Code -ne 1) { fail "install without Developer Mode exited $($r.Code), expected 1: $($r.Out)" }
             if (-not $r.Out.Contains('enable Windows Developer Mode')) { fail "stop message missing: $($r.Out)" }
-            if (@(Get-ChildItem -Force -LiteralPath $hz).Count -ne 0) { fail 'install changed the home before stopping' }
+            if (@(Get-ChildItem -Force -LiteralPath $hz).Count -ne 0) { fail "install changed the home before stopping: $((Get-ChildItem -Force -Recurse -LiteralPath $hz | ForEach-Object FullName) -join ', ')" }
             Write-Output 'ok: Developer Mode stop'
         } finally {
             if ($null -eq $prev) { Remove-ItemProperty -Path $regPath -Name $valueName -ErrorAction SilentlyContinue }
