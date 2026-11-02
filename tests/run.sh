@@ -24,4 +24,5 @@ sh -n opencode/bin/flow-opencode
 ./tests/opencode-install.test.sh
 ./tests/flow-exclude.test.sh
 ./tests/approval-record.test.sh
+./tests/session-start.test.sh
 printf '%s\n' 'ok: shell syntax'
