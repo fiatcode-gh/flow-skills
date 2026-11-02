@@ -1,9 +1,9 @@
 # Flow (flow-skills)
 
-The user's standing instructions come from the `flow` plugin. Full text: FLOW_DOC
+The user's standing instructions come from the `fiatcode` plugin. Full text: FLOW_DOC
 
 - Read the full text once, before the first Flow skill, the first agent dispatch, or the first commit in this session. Skills call it "the Flow instructions".
-- Skills are `flow:<skill>`, agents `flow:<agent>`. Load a Flow skill when its description matches the task.
+- Skills are `fiatcode:<skill>`, agents `fiatcode:<agent>`. Load a Flow skill when its description matches the task.
 - Substantial work: `flow-design` contract → user approval → `flow-planning` plan → user approval → `flow-execution` → `flow-integrating`. Show each artifact in chat, then end your turn. A start, resume or answer to a question is no approval.
 - When Weft is configured: read the project's Weft page and run `weft-memory` recall before substantive work, and `weft-worklog` Mode C around it.
 - No completion or correctness claim without fresh evidence. Agent reports are claims, not proof.

@@ -8,7 +8,7 @@
   },
   "plugins": [
     {
-      "name": "flow",
+      "name": "fiatcode",
       "source": "./claude-code",
       "description": "Flow doctrine from flow-skills for Claude Code, local and on the web."
     }

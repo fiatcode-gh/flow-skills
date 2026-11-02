@@ -67,7 +67,7 @@ See `docs/MIGRATION.md` for moving an existing profile onto the linked config.
 
 ```sh
 claude plugin marketplace add fiatcode-gh/flow-skills
-claude plugin install flow@flow-skills
+claude plugin install fiatcode@flow-skills
 ```
 
 A cloud session starts from a fresh container, so it needs the plugin on every start. `docs/EXTERNAL-INTEROP.md` ("Claude Code port") lists the ways to get it there and what the port leaves out.

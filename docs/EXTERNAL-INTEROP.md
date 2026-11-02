@@ -59,7 +59,7 @@ Not ported: `blog-post` needs a local site checkout; `flow-evidence-verifier` an
 
 A cloud session starts from a fresh container, so the cloud environment installs the plugin on every start. In the environment's settings:
 
-- Setup script: `claude plugin marketplace add fiatcode-gh/flow-skills && claude plugin install flow@flow-skills || echo "flow plugin install failed"`. This repository is public, so the setup script can fetch it without the repository being attached to the session.
+- Setup script: `claude plugin marketplace add fiatcode-gh/flow-skills && claude plugin install fiatcode@flow-skills || echo "fiatcode plugin install failed"`. This repository is public, so the setup script can fetch it without the repository being attached to the session.
 - Environment variables: `WEFT_GRAPH=/home/user/weft` and `WEFT_GRAPH_REPO=fiatcode-gh/fiat-codex`.
 
 Keep `WEFT_GRAPH` on its own clone. A session that has `fiat-codex` attached checks it out on the session's own branch; `weft_publish` pushes to the default branch either way.

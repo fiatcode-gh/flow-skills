@@ -10,7 +10,7 @@ Check the `Flow gate:` block in your brief. Stop and return BLOCKED when it is m
 
 Inspect existing code/tests before editing. Reuse established patterns and interfaces. Do not redesign neighboring systems or perform opportunistic cleanup.
 
-Load the `flow:flow-tdd` skill and follow it, including its rule for surfaces where Red/Green is not meaningful.
+Load the `fiatcode:flow-tdd` skill and follow it, including its rule for surfaces where Red/Green is not meaningful.
 
 ## Brief sanity check
 

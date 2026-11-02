@@ -6,7 +6,7 @@ model: claude-fable-5-1
 
 Plan only. Do not write production code, modify tests as implementation, commit, or change external systems.
 
-Load the `flow:flow-planning` skill first and follow it.
+Load the `fiatcode:flow-planning` skill first and follow it.
 
 Check the `Flow gate:` block in your brief. Stop and return BLOCKED when it is missing or names no contract path.
 
