@@ -23,6 +23,9 @@ $PathCompare = $IsWindows ? [StringComparison]::OrdinalIgnoreCase : [StringCompa
 function Info([string]$msg) { [Console]::Out.WriteLine($msg) }
 function Fail([string]$msg) { [Console]::Error.WriteLine("error: $msg"); exit 1 }
 
+# Puts an environment variable back to its earlier value; $null means it was unset.
+function Restore-Env([string]$name, $prev) { [Environment]::SetEnvironmentVariable($name, $prev) }
+
 $HomeDir = $IsWindows ? $env:USERPROFILE : $env:HOME
 if (-not $HomeDir) { Fail 'HOME is not set' }
 
@@ -122,7 +125,7 @@ function Test-SymlinkPermission {
     } catch {
         # PowerShell wraps .NET method errors; the Win32 error code is on the inner exception.
         $err = $_.Exception.GetBaseException()
-        if ($err.HResult -eq -2147023582 -or $err -is [UnauthorizedAccessException]) {  # 0x80070522, ERROR_PRIVILEGE_NOT_HELD
+        if ($err.HResult -eq -2147023582) {  # 0x80070522, ERROR_PRIVILEGE_NOT_HELD
             Fail 'cannot create symlinks: enable Windows Developer Mode (Settings > System > For developers) or run this from an elevated PowerShell; nothing was changed'
         }
         Fail "symlink probe failed: $($err.Message)"
@@ -246,11 +249,21 @@ function Run([string[]]$runArgs) {
     if (-not (Get-Command opencode -ErrorAction SilentlyContinue)) { Fail 'opencode not found on PATH' }
     $bash = Resolve-GitBash
     if (-not $bash) { Fail 'Git for Windows not found; install it from https://git-scm.com/download/win (Flow runs agent commands in Git Bash)' }
-    $env:OPENCODE_CONFIG = $p
-    $env:OPENCODE_CONFIG_CONTENT = (@{ shell = $bash } | ConvertTo-Json -Compress)
-    $global:LASTEXITCODE = 0
-    & opencode @ocArgs --standalone
-    exit $LASTEXITCODE
+    $prevConfig = [Environment]::GetEnvironmentVariable('OPENCODE_CONFIG')
+    $prevContent = [Environment]::GetEnvironmentVariable('OPENCODE_CONFIG_CONTENT')
+    $code = 0
+    try {
+        $env:OPENCODE_CONFIG = $p
+        $env:OPENCODE_CONFIG_CONTENT = (@{ shell = $bash } | ConvertTo-Json -Compress)
+        $global:LASTEXITCODE = 0
+        & opencode @ocArgs --standalone
+        $code = $LASTEXITCODE
+    } finally {
+        # In-session use (`& flow-opencode.ps1 run ...`) must not leave the profile in the user's shell.
+        Restore-Env 'OPENCODE_CONFIG' $prevConfig
+        Restore-Env 'OPENCODE_CONFIG_CONTENT' $prevContent
+    }
+    exit $code
 }
 
 # --- doctor ----------------------------------------------------------------
@@ -403,8 +416,10 @@ function Doctor {
     $oc = Get-Command opencode -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $oc) { Fail 'doctor needs opencode on PATH' }
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Fail 'doctor needs git on PATH' }
+    $prevConfig = [Environment]::GetEnvironmentVariable('OPENCODE_CONFIG')
+    $prevPassword = [Environment]::GetEnvironmentVariable('OPENCODE_PASSWORD')
     Remove-Item Env:OPENCODE_CONFIG -ErrorAction SilentlyContinue
-    try { $tmp = (New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath()) "flow-opencode-doctor-$([guid]::NewGuid().ToString('N'))")).FullName } catch { Fail 'could not create a temporary directory' }
+    try { $tmp = (New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath()) "flow-opencode-doctor-$([guid]::NewGuid().ToString('N'))")).FullName } catch { Restore-Env 'OPENCODE_CONFIG' $prevConfig; Fail 'could not create a temporary directory' }
     $script:serveProc = $null
     $script:serveTasks = @{ out = $null; err = $null }
     $script:serveLog = Join-Path $tmp 'serve.log'
@@ -502,8 +517,8 @@ function Doctor {
             try { $script:serveProc.Kill($true) } catch { }
         }
         if ($script:serveProc) { [void]$script:serveProc.WaitForExit(5000) }
-        Remove-Item Env:OPENCODE_PASSWORD -ErrorAction SilentlyContinue
-        Remove-Item Env:OPENCODE_CONFIG -ErrorAction SilentlyContinue
+        Restore-Env 'OPENCODE_PASSWORD' $prevPassword
+        Restore-Env 'OPENCODE_CONFIG' $prevConfig
         Pop-Location
         Remove-Item -Recurse -Force -LiteralPath $tmp -ErrorAction SilentlyContinue
     }
