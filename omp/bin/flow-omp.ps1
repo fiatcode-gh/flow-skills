@@ -138,7 +138,7 @@ function Test-SymlinkPermission {
     } catch {
         # PowerShell wraps .NET method errors; the Win32 error code is on the inner exception.
         $err = $_.Exception.GetBaseException()
-        if ($err.HResult -eq -2147023582 -or $err -is [UnauthorizedAccessException]) {  # 0x80070522, ERROR_PRIVILEGE_NOT_HELD
+        if ($err.HResult -eq -2147023582) {  # 0x80070522, ERROR_PRIVILEGE_NOT_HELD
             Fail 'cannot create symlinks: enable Windows Developer Mode (Settings > System > For developers) or run this from an elevated PowerShell; nothing was changed'
         }
         Fail "symlink probe failed: $($err.Message)"

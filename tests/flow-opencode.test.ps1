@@ -335,6 +335,14 @@ exit 0
     if (-not $r.Out.Contains('Git for Windows not found')) { fail "missing the Git for Windows message: $($r.Out)" }
     if ($r.Out.Contains('OPENCODE_CONFIG=')) { fail "run without Git Bash started opencode: $($r.Out)" }
 
+    # 10a. Run in a live session must give OPENCODE_CONFIG and OPENCODE_CONFIG_CONTENT back; `exit` in a script
+    # called with & ends the script, so the lines after the call must still print.
+    $inproc = Join-Path $TMP 'run-inproc.ps1'
+    [IO.File]::WriteAllText($inproc, "`$env:OPENCODE_CONFIG='before'; Remove-Item Env:OPENCODE_CONFIG_CONTENT -ErrorAction SilentlyContinue; & '$FLOW' run claude-agent hello | Out-Null; [Console]::Out.WriteLine(""AFTER_CONFIG=`$env:OPENCODE_CONFIG""); [Console]::Out.WriteLine(""AFTER_CONTENT_SET=`$(Test-Path Env:OPENCODE_CONFIG_CONTENT)"")`n")
+    $r = Invoke-Flow $h10 @($runBin) @() @{ OPENCODE_GIT_BASH_PATH = $fakeBash } $inproc
+    if (-not $r.Out.Contains('AFTER_CONFIG=before')) { fail "in-process run left OPENCODE_CONFIG changed: $($r.Out)" }
+    if (-not $r.Out.Contains('AFTER_CONTENT_SET=False')) { fail "in-process run left OPENCODE_CONFIG_CONTENT set: $($r.Out)" }
+
     # 11. doctor against a stub opencode answering from fixtures (Linux only: needs a launchable opencode and sleep).
     if ($IsWindows) {
         Write-Output 'skip: doctor stub scenarios run on Linux pwsh; Windows uses the real tool in tests/windows-ci-tools.ps1'
@@ -442,6 +450,12 @@ esac
         if (-not $r.Out.Contains('FAIL: checker Check-Skills exited ')) { fail "doctor E: no 'checker Check-Skills exited' line: $($r.Out)" }
         # Case F (a checker that prints nothing) has no counterpart here: the checkers are in-process
         # functions, so there is no interpreter to stub; the empty-output rule lives in Invoke-Check.
+
+        # In-process doctor leaves the caller's OPENCODE_CONFIG and OPENCODE_PASSWORD as they were.
+        $dw = Join-Path $TMP 'doctor-inproc.ps1'
+        [IO.File]::WriteAllText($dw, "`$env:OPENCODE_CONFIG='before-cfg'; `$env:OPENCODE_PASSWORD='before-pw'; & '$FLOW' doctor | Out-Null; [Console]::Out.WriteLine(""CFG=`$env:OPENCODE_CONFIG""); [Console]::Out.WriteLine(""PW=`$env:OPENCODE_PASSWORD"")`n")
+        $r = Invoke-Flow $h11 @($docBin) @() $docEnv $dw
+        if (-not $r.Out.Contains('CFG=before-cfg') -or -not $r.Out.Contains('PW=before-pw')) { fail "doctor in-process did not restore the caller's variables: $($r.Out)" }
     }
 
     # 11a. Links into the checkout's previous name (omp-stack) are relinked, dangling
@@ -485,10 +499,17 @@ esac
         $cfgd = Cfg $hd
         New-Item -ItemType Directory -Force -Path $cfgd | Out-Null
         New-FixtureLink $target (Join-Path $cfgd 'agents') -Dir
-        # Windows stores an absolute target normalized, dropping the dot segment; such a
-        # link is a plain link under the previous name, which install may replace.
+        # Windows stores an absolute target normalized, dropping the dot segment; the stored
+        # target then decides: outside both roots is refused like any foreign link, under the
+        # previous name it is a plain link install may replace (Assert-Owned, D4).
         $stored = RawTarget (Join-Path $cfgd 'agents')
-        if ($stored -notmatch '[\\/]\.\.?([\\/]|$)') { Write-Output "skip: $target is stored as $stored (no dot segment left)"; continue }
+        if ($stored -notmatch '[\\/]\.\.?([\\/]|$)' -and (Norm $stored).StartsWith((Norm $old) + [IO.Path]::DirectorySeparatorChar, $PathCompare)) {
+            $r = Invoke-Flow $hd @() @('install') @{} $newFlow
+            if ($r.Code -ne 0) { fail "installer refused $target stored as $stored under the previous name: $($r.Out)" }
+            if (-not (Same (Final (Join-Path $cfgd 'agents')) (Join-Path $new 'opencode/agents'))) { fail "$target stored as $stored was not relinked" }
+            Write-Output "ok: $target is stored as $stored, under the previous name, relinked"
+            continue
+        }
         $r = Invoke-Flow $hd @() @('install') @{} $newFlow
         if ($r.Code -eq 0) { fail "installer replaced a link to $target under the previous name" }
         if (-not $r.Out.Contains('outside')) { fail "refusal for $target did not say outside: $($r.Out)" }

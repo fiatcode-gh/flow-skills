@@ -259,10 +259,17 @@ exit 0
         $a3 = Join-Path $h3 '.omp/profiles/anthropic/agent'
         New-Item -ItemType Directory -Force -Path $a3 | Out-Null
         New-FixtureLink $target (Join-Path $a3 'skills') -Dir
-        # Windows stores an absolute target normalized, dropping the dot segment; such a
-        # link is a plain link under the previous name, which install may replace.
+        # Windows stores an absolute target normalized, dropping the dot segment; the stored
+        # target then decides: outside both roots is refused like any foreign link, under the
+        # previous name it is a plain link install may replace (Assert-Owned, D4).
         $stored = RawTarget (Join-Path $a3 'skills')
-        if ($stored -notmatch '[\\/]\.\.?([\\/]|$)') { Write-Output "skip: $target is stored as $stored (no dot segment left)"; continue }
+        if ($stored -notmatch '[\\/]\.\.?([\\/]|$)' -and (Norm $stored).StartsWith((Norm $old) + [IO.Path]::DirectorySeparatorChar, $PathCompare)) {
+            $r = Invoke-Flow $h3 @() @('install') @{} $newFlow
+            if ($r.Code -ne 0) { fail "installer refused $target stored as $stored under the previous name: $($r.Out)" }
+            if (-not (Same (Final (Join-Path $a3 'skills')) (Join-Path $new 'omp/skills'))) { fail "$target stored as $stored was not relinked" }
+            Write-Output "ok: $target is stored as $stored, under the previous name, relinked"
+            continue
+        }
         $r = Invoke-Flow $h3 @() @('install') @{} $newFlow
         if ($r.Code -eq 0) { fail "installer replaced a link to $target under the previous name" }
         if (-not $r.Out.Contains("outside $(Norm $new)")) { fail "refusal for $target did not name the root: $($r.Out)" }
