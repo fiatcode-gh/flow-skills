@@ -220,6 +220,70 @@ try {
     $r = Invoke-Flow $h7 @() @('install')
     if ($r.Code -ne 0) { fail "install failed on a symlink into the repository: $($r.Out)" }
     if (-not (Same (Final (Join-Path $cfg7 'agents')) (Join-Path $PORT 'agents'))) { fail 'a symlink into the repository was not relinked' }
+    # A working relative link with ".." that resolves into the repository is owned, like the sh installer's `readlink -f`
+    # result. A directory link in the scratch root stands between the config and the repository, so the ".." holds on
+    # every drive layout.
+    $climb = Join-Path $TMP 'climb-agents'
+    New-FixtureLink (Join-Path $ROOT 'omp/agents') $climb
+    $relative = [IO.Path]::GetRelativePath($cfg7, $climb)
+    if ($relative -notmatch '[\\/]\.\.[\\/]|^\.\.[\\/]') { fail "fixture is not a relative link with a dot segment: $relative" }
+    Remove-LinkObject (Join-Path $cfg7 'agents')
+    New-FixtureLink $relative (Join-Path $cfg7 'agents') -Dir
+    if ((RawTarget (Join-Path $cfg7 'agents')) -ne $relative) { fail "fixture link target was rewritten: $(RawTarget (Join-Path $cfg7 'agents'))" }
+    $r = Invoke-Flow $h7 @() @('install')
+    if ($r.Code -ne 0) { fail "install refused a working relative link ($relative) that resolves into the repository: $($r.Out)" }
+    if (-not (Same (Final (Join-Path $cfg7 'agents')) (Join-Path $PORT 'agents'))) { fail 'a working relative link with a dot segment was not relinked' }
+    if ((RawTarget (Join-Path $cfg7 'agents')) -eq $relative) { fail 'install left the relative link in place' }
+    Remove-LinkObject $climb
+    # The ".." in a link's target is followed physically: behind a symlinked directory it climbs from the directory
+    # that link points at, not from the link's own folder. Written as text it reads "<root>/omp/agents", but the
+    # OS lands in a mirror of that path elsewhere, so install must refuse it and name the real path.
+    if ($IsWindows) {
+        Write-Output 'skip: physical-path check is non-Windows only; on Windows ResolveLinkTarget already returns the real path'
+    } else {
+        $mirror = Join-Path $TMP 'mirror'
+        $depth = @($cfg7.Split('/', [StringSplitOptions]::RemoveEmptyEntries)).Count
+        $leaf = Join-Path $mirror ((1..$depth | ForEach-Object { "p$_" }) -join '/') 'leaf'
+        $physical = Join-Path $mirror $ROOT.TrimStart('/') 'omp/agents'
+        New-Item -ItemType Directory -Force -Path $leaf, $physical | Out-Null
+        $hop = Join-Path $cfg7 's'
+        New-FixtureLink $leaf $hop
+        $climbing = 's/..' + ('/..' * $depth) + "$ROOT/omp/agents"
+        $agentsLink = Join-Path $cfg7 'agents'
+        Remove-LinkObject $agentsLink
+        New-FixtureLink $climbing $agentsLink -Dir
+        $r = Invoke-Flow $h7 @() @('install')
+        if ($r.Code -eq 0) { fail "install relinked $climbing, which really points at $physical" }
+        if (-not $r.Out.Contains("$agentsLink is a symlink to $physical, outside")) { fail "refusal did not name the real path $physical : $($r.Out)" }
+        if ((RawTarget $agentsLink) -ne $climbing) { fail 'install changed a link that points outside the repository' }
+        # The same through a chain: the link install sees has no dot segment, the one behind it does.
+        $mid = Join-Path $cfg7 'mid-agents'
+        New-FixtureLink $climbing $mid -Dir
+        Remove-LinkObject $agentsLink
+        New-FixtureLink 'mid-agents' $agentsLink -Dir
+        $r = Invoke-Flow $h7 @() @('install')
+        if ($r.Code -eq 0) { fail "install relinked a chain through $climbing, which really points at $physical" }
+        if (-not $r.Out.Contains("$agentsLink is a symlink to $physical, outside")) { fail "chain refusal did not name the real path $physical : $($r.Out)" }
+        if ((RawTarget $agentsLink) -ne 'mid-agents') { fail 'install changed a chained link that points outside the repository' }
+        Remove-LinkObject $mid
+        Remove-LinkObject $hop
+
+        # The checkout reached through a symlinked folder: the real path of the link target is compared with the
+        # real path of the checkout, as the sh installer does, so the link is owned, relinked, and verify agrees.
+        $alias = Join-Path $TMP 'alias'
+        New-FixtureLink $ROOT $alias
+        $aliasFlow = Join-Path $alias 'opencode/bin/flow-opencode.ps1'
+        $viaAlias = [IO.Path]::GetRelativePath($cfg7, (Join-Path $alias 'omp/agents'))
+        if ($viaAlias -notmatch '^\.\.[\\/]') { fail "fixture is not a relative link with a dot segment: $viaAlias" }
+        Remove-LinkObject $agentsLink
+        New-FixtureLink $viaAlias $agentsLink -Dir
+        $r = Invoke-Flow $h7 @() @('install') @{} $aliasFlow
+        if ($r.Code -ne 0) { fail "install refused a link into the checkout reached through a symlinked folder: $($r.Out)" }
+        if (-not (Same (Final $agentsLink) (Join-Path $PORT 'agents'))) { fail 'a link through the symlinked folder was not relinked' }
+        $r = Invoke-Flow $h7 @() @('verify') @{} $aliasFlow
+        if ($r.Code -ne 0) { fail "verify through a symlinked checkout path failed: $($r.Out)" }
+        Remove-LinkObject $alias
+    }
 
     # 7b. A foreign opencode.json symlink is refused before anything is linked.
     $h7b = New-ScratchHome 'h7b'
@@ -301,6 +365,7 @@ if ($args[0] -eq 'debug' -and $args[1] -eq 'paths' -and $args[2] -eq 'config') {
 [Console]::Out.WriteLine("OPENCODE_CONFIG=$env:OPENCODE_CONFIG")
 [Console]::Out.WriteLine("OPENCODE_CONFIG_CONTENT=$env:OPENCODE_CONFIG_CONTENT")
 foreach ($a in $args) { [Console]::Out.WriteLine($a) }
+if ($env:STUB_EXIT) { exit [int]$env:STUB_EXIT }
 exit 0
 '@
     $fakeBash = Join-Path $TMP 'bash'
@@ -342,6 +407,14 @@ exit 0
     $r = Invoke-Flow $h10 @($runBin) @() @{ OPENCODE_GIT_BASH_PATH = $fakeBash } $inproc
     if (-not $r.Out.Contains('AFTER_CONFIG=before')) { fail "in-process run left OPENCODE_CONFIG changed: $($r.Out)" }
     if (-not $r.Out.Contains('AFTER_CONTENT_SET=False')) { fail "in-process run left OPENCODE_CONFIG_CONTENT set: $($r.Out)" }
+
+    # 10b. OpenCode's non-zero exit code is the exit code of run, as a child process and in a live session.
+    $r = Invoke-Flow $h10 @($runBin) @('run', 'claude-agent', 'hello') @{ OPENCODE_GIT_BASH_PATH = $fakeBash; STUB_EXIT = 7 }
+    if ($r.Code -ne 7) { fail "run exited $($r.Code), expected opencode's 7: $($r.Out)" }
+    $inprocExit = Join-Path $TMP 'run-inproc-exit.ps1'
+    [IO.File]::WriteAllText($inprocExit, "& '$FLOW' run claude-agent hello | Out-Null; [Console]::Out.WriteLine(""RUN_EXIT=`$LASTEXITCODE"")`n")
+    $r = Invoke-Flow $h10 @($runBin) @() @{ OPENCODE_GIT_BASH_PATH = $fakeBash; STUB_EXIT = 7 } $inprocExit
+    if (-not $r.Out.Contains('RUN_EXIT=7')) { fail "in-process run did not leave opencode's exit code 7 in `$LASTEXITCODE: $($r.Out)" }
 
     # 11. doctor against a stub opencode answering from fixtures (Linux only: needs a launchable opencode and sleep).
     if ($IsWindows) {
@@ -499,11 +572,16 @@ esac
         $cfgd = Cfg $hd
         New-Item -ItemType Directory -Force -Path $cfgd | Out-Null
         New-FixtureLink $target (Join-Path $cfgd 'agents') -Dir
-        # Windows stores an absolute target normalized, dropping the dot segment; the stored
-        # target then decides: outside both roots is refused like any foreign link, under the
-        # previous name it is a plain link install may replace (Assert-Owned, D4).
+        # The stored target decides. Windows stores an absolute target with its dot segments
+        # dropped, and its OS collapses any that remain as text before following the path, so
+        # there a link whose path exists under the previous name works and install relinks it
+        # (Assert-Owned, D4). Elsewhere a dot segment that survives means the link is dangling
+        # (x does not exist), and it is refused; a target outside both roots is always refused.
         $stored = RawTarget (Join-Path $cfgd 'agents')
-        if ($stored -notmatch '[\\/]\.\.?([\\/]|$)' -and (Norm $stored).StartsWith((Norm $old) + [IO.Path]::DirectorySeparatorChar, $PathCompare)) {
+        $reach = Norm ([IO.Path]::GetFullPath($stored, $cfgd))
+        $hasDots = $stored -match '[\\/]\.\.?([\\/]|$)'
+        $underOld = [string]::Equals($reach, (Norm $old), $PathCompare) -or $reach.StartsWith((Norm $old) + [IO.Path]::DirectorySeparatorChar, $PathCompare)
+        if ($underOld -and (-not $hasDots -or ($IsWindows -and (Test-Path -LiteralPath $reach)))) {
             $r = Invoke-Flow $hd @() @('install') @{} $newFlow
             if ($r.Code -ne 0) { fail "installer refused $target stored as $stored under the previous name: $($r.Out)" }
             if (-not (Same (Final (Join-Path $cfgd 'agents')) (Join-Path $new 'opencode/agents'))) { fail "$target stored as $stored was not relinked" }

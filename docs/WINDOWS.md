@@ -42,6 +42,8 @@ Claude Code installs the plugin with the same `claude plugin` commands as on Lin
 
 The launchers follow the same rules as the `sh` installers: they link only, replace a missing destination or a link they own, refuse anything else and name it, and never write credentials or touch a differing real `config.yml` or `opencode.json`.
 
+**Capturing output.** The launchers write straight to the console, so output from `.\omp\bin\flow-omp.ps1 verify` called inside a PowerShell session cannot be piped or captured. To capture or filter it, run the launcher in its own `pwsh`: `pwsh -NoProfile -File .\omp\bin\flow-omp.ps1 verify | Select-String FAIL`.
+
 Where the links go:
 
 - OMP: `%USERPROFILE%\.omp\profiles\<profile>\agent`, and the shared `%USERPROFILE%\.omp\agent\keybindings.yml`. When `omp` is on `PATH` the launcher asks it (`omp --profile <p> config path`).

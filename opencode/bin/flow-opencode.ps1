@@ -8,10 +8,26 @@ $Rest = @($args | Select-Object -Skip 1 | ForEach-Object { [string]$_ })
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# The real path of a file, directory or link, as `readlink -f` gives it, or $null when it cannot be found.
+function Get-PhysicalPath([string]$p) {
+    $readlink = @('/usr/bin/readlink', '/bin/readlink') | Where-Object { [IO.File]::Exists($_) } | Select-Object -First 1
+    if (-not $readlink) { $readlink = 'readlink' }
+    $global:LASTEXITCODE = 0
+    try { $out = (& $readlink -f -- $p 2>$null | Out-String).Trim() } catch { return $null }
+    if ($LASTEXITCODE -ne 0 -or -not $out) { return $null }
+    $out
+}
+
 # Resolve a symlinked launcher (e.g. one on PATH) to its checkout.
 $Self = Get-Item -LiteralPath $PSCommandPath -Force
 if ($Self.LinkType) { $Self = [IO.File]::ResolveLinkTarget($PSCommandPath, $true) }
 $HERE = $Self.DirectoryName
+# Like sh (readlink -f), everything is derived from the real path of the checkout, so the ownership
+# check and the links agree when the checkout is reached through a symlinked folder.
+if (-not $IsWindows) {
+    $physical = Get-PhysicalPath $PSCommandPath
+    if ($physical) { $HERE = [IO.Path]::GetDirectoryName($physical) }
+}
 $ROOT = [IO.Path]::GetFullPath((Join-Path $HERE '..' '..'))
 # Links into the checkout's previous name are repointed too (renamed from omp-stack on 2026-11-02).
 $OLD_ROOT = Join-Path ([IO.Path]::GetDirectoryName($ROOT)) 'omp-stack'
@@ -64,12 +80,26 @@ function Get-LinkType([string]$p) {
     (Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue)?.LinkType
 }
 
+# True when the link leads to something that exists. The OS follows the link and decides, so a ".."
+# behind a missing directory counts as dangling. It says nothing about where the link ends up.
+# A directory cannot be opened as a file (access denied) but it exists; a missing target does not.
+function Test-LinkResolves([string]$dst) {
+    try { [IO.File]::OpenHandle($dst).Dispose(); $true }
+    catch { ($_.Exception.InnerException ?? $_.Exception) -is [UnauthorizedAccessException] }
+}
+
+# Final is where the link really ends. On Windows .NET asks the OS for it. Elsewhere every resolving
+# link is resolved by the OS, as the sh installer does, because .NET collapses ".." as text, which
+# differs from the real path behind a symlinked directory; Final stays $null if that fails, and the
+# caller refuses it. A link that does not resolve keeps .NET's text answer, which is only shown.
 function Get-LinkTarget([string]$dst) {
     $item = Get-Item -LiteralPath $dst -Force
     $raw = $item.LinkTarget
     try { $final = [IO.File]::ResolveLinkTarget($dst, $true).FullName } catch { $final = $null }
     if (-not $final) { $final = [IO.Path]::GetFullPath($raw, (Split-Path $dst -Parent)) }
-    @{ Raw = $raw; Final = $final }
+    $resolved = Test-LinkResolves $dst
+    if ($resolved -and -not $IsWindows) { $final = Get-PhysicalPath $dst }
+    @{ Raw = $raw; Final = $final; Resolved = $resolved }
 }
 
 # The exact set the sh case refuses: /../, /./, a trailing /.. or /. (either separator).
@@ -86,6 +116,7 @@ function Remove-LinkObject([string]$p) {
 }
 
 # Refuses a missing source, a foreign symlink and a real file or directory.
+# Like the sh rule, a dot segment in the raw target only refuses a link that does not resolve.
 function Assert-Owned([string]$src, [string]$dst) {
     if (-not (Test-Path -LiteralPath $src)) { Fail "missing source $src" }
     $exists = [IO.File]::Exists($dst) -or [IO.Directory]::Exists($dst) -or [bool](Get-LinkType $dst)
@@ -93,7 +124,8 @@ function Assert-Owned([string]$src, [string]$dst) {
     if (Get-LinkType $dst) {
         $t = Get-LinkTarget $dst
         $shown = $t.Final ?? $t.Raw
-        if ((Test-DotSegments $t.Raw) -or -not ((Test-UnderOrEqual $t.Final $ROOT) -or (Test-UnderOrEqual $t.Final $OLD_ROOT))) {
+        $outside = -not $t.Final -or -not ((Test-UnderOrEqual $t.Final $ROOT) -or (Test-UnderOrEqual $t.Final $OLD_ROOT))
+        if ($outside -or (-not $t.Resolved -and (Test-DotSegments $t.Raw))) {
             Fail "$dst is a symlink to $shown, outside $ROOT; move or remove it manually"
         }
     } else {
@@ -157,17 +189,19 @@ function Link-Config {
 }
 
 function Final-Target([string]$dst) {
+    if (-not $IsWindows) { return Get-PhysicalPath $dst }
     try { [IO.File]::ResolveLinkTarget($dst, $true)?.FullName } catch { $null }
 }
 
 function Verify-Link([string]$src, [string]$dst) {
+    $want = $IsWindows ? (Normalize $src) : ((Get-PhysicalPath $src) ?? (Normalize $src))
     if (Get-LinkType $dst) {
         $final = Final-Target $dst
-        if ($final -and [string]::Equals($final, (Normalize $src), $PathCompare)) {
+        if ($final -and [string]::Equals($final, $want, $PathCompare)) {
             Info "ok: $dst"
             return 0
         }
-        Info "FAIL: $dst -> $($final ?? 'dangling'), expected $(Normalize $src)"
+        Info "FAIL: $dst -> $($final ?? 'dangling'), expected $want"
         return 1
     }
     Info "FAIL: $dst is not a symlink"

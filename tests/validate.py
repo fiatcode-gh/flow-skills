@@ -848,13 +848,19 @@ if version_path.exists():
             for doctor_cmd in [ROOT/'omp/bin/flow-omp',ROOT/'opencode/bin/flow-opencode']:
                 first=subprocess.run(['/bin/sh',str(doctor_cmd),'doctor'],env={'HOME':scratch,'PATH':str(bindir)},capture_output=True).stdout.split(b'\n',1)[0].decode(errors='replace')
                 if first!=f'flow-skills {version}': err(f'{rel(doctor_cmd)}: doctor must print "flow-skills {version}" first, got {first!r}')
-    # The PowerShell doctors print the same first line; checked wherever pwsh exists.
+    # The PowerShell doctors print the same first line; checked wherever pwsh exists. As above, an empty
+    # PATH keeps omp and opencode out, so the opencode doctor never starts a real `opencode serve`.
+    # pwsh is started by absolute path, with only what it needs to run passed through.
     # They end lines with the platform newline (CRLF on Windows), so split on that.
-    if shutil.which('pwsh'):
+    pwsh=shutil.which('pwsh')
+    if pwsh:
         with tempfile.TemporaryDirectory() as scratch:
-            env={**os.environ,'HOME':scratch,'USERPROFILE':scratch}
+            bindir=Path(scratch)/'bin'; bindir.mkdir()
+            path=[str(bindir)]+([str(Path(os.environ['SYSTEMROOT'])/'System32')] if os.name=='nt' and 'SYSTEMROOT' in os.environ else [])
+            keep=['SYSTEMROOT','WINDIR','TEMP','TMP','TMPDIR','PATHEXT','COMSPEC','DOTNET_ROOT','LOCALAPPDATA','APPDATA','PROGRAMDATA','PROGRAMFILES','PROGRAMFILES(X86)','USERNAME']
+            env={**{k:os.environ[k] for k in keep if k in os.environ},'HOME':scratch,'USERPROFILE':scratch,'PATH':os.pathsep.join(path)}
             for doctor_cmd in [ROOT/'omp/bin/flow-omp.ps1',ROOT/'opencode/bin/flow-opencode.ps1']:
-                first=subprocess.run(['pwsh','-NoProfile','-ExecutionPolicy','Bypass','-File',str(doctor_cmd),'doctor'],env=env,capture_output=True).stdout.split(os.linesep.encode(),1)[0].decode(errors='replace')
+                first=subprocess.run([pwsh,'-NoProfile','-ExecutionPolicy','Bypass','-File',str(doctor_cmd),'doctor'],env=env,capture_output=True).stdout.split(os.linesep.encode(),1)[0].decode(errors='replace')
                 if first!=f'flow-skills {version}': err(f'{rel(doctor_cmd)}: doctor must print "flow-skills {version}" first, got {first!r}')
 
 if errors:
