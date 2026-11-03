@@ -182,6 +182,21 @@ exit 0
         if ($r.Code -eq 0) { fail "installer replaced a symlink to $target" }
         if ((RawTarget $foreign) -ne $target) { fail "installer changed the symlink to $target" }
     }
+    # A working relative link with ".." that resolves into the repository is owned, like the sh installer's `readlink -f`
+    # result. A directory link in the scratch root stands between the home and the repository, so the ".." holds on
+    # every drive layout.
+    $climb = Join-Path $TMP 'climb-skills'
+    New-FixtureLink (Join-Path $OMP 'skills') $climb
+    $relative = [IO.Path]::GetRelativePath($anAgent, $climb)
+    if ($relative -notmatch '[\\/]\.\.[\\/]|^\.\.[\\/]') { fail "fixture is not a relative link with a dot segment: $relative" }
+    Remove-LinkObject $foreign
+    New-FixtureLink $relative $foreign -Dir
+    if ((RawTarget $foreign) -ne $relative) { fail "fixture link target was rewritten: $(RawTarget $foreign)" }
+    $r = Invoke-Flow $hl @() @('install')
+    if ($r.Code -ne 0) { fail "installer refused a working relative link ($relative) that resolves into the repository: $($r.Out)" }
+    if (-not (Same (Final $foreign) (Join-Path $OMP 'skills'))) { fail 'installer did not relink a working relative link with a dot segment' }
+    if ((RawTarget $foreign) -eq $relative) { fail 'installer left the relative link in place' }
+    Remove-LinkObject $climb
 
     # install.test.sh 117-155: an unresolvable profile, at any position, stops every command before anything links.
     $stubBad = @'

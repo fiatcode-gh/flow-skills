@@ -73,12 +73,20 @@ function Get-LinkType([string]$p) {
     (Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue)?.LinkType
 }
 
+# True when the link leads to something that exists. The OS follows the link, so a ".." behind a
+# missing or symlinked directory is resolved as readlink -f does, not by .NET's text normalization.
+# A directory cannot be opened as a file (access denied) but it exists; a missing target does not.
+function Test-LinkResolves([string]$dst) {
+    try { [IO.File]::OpenHandle($dst).Dispose(); $true }
+    catch { ($_.Exception.InnerException ?? $_.Exception) -is [UnauthorizedAccessException] }
+}
+
 function Get-LinkTarget([string]$dst) {
     $item = Get-Item -LiteralPath $dst -Force
     $raw = $item.LinkTarget
     try { $final = [IO.File]::ResolveLinkTarget($dst, $true).FullName } catch { $final = $null }
     if (-not $final) { $final = [IO.Path]::GetFullPath($raw, (Split-Path $dst -Parent)) }
-    @{ Raw = $raw; Final = $final }
+    @{ Raw = $raw; Final = $final; Resolved = (Test-LinkResolves $dst) }
 }
 
 # The exact set the sh case refuses: /../, /./, a trailing /.. or /. (either separator).
@@ -95,6 +103,7 @@ function Remove-LinkObject([string]$p) {
 }
 
 # Replaces only a missing destination or a symlink into this repository or its previous name.
+# Like the sh rule, a dot segment in the raw target only refuses a link that does not resolve.
 function Assert-Owned([string]$src, [string]$dst) {
     if (-not (Test-Path -LiteralPath $src)) { Fail "missing source $src" }
     $exists = [IO.File]::Exists($dst) -or [IO.Directory]::Exists($dst) -or [bool](Get-LinkType $dst)
@@ -102,7 +111,8 @@ function Assert-Owned([string]$src, [string]$dst) {
     if (Get-LinkType $dst) {
         $t = Get-LinkTarget $dst
         $shown = $t.Final ?? $t.Raw
-        if ((Test-DotSegments $t.Raw) -or -not ((Test-UnderOrEqual $t.Final $ROOT) -or (Test-UnderOrEqual $t.Final $OLD_ROOT))) {
+        $outside = -not ((Test-UnderOrEqual $t.Final $ROOT) -or (Test-UnderOrEqual $t.Final $OLD_ROOT))
+        if ($outside -or (-not $t.Resolved -and (Test-DotSegments $t.Raw))) {
             Fail "$dst is a symlink to $shown, outside $ROOT; move or remove it manually"
         }
     } else {

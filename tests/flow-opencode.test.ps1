@@ -220,6 +220,21 @@ try {
     $r = Invoke-Flow $h7 @() @('install')
     if ($r.Code -ne 0) { fail "install failed on a symlink into the repository: $($r.Out)" }
     if (-not (Same (Final (Join-Path $cfg7 'agents')) (Join-Path $PORT 'agents'))) { fail 'a symlink into the repository was not relinked' }
+    # A working relative link with ".." that resolves into the repository is owned, like the sh installer's `readlink -f`
+    # result. A directory link in the scratch root stands between the config and the repository, so the ".." holds on
+    # every drive layout.
+    $climb = Join-Path $TMP 'climb-agents'
+    New-FixtureLink (Join-Path $ROOT 'omp/agents') $climb
+    $relative = [IO.Path]::GetRelativePath($cfg7, $climb)
+    if ($relative -notmatch '[\\/]\.\.[\\/]|^\.\.[\\/]') { fail "fixture is not a relative link with a dot segment: $relative" }
+    Remove-LinkObject (Join-Path $cfg7 'agents')
+    New-FixtureLink $relative (Join-Path $cfg7 'agents') -Dir
+    if ((RawTarget (Join-Path $cfg7 'agents')) -ne $relative) { fail "fixture link target was rewritten: $(RawTarget (Join-Path $cfg7 'agents'))" }
+    $r = Invoke-Flow $h7 @() @('install')
+    if ($r.Code -ne 0) { fail "install refused a working relative link ($relative) that resolves into the repository: $($r.Out)" }
+    if (-not (Same (Final (Join-Path $cfg7 'agents')) (Join-Path $PORT 'agents'))) { fail 'a working relative link with a dot segment was not relinked' }
+    if ((RawTarget (Join-Path $cfg7 'agents')) -eq $relative) { fail 'install left the relative link in place' }
+    Remove-LinkObject $climb
 
     # 7b. A foreign opencode.json symlink is refused before anything is linked.
     $h7b = New-ScratchHome 'h7b'
@@ -301,6 +316,7 @@ if ($args[0] -eq 'debug' -and $args[1] -eq 'paths' -and $args[2] -eq 'config') {
 [Console]::Out.WriteLine("OPENCODE_CONFIG=$env:OPENCODE_CONFIG")
 [Console]::Out.WriteLine("OPENCODE_CONFIG_CONTENT=$env:OPENCODE_CONFIG_CONTENT")
 foreach ($a in $args) { [Console]::Out.WriteLine($a) }
+if ($env:STUB_EXIT) { exit [int]$env:STUB_EXIT }
 exit 0
 '@
     $fakeBash = Join-Path $TMP 'bash'
@@ -342,6 +358,14 @@ exit 0
     $r = Invoke-Flow $h10 @($runBin) @() @{ OPENCODE_GIT_BASH_PATH = $fakeBash } $inproc
     if (-not $r.Out.Contains('AFTER_CONFIG=before')) { fail "in-process run left OPENCODE_CONFIG changed: $($r.Out)" }
     if (-not $r.Out.Contains('AFTER_CONTENT_SET=False')) { fail "in-process run left OPENCODE_CONFIG_CONTENT set: $($r.Out)" }
+
+    # 10b. OpenCode's non-zero exit code is the exit code of run, as a child process and in a live session.
+    $r = Invoke-Flow $h10 @($runBin) @('run', 'claude-agent', 'hello') @{ OPENCODE_GIT_BASH_PATH = $fakeBash; STUB_EXIT = 7 }
+    if ($r.Code -ne 7) { fail "run exited $($r.Code), expected opencode's 7: $($r.Out)" }
+    $inprocExit = Join-Path $TMP 'run-inproc-exit.ps1'
+    [IO.File]::WriteAllText($inprocExit, "& '$FLOW' run claude-agent hello | Out-Null; [Console]::Out.WriteLine(""RUN_EXIT=`$LASTEXITCODE"")`n")
+    $r = Invoke-Flow $h10 @($runBin) @() @{ OPENCODE_GIT_BASH_PATH = $fakeBash; STUB_EXIT = 7 } $inprocExit
+    if (-not $r.Out.Contains('RUN_EXIT=7')) { fail "in-process run did not leave opencode's exit code 7 in `$LASTEXITCODE: $($r.Out)" }
 
     # 11. doctor against a stub opencode answering from fixtures (Linux only: needs a launchable opencode and sleep).
     if ($IsWindows) {
