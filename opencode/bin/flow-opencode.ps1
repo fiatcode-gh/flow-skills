@@ -80,10 +80,17 @@ function Get-LinkType([string]$p) {
     (Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue)?.LinkType
 }
 
-# True when the link leads to something that exists. The OS follows the link and decides, so a ".."
-# behind a missing directory counts as dangling. It says nothing about where the link ends up.
-# A directory cannot be opened as a file (access denied) but it exists; a missing target does not.
+# True when the link leads to something that exists. It says nothing about where the link ends up.
+# On Windows .NET gives the final path (from the OS, or as text for a dangling link; Windows resolves "..",
+# "." as text too), so that path existing is the answer, as a folder or a file: File.ResolveLinkTarget
+# returns a FileInfo even for a folder. A folder link cannot be opened as a file there at all. Elsewhere
+# the OS follows the link, so a ".." behind a missing directory counts as dangling; a directory cannot
+# be opened as a file (access denied) but exists.
 function Test-LinkResolves([string]$dst) {
+    if ($IsWindows) {
+        try { $final = [IO.File]::ResolveLinkTarget($dst, $true)?.FullName } catch { return $false }
+        return [bool]($final -and ([IO.Directory]::Exists($final) -or [IO.File]::Exists($final)))
+    }
     try { [IO.File]::OpenHandle($dst).Dispose(); $true }
     catch { ($_.Exception.InnerException ?? $_.Exception) -is [UnauthorizedAccessException] }
 }
