@@ -2,6 +2,23 @@
 
 Versions follow SemVer as described in the Versioning section of the README.
 
+## 1.2.0 — 2026-11-03
+
+Flow now runs on native Windows with OMP, Claude Code and OpenCode, with Git Bash as the agent shell. Windows support is CI-tested, not yet field-tested on a real machine.
+
+### Added
+- `omp/bin/flow-omp.ps1` and `opencode/bin/flow-opencode.ps1`: PowerShell 7 launchers with the same commands and safety rules as the `sh` installers. They create real symlinks and stop before changing anything when Windows does not allow symlinks (turn on Developer Mode or use an elevated shell).
+- `flow-opencode.ps1 run <profile>` sets OpenCode's shell to Git Bash for that launch only. OMP and Claude Code need no shell setting.
+- `docs/WINDOWS.md`: prerequisites, install, the shell rule per harness, Git Bash notes and the manual checks still open.
+- A `windows-latest` CI job: the validator, both PowerShell installer tests (including the Developer Mode stop), the `sh` tests under Git Bash, and checks against real OMP and OpenCode installs.
+
+### Fixed
+- Both `sh` installers resolve a symlinked launcher (such as `~/.local/bin/flow-omp`) to its checkout. Before, `flow-opencode` run from `~/.local/bin` looked for the repository in the wrong place.
+
+### Changed
+- `tests/run.sh` also runs the PowerShell tests when `pwsh` is on `PATH`, and a new test runs the Claude Code session-start hook.
+- `.gitattributes` keeps every file LF, so the `sh` scripts work in a Windows checkout.
+
 ## 1.1.0 — 2026-11-02
 
 Flow agents in the Claude Code and OpenCode ports now run on the model and effort of their OMP role, OpenCode gains a Command Code profile, and the Command Code routing changes after a look at real-world reports.
