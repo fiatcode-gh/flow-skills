@@ -24,7 +24,12 @@ function Info([string]$msg) { [Console]::Out.WriteLine($msg) }
 function Fail([string]$msg) { [Console]::Error.WriteLine("error: $msg"); exit 1 }
 
 # Puts an environment variable back to its earlier value; $null means it was unset.
-function Restore-Env([string]$name, $prev) { [Environment]::SetEnvironmentVariable($name, $prev) }
+# PowerShell passes $null to a .NET string parameter as "", and from pwsh 7.5 (.NET 9)
+# setting "" keeps the variable, so an unset one is removed explicitly.
+function Restore-Env([string]$name, $prev) {
+    if ($null -eq $prev) { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
+    else { [Environment]::SetEnvironmentVariable($name, $prev) }
+}
 
 $HomeDir = $IsWindows ? $env:USERPROFILE : $env:HOME
 if (-not $HomeDir) { Fail 'HOME is not set' }
