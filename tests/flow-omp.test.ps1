@@ -322,11 +322,16 @@ exit 0
         $a3 = Join-Path $h3 '.omp/profiles/anthropic/agent'
         New-Item -ItemType Directory -Force -Path $a3 | Out-Null
         New-FixtureLink $target (Join-Path $a3 'skills') -Dir
-        # Windows stores an absolute target normalized, dropping the dot segment; the stored
-        # target then decides: outside both roots is refused like any foreign link, under the
-        # previous name it is a plain link install may replace (Assert-Owned, D4).
+        # The stored target decides. Windows stores an absolute target with its dot segments
+        # dropped, and its OS collapses any that remain as text before following the path, so
+        # there a link whose path exists under the previous name works and install relinks it
+        # (Assert-Owned, D4). Elsewhere a dot segment that survives means the link is dangling
+        # (x does not exist), and it is refused; a target outside both roots is always refused.
         $stored = RawTarget (Join-Path $a3 'skills')
-        if ($stored -notmatch '[\\/]\.\.?([\\/]|$)' -and (Norm $stored).StartsWith((Norm $old) + [IO.Path]::DirectorySeparatorChar, $PathCompare)) {
+        $reach = Norm ([IO.Path]::GetFullPath($stored, $a3))
+        $hasDots = $stored -match '[\\/]\.\.?([\\/]|$)'
+        $underOld = [string]::Equals($reach, (Norm $old), $PathCompare) -or $reach.StartsWith((Norm $old) + [IO.Path]::DirectorySeparatorChar, $PathCompare)
+        if ($underOld -and (-not $hasDots -or ($IsWindows -and (Test-Path -LiteralPath $reach)))) {
             $r = Invoke-Flow $h3 @() @('install') @{} $newFlow
             if ($r.Code -ne 0) { fail "installer refused $target stored as $stored under the previous name: $($r.Out)" }
             if (-not (Same (Final (Join-Path $a3 'skills')) (Join-Path $new 'omp/skills'))) { fail "$target stored as $stored was not relinked" }

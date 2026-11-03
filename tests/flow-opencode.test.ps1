@@ -572,11 +572,16 @@ esac
         $cfgd = Cfg $hd
         New-Item -ItemType Directory -Force -Path $cfgd | Out-Null
         New-FixtureLink $target (Join-Path $cfgd 'agents') -Dir
-        # Windows stores an absolute target normalized, dropping the dot segment; the stored
-        # target then decides: outside both roots is refused like any foreign link, under the
-        # previous name it is a plain link install may replace (Assert-Owned, D4).
+        # The stored target decides. Windows stores an absolute target with its dot segments
+        # dropped, and its OS collapses any that remain as text before following the path, so
+        # there a link whose path exists under the previous name works and install relinks it
+        # (Assert-Owned, D4). Elsewhere a dot segment that survives means the link is dangling
+        # (x does not exist), and it is refused; a target outside both roots is always refused.
         $stored = RawTarget (Join-Path $cfgd 'agents')
-        if ($stored -notmatch '[\\/]\.\.?([\\/]|$)' -and (Norm $stored).StartsWith((Norm $old) + [IO.Path]::DirectorySeparatorChar, $PathCompare)) {
+        $reach = Norm ([IO.Path]::GetFullPath($stored, $cfgd))
+        $hasDots = $stored -match '[\\/]\.\.?([\\/]|$)'
+        $underOld = [string]::Equals($reach, (Norm $old), $PathCompare) -or $reach.StartsWith((Norm $old) + [IO.Path]::DirectorySeparatorChar, $PathCompare)
+        if ($underOld -and (-not $hasDots -or ($IsWindows -and (Test-Path -LiteralPath $reach)))) {
             $r = Invoke-Flow $hd @() @('install') @{} $newFlow
             if ($r.Code -ne 0) { fail "installer refused $target stored as $stored under the previous name: $($r.Out)" }
             if (-not (Same (Final (Join-Path $cfgd 'agents')) (Join-Path $new 'opencode/agents'))) { fail "$target stored as $stored was not relinked" }
