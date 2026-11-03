@@ -8,10 +8,26 @@ $Rest = @($args | Select-Object -Skip 1 | ForEach-Object { [string]$_ })
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# The real path of a file, directory or link, as `readlink -f` gives it, or $null when it cannot be found.
+function Get-PhysicalPath([string]$p) {
+    $readlink = @('/usr/bin/readlink', '/bin/readlink') | Where-Object { [IO.File]::Exists($_) } | Select-Object -First 1
+    if (-not $readlink) { $readlink = 'readlink' }
+    $global:LASTEXITCODE = 0
+    try { $out = (& $readlink -f -- $p 2>$null | Out-String).Trim() } catch { return $null }
+    if ($LASTEXITCODE -ne 0 -or -not $out) { return $null }
+    $out
+}
+
 # Resolve a symlinked launcher (e.g. one on PATH) to its checkout.
 $Self = Get-Item -LiteralPath $PSCommandPath -Force
 if ($Self.LinkType) { $Self = [IO.File]::ResolveLinkTarget($PSCommandPath, $true) }
 $HERE = $Self.DirectoryName
+# Like sh (readlink -f), everything is derived from the real path of the checkout, so the ownership
+# check and the links agree when the checkout is reached through a symlinked folder.
+if (-not $IsWindows) {
+    $physical = Get-PhysicalPath $PSCommandPath
+    if ($physical) { $HERE = [IO.Path]::GetDirectoryName($physical) }
+}
 $ROOT = [IO.Path]::GetFullPath((Join-Path $HERE '..' '..'))
 # Links into the checkout's previous name are repointed too (renamed from omp-stack on 2026-11-02).
 $OLD_ROOT = Join-Path ([IO.Path]::GetDirectoryName($ROOT)) 'omp-stack'
@@ -72,19 +88,9 @@ function Test-LinkResolves([string]$dst) {
     catch { ($_.Exception.InnerException ?? $_.Exception) -is [UnauthorizedAccessException] }
 }
 
-# The real path a resolving link ends at, as `readlink -f` gives it, or $null when it cannot be found.
-function Get-PhysicalTarget([string]$dst) {
-    $readlink = @('/usr/bin/readlink', '/bin/readlink') | Where-Object { [IO.File]::Exists($_) } | Select-Object -First 1
-    if (-not $readlink) { $readlink = 'readlink' }
-    $global:LASTEXITCODE = 0
-    try { $out = (& $readlink -f -- $dst 2>$null | Out-String).Trim() } catch { return $null }
-    if ($LASTEXITCODE -ne 0 -or -not $out) { return $null }
-    $out
-}
-
-# Final is where the link really ends. On Windows .NET asks the OS for it. Elsewhere .NET collapses ".."
-# as text, which differs from the real path behind a symlinked directory, so a resolving link whose raw
-# target has a dot segment is resolved by the OS instead; Final stays $null if that fails, and the
+# Final is where the link really ends. On Windows .NET asks the OS for it. Elsewhere every resolving
+# link is resolved by the OS, as the sh installer does, because .NET collapses ".." as text, which
+# differs from the real path behind a symlinked directory; Final stays $null if that fails, and the
 # caller refuses it. A link that does not resolve keeps .NET's text answer, which is only shown.
 function Get-LinkTarget([string]$dst) {
     $item = Get-Item -LiteralPath $dst -Force
@@ -92,7 +98,7 @@ function Get-LinkTarget([string]$dst) {
     try { $final = [IO.File]::ResolveLinkTarget($dst, $true).FullName } catch { $final = $null }
     if (-not $final) { $final = [IO.Path]::GetFullPath($raw, (Split-Path $dst -Parent)) }
     $resolved = Test-LinkResolves $dst
-    if ($resolved -and -not $IsWindows -and (Test-DotSegments $raw)) { $final = Get-PhysicalTarget $dst }
+    if ($resolved -and -not $IsWindows) { $final = Get-PhysicalPath $dst }
     @{ Raw = $raw; Final = $final; Resolved = $resolved }
 }
 
@@ -183,17 +189,19 @@ function Link-Config {
 }
 
 function Final-Target([string]$dst) {
+    if (-not $IsWindows) { return Get-PhysicalPath $dst }
     try { [IO.File]::ResolveLinkTarget($dst, $true)?.FullName } catch { $null }
 }
 
 function Verify-Link([string]$src, [string]$dst) {
+    $want = $IsWindows ? (Normalize $src) : ((Get-PhysicalPath $src) ?? (Normalize $src))
     if (Get-LinkType $dst) {
         $final = Final-Target $dst
-        if ($final -and [string]::Equals($final, (Normalize $src), $PathCompare)) {
+        if ($final -and [string]::Equals($final, $want, $PathCompare)) {
             Info "ok: $dst"
             return 0
         }
-        Info "FAIL: $dst -> $($final ?? 'dangling'), expected $(Normalize $src)"
+        Info "FAIL: $dst -> $($final ?? 'dangling'), expected $want"
         return 1
     }
     Info "FAIL: $dst is not a symlink"

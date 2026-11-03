@@ -256,7 +256,33 @@ try {
         if ($r.Code -eq 0) { fail "install relinked $climbing, which really points at $physical" }
         if (-not $r.Out.Contains("$agentsLink is a symlink to $physical, outside")) { fail "refusal did not name the real path $physical : $($r.Out)" }
         if ((RawTarget $agentsLink) -ne $climbing) { fail 'install changed a link that points outside the repository' }
+        # The same through a chain: the link install sees has no dot segment, the one behind it does.
+        $mid = Join-Path $cfg7 'mid-agents'
+        New-FixtureLink $climbing $mid -Dir
+        Remove-LinkObject $agentsLink
+        New-FixtureLink 'mid-agents' $agentsLink -Dir
+        $r = Invoke-Flow $h7 @() @('install')
+        if ($r.Code -eq 0) { fail "install relinked a chain through $climbing, which really points at $physical" }
+        if (-not $r.Out.Contains("$agentsLink is a symlink to $physical, outside")) { fail "chain refusal did not name the real path $physical : $($r.Out)" }
+        if ((RawTarget $agentsLink) -ne 'mid-agents') { fail 'install changed a chained link that points outside the repository' }
+        Remove-LinkObject $mid
         Remove-LinkObject $hop
+
+        # The checkout reached through a symlinked folder: the real path of the link target is compared with the
+        # real path of the checkout, as the sh installer does, so the link is owned, relinked, and verify agrees.
+        $alias = Join-Path $TMP 'alias'
+        New-FixtureLink $ROOT $alias
+        $aliasFlow = Join-Path $alias 'opencode/bin/flow-opencode.ps1'
+        $viaAlias = [IO.Path]::GetRelativePath($cfg7, (Join-Path $alias 'omp/agents'))
+        if ($viaAlias -notmatch '^\.\.[\\/]') { fail "fixture is not a relative link with a dot segment: $viaAlias" }
+        Remove-LinkObject $agentsLink
+        New-FixtureLink $viaAlias $agentsLink -Dir
+        $r = Invoke-Flow $h7 @() @('install') @{} $aliasFlow
+        if ($r.Code -ne 0) { fail "install refused a link into the checkout reached through a symlinked folder: $($r.Out)" }
+        if (-not (Same (Final $agentsLink) (Join-Path $PORT 'agents'))) { fail 'a link through the symlinked folder was not relinked' }
+        $r = Invoke-Flow $h7 @() @('verify') @{} $aliasFlow
+        if ($r.Code -ne 0) { fail "verify through a symlinked checkout path failed: $($r.Out)" }
+        Remove-LinkObject $alias
     }
 
     # 7b. A foreign opencode.json symlink is refused before anything is linked.

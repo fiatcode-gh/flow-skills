@@ -217,7 +217,33 @@ exit 0
         if ($r.Code -eq 0) { fail "installer relinked $climbing, which really points at $physical" }
         if (-not $r.Out.Contains("$foreign is a symlink to $physical, outside")) { fail "refusal did not name the real path $physical : $($r.Out)" }
         if ((RawTarget $foreign) -ne $climbing) { fail 'installer changed a link that points outside the repository' }
+        # The same through a chain: the link install sees has no dot segment, the one behind it does.
+        $mid = Join-Path $anAgent 'mid-skills'
+        New-FixtureLink $climbing $mid -Dir
+        Remove-LinkObject $foreign
+        New-FixtureLink 'mid-skills' $foreign -Dir
+        $r = Invoke-Flow $hl @() @('install')
+        if ($r.Code -eq 0) { fail "installer relinked a chain through $climbing, which really points at $physical" }
+        if (-not $r.Out.Contains("$foreign is a symlink to $physical, outside")) { fail "chain refusal did not name the real path $physical : $($r.Out)" }
+        if ((RawTarget $foreign) -ne 'mid-skills') { fail 'installer changed a chained link that points outside the repository' }
+        Remove-LinkObject $mid
         Remove-LinkObject $hop
+
+        # The checkout reached through a symlinked folder: the real path of the link target is compared with the
+        # real path of the checkout, as the sh installer does, so the link is owned, relinked, and verify agrees.
+        $alias = Join-Path $TMP 'alias'
+        New-FixtureLink $ROOT $alias
+        $aliasFlow = Join-Path $alias 'omp/bin/flow-omp.ps1'
+        $viaAlias = [IO.Path]::GetRelativePath($anAgent, (Join-Path $alias 'omp/skills'))
+        if ($viaAlias -notmatch '^\.\.[\\/]') { fail "fixture is not a relative link with a dot segment: $viaAlias" }
+        Remove-LinkObject $foreign
+        New-FixtureLink $viaAlias $foreign -Dir
+        $r = Invoke-Flow $hl @() @('install') @{} $aliasFlow
+        if ($r.Code -ne 0) { fail "installer refused a link into the checkout reached through a symlinked folder: $($r.Out)" }
+        if (-not (Same (Final $foreign) (Join-Path $OMP 'skills'))) { fail 'a link through the symlinked folder was not relinked' }
+        $r = Invoke-Flow $hl @() @('verify') @{} $aliasFlow
+        if ($r.Code -ne 0) { fail "verify through a symlinked checkout path failed: $($r.Out)" }
+        Remove-LinkObject $alias
     }
 
     # install.test.sh 117-155: an unresolvable profile, at any position, stops every command before anything links.
