@@ -182,6 +182,69 @@ exit 0
         if ($r.Code -eq 0) { fail "installer replaced a symlink to $target" }
         if ((RawTarget $foreign) -ne $target) { fail "installer changed the symlink to $target" }
     }
+    # A working relative link with ".." that resolves into the repository is owned, like the sh installer's `readlink -f`
+    # result. A directory link in the scratch root stands between the home and the repository, so the ".." holds on
+    # every drive layout.
+    $climb = Join-Path $TMP 'climb-skills'
+    New-FixtureLink (Join-Path $OMP 'skills') $climb
+    $relative = [IO.Path]::GetRelativePath($anAgent, $climb)
+    if ($relative -notmatch '[\\/]\.\.[\\/]|^\.\.[\\/]') { fail "fixture is not a relative link with a dot segment: $relative" }
+    Remove-LinkObject $foreign
+    New-FixtureLink $relative $foreign -Dir
+    if ((RawTarget $foreign) -ne $relative) { fail "fixture link target was rewritten: $(RawTarget $foreign)" }
+    $r = Invoke-Flow $hl @() @('install')
+    if ($r.Code -ne 0) { fail "installer refused a working relative link ($relative) that resolves into the repository: $($r.Out)" }
+    if (-not (Same (Final $foreign) (Join-Path $OMP 'skills'))) { fail 'installer did not relink a working relative link with a dot segment' }
+    if ((RawTarget $foreign) -eq $relative) { fail 'installer left the relative link in place' }
+    Remove-LinkObject $climb
+    # The ".." in a link's target is followed physically: behind a symlinked directory it climbs from the directory
+    # that link points at, not from the link's own folder. Written as text it reads "<root>/omp/skills", but the
+    # OS lands in a mirror of that path elsewhere, so install must refuse it and name the real path.
+    if ($IsWindows) {
+        Write-Output 'skip: physical-path check is non-Windows only; on Windows ResolveLinkTarget already returns the real path'
+    } else {
+        $mirror = Join-Path $TMP 'mirror'
+        $depth = @($anAgent.Split('/', [StringSplitOptions]::RemoveEmptyEntries)).Count
+        $leaf = Join-Path $mirror ((1..$depth | ForEach-Object { "p$_" }) -join '/') 'leaf'
+        $physical = Join-Path $mirror $ROOT.TrimStart('/') 'omp/skills'
+        New-Item -ItemType Directory -Force -Path $leaf, $physical | Out-Null
+        $hop = Join-Path $anAgent 's'
+        New-FixtureLink $leaf $hop
+        $climbing = 's/..' + ('/..' * $depth) + "$ROOT/omp/skills"
+        Remove-LinkObject $foreign
+        New-FixtureLink $climbing $foreign -Dir
+        $r = Invoke-Flow $hl @() @('install')
+        if ($r.Code -eq 0) { fail "installer relinked $climbing, which really points at $physical" }
+        if (-not $r.Out.Contains("$foreign is a symlink to $physical, outside")) { fail "refusal did not name the real path $physical : $($r.Out)" }
+        if ((RawTarget $foreign) -ne $climbing) { fail 'installer changed a link that points outside the repository' }
+        # The same through a chain: the link install sees has no dot segment, the one behind it does.
+        $mid = Join-Path $anAgent 'mid-skills'
+        New-FixtureLink $climbing $mid -Dir
+        Remove-LinkObject $foreign
+        New-FixtureLink 'mid-skills' $foreign -Dir
+        $r = Invoke-Flow $hl @() @('install')
+        if ($r.Code -eq 0) { fail "installer relinked a chain through $climbing, which really points at $physical" }
+        if (-not $r.Out.Contains("$foreign is a symlink to $physical, outside")) { fail "chain refusal did not name the real path $physical : $($r.Out)" }
+        if ((RawTarget $foreign) -ne 'mid-skills') { fail 'installer changed a chained link that points outside the repository' }
+        Remove-LinkObject $mid
+        Remove-LinkObject $hop
+
+        # The checkout reached through a symlinked folder: the real path of the link target is compared with the
+        # real path of the checkout, as the sh installer does, so the link is owned, relinked, and verify agrees.
+        $alias = Join-Path $TMP 'alias'
+        New-FixtureLink $ROOT $alias
+        $aliasFlow = Join-Path $alias 'omp/bin/flow-omp.ps1'
+        $viaAlias = [IO.Path]::GetRelativePath($anAgent, (Join-Path $alias 'omp/skills'))
+        if ($viaAlias -notmatch '^\.\.[\\/]') { fail "fixture is not a relative link with a dot segment: $viaAlias" }
+        Remove-LinkObject $foreign
+        New-FixtureLink $viaAlias $foreign -Dir
+        $r = Invoke-Flow $hl @() @('install') @{} $aliasFlow
+        if ($r.Code -ne 0) { fail "installer refused a link into the checkout reached through a symlinked folder: $($r.Out)" }
+        if (-not (Same (Final $foreign) (Join-Path $OMP 'skills'))) { fail 'a link through the symlinked folder was not relinked' }
+        $r = Invoke-Flow $hl @() @('verify') @{} $aliasFlow
+        if ($r.Code -ne 0) { fail "verify through a symlinked checkout path failed: $($r.Out)" }
+        Remove-LinkObject $alias
+    }
 
     # install.test.sh 117-155: an unresolvable profile, at any position, stops every command before anything links.
     $stubBad = @'
@@ -259,11 +322,16 @@ exit 0
         $a3 = Join-Path $h3 '.omp/profiles/anthropic/agent'
         New-Item -ItemType Directory -Force -Path $a3 | Out-Null
         New-FixtureLink $target (Join-Path $a3 'skills') -Dir
-        # Windows stores an absolute target normalized, dropping the dot segment; the stored
-        # target then decides: outside both roots is refused like any foreign link, under the
-        # previous name it is a plain link install may replace (Assert-Owned, D4).
+        # The stored target decides. Windows stores an absolute target with its dot segments
+        # dropped, and its OS collapses any that remain as text before following the path, so
+        # there a link whose path exists under the previous name works and install relinks it
+        # (Assert-Owned, D4). Elsewhere a dot segment that survives means the link is dangling
+        # (x does not exist), and it is refused; a target outside both roots is always refused.
         $stored = RawTarget (Join-Path $a3 'skills')
-        if ($stored -notmatch '[\\/]\.\.?([\\/]|$)' -and (Norm $stored).StartsWith((Norm $old) + [IO.Path]::DirectorySeparatorChar, $PathCompare)) {
+        $reach = Norm ([IO.Path]::GetFullPath($stored, $a3))
+        $hasDots = $stored -match '[\\/]\.\.?([\\/]|$)'
+        $underOld = [string]::Equals($reach, (Norm $old), $PathCompare) -or $reach.StartsWith((Norm $old) + [IO.Path]::DirectorySeparatorChar, $PathCompare)
+        if ($underOld -and (-not $hasDots -or ($IsWindows -and (Test-Path -LiteralPath $reach)))) {
             $r = Invoke-Flow $h3 @() @('install') @{} $newFlow
             if ($r.Code -ne 0) { fail "installer refused $target stored as $stored under the previous name: $($r.Out)" }
             if (-not (Same (Final (Join-Path $a3 'skills')) (Join-Path $new 'omp/skills'))) { fail "$target stored as $stored was not relinked" }
