@@ -1,6 +1,6 @@
 {
   "name": "fiatcode",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Flow engineering doctrine from flow-skills, ported to Claude Code: design contracts, execution-grade planning, constrained execution, TDD, debugging, review and integration gates.",
   "author": { "name": "fiatcode" },
   "repository": "https://github.com/fiatcode-gh/flow-skills"

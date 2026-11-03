@@ -2,6 +2,19 @@
 
 Versions follow SemVer as described in the Versioning section of the README.
 
+## 1.2.1 — 2026-11-03
+
+The PowerShell installers now follow the same link rules as the sh ones, and a few test gaps from the 1.2.0 review are closed.
+
+### Fixed
+- On Linux and macOS, the PowerShell installers resolve each link and the checkout itself with `readlink -f`, as the sh installers do. A working relative link with `..` into the checkout is relinked. A link that only looks like it points into the checkout, through `..`, a chain of links or a linked folder, is refused. The checkout is also found when you reach it through a linked folder, such as `/home -> /var/home`.
+- On Windows, a broken folder link under the checkout whose target holds `..` or `.` is refused again, instead of being replaced.
+
+### Changed
+- `docs/WINDOWS.md` says how to capture or filter launcher output: run the launcher with `pwsh -NoProfile -File`.
+- The validator runs the PowerShell doctors with no `omp` or `opencode` on `PATH`, so Windows CI no longer starts a real `opencode serve`.
+- New test: `flow-opencode.ps1 run` passes OpenCode's exit code through.
+
 ## 1.2.0 — 2026-11-03
 
 Flow now runs on native Windows with OMP, Claude Code and OpenCode, with Git Bash as the agent shell. Windows support is CI-tested, not yet field-tested on a real machine.
