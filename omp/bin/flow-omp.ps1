@@ -73,20 +73,36 @@ function Get-LinkType([string]$p) {
     (Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue)?.LinkType
 }
 
-# True when the link leads to something that exists. The OS follows the link, so a ".." behind a
-# missing or symlinked directory is resolved as readlink -f does, not by .NET's text normalization.
+# True when the link leads to something that exists. The OS follows the link and decides, so a ".."
+# behind a missing directory counts as dangling. It says nothing about where the link ends up.
 # A directory cannot be opened as a file (access denied) but it exists; a missing target does not.
 function Test-LinkResolves([string]$dst) {
     try { [IO.File]::OpenHandle($dst).Dispose(); $true }
     catch { ($_.Exception.InnerException ?? $_.Exception) -is [UnauthorizedAccessException] }
 }
 
+# The real path a resolving link ends at, as `readlink -f` gives it, or $null when it cannot be found.
+function Get-PhysicalTarget([string]$dst) {
+    $readlink = @('/usr/bin/readlink', '/bin/readlink') | Where-Object { [IO.File]::Exists($_) } | Select-Object -First 1
+    if (-not $readlink) { $readlink = 'readlink' }
+    $global:LASTEXITCODE = 0
+    try { $out = (& $readlink -f -- $dst 2>$null | Out-String).Trim() } catch { return $null }
+    if ($LASTEXITCODE -ne 0 -or -not $out) { return $null }
+    $out
+}
+
+# Final is where the link really ends. On Windows .NET asks the OS for it. Elsewhere .NET collapses ".."
+# as text, which differs from the real path behind a symlinked directory, so a resolving link whose raw
+# target has a dot segment is resolved by the OS instead; Final stays $null if that fails, and the
+# caller refuses it. A link that does not resolve keeps .NET's text answer, which is only shown.
 function Get-LinkTarget([string]$dst) {
     $item = Get-Item -LiteralPath $dst -Force
     $raw = $item.LinkTarget
     try { $final = [IO.File]::ResolveLinkTarget($dst, $true).FullName } catch { $final = $null }
     if (-not $final) { $final = [IO.Path]::GetFullPath($raw, (Split-Path $dst -Parent)) }
-    @{ Raw = $raw; Final = $final; Resolved = (Test-LinkResolves $dst) }
+    $resolved = Test-LinkResolves $dst
+    if ($resolved -and -not $IsWindows -and (Test-DotSegments $raw)) { $final = Get-PhysicalTarget $dst }
+    @{ Raw = $raw; Final = $final; Resolved = $resolved }
 }
 
 # The exact set the sh case refuses: /../, /./, a trailing /.. or /. (either separator).
@@ -111,7 +127,7 @@ function Assert-Owned([string]$src, [string]$dst) {
     if (Get-LinkType $dst) {
         $t = Get-LinkTarget $dst
         $shown = $t.Final ?? $t.Raw
-        $outside = -not ((Test-UnderOrEqual $t.Final $ROOT) -or (Test-UnderOrEqual $t.Final $OLD_ROOT))
+        $outside = -not $t.Final -or -not ((Test-UnderOrEqual $t.Final $ROOT) -or (Test-UnderOrEqual $t.Final $OLD_ROOT))
         if ($outside -or (-not $t.Resolved -and (Test-DotSegments $t.Raw))) {
             Fail "$dst is a symlink to $shown, outside $ROOT; move or remove it manually"
         }

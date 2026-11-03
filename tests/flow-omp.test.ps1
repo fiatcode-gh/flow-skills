@@ -197,6 +197,28 @@ exit 0
     if (-not (Same (Final $foreign) (Join-Path $OMP 'skills'))) { fail 'installer did not relink a working relative link with a dot segment' }
     if ((RawTarget $foreign) -eq $relative) { fail 'installer left the relative link in place' }
     Remove-LinkObject $climb
+    # The ".." in a link's target is followed physically: behind a symlinked directory it climbs from the directory
+    # that link points at, not from the link's own folder. Written as text it reads "<root>/omp/skills", but the
+    # OS lands in a mirror of that path elsewhere, so install must refuse it and name the real path.
+    if ($IsWindows) {
+        Write-Output 'skip: physical-path check is non-Windows only; on Windows ResolveLinkTarget already returns the real path'
+    } else {
+        $mirror = Join-Path $TMP 'mirror'
+        $depth = @($anAgent.Split('/', [StringSplitOptions]::RemoveEmptyEntries)).Count
+        $leaf = Join-Path $mirror ((1..$depth | ForEach-Object { "p$_" }) -join '/') 'leaf'
+        $physical = Join-Path $mirror $ROOT.TrimStart('/') 'omp/skills'
+        New-Item -ItemType Directory -Force -Path $leaf, $physical | Out-Null
+        $hop = Join-Path $anAgent 's'
+        New-FixtureLink $leaf $hop
+        $climbing = 's/..' + ('/..' * $depth) + "$ROOT/omp/skills"
+        Remove-LinkObject $foreign
+        New-FixtureLink $climbing $foreign -Dir
+        $r = Invoke-Flow $hl @() @('install')
+        if ($r.Code -eq 0) { fail "installer relinked $climbing, which really points at $physical" }
+        if (-not $r.Out.Contains("$foreign is a symlink to $physical, outside")) { fail "refusal did not name the real path $physical : $($r.Out)" }
+        if ((RawTarget $foreign) -ne $climbing) { fail 'installer changed a link that points outside the repository' }
+        Remove-LinkObject $hop
+    }
 
     # install.test.sh 117-155: an unresolvable profile, at any position, stops every command before anything links.
     $stubBad = @'
