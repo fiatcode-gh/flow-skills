@@ -1,151 +1,117 @@
-# flow-skills managed baseline for: omp --profile anthropic
-# omp/bin/flow-omp symlinks the profile's config.yml to this file; edit
-# settings here and review the result with git diff like any other change.
-# Authenticate this profile through OMP's Anthropic/Claude OAuth flow; never
-# store Team credentials in this repository.
-# Do not probe unused local inference endpoints at startup.
 disabledProviders:
   - ollama
   - llama.cpp
   - lm-studio
-
 defaultThinkingLevel: auto
-
 modelRoles:
-  # Cheap background / mechanical roles. Haiku 5.5 has a 100k context window:
-  # enough for titles/metadata, too small for scout, sonic and large commit
-  # diffs, so those run on Sonnet 5.5 at its cheapest effort.
   smol: anthropic/claude-sonnet-5-5:low
   tiny: anthropic/claude-haiku-5-5:medium
   commit: anthropic/claude-sonnet-5-5:low
-
-  # High-throughput constrained execution, semantic implementation, multimodal
-  # work and auxiliary review. Keep Main separate from the implementation tier.
-  # Sonnet 5.5 recalibrated effort: Anthropic recommends medium for
-  # well-specified agentic work and high for harder or open-ended work.
   execute: anthropic/claude-sonnet-5-5:medium
   vision: anthropic/claude-sonnet-5-5:medium
   task: anthropic/claude-sonnet-5-5:high
   review_aux: anthropic/claude-sonnet-5-5:high
-
-  # Spend the larger Team Premium allowance where controller reliability and
-  # unresolved judgment have the most leverage.
   default: anthropic/claude-opus-5-5:medium
   slow: anthropic/claude-opus-5-5:medium
-
-  # Planning runs on Fable 5.1 at `high`, Anthropic's default and recommended
-  # starting effort for it. `critical` stays explicit-only on the same tier;
-  # max would consume Team Premium allowance too aggressively for a baseline.
   plan: anthropic/claude-fable-5-1:high
   critical: anthropic/claude-fable-5-1:high
-
-# Native backstop for Flow's external-effect gate. Keep publication commands
-# on the direct Bash/gh surface so these explicit prompt policies apply.
-# `gh api` prompts only when a method/body flag is present as its own token;
-# tests/bash-patterns.test.mjs proves this list against OMP's matcher.
 bash:
   patterns:
-    - match: "git push*"
+    - match: git push*
       approval: prompt
-    - match: "git -C * push*"
+    - match: git -C * push*
       approval: prompt
-    - match: "git -c * push*"
+    - match: git -c * push*
       approval: prompt
-    - match: "env * git push*"
+    - match: env * git push*
       approval: prompt
-    - match: "env * gh *"
+    - match: env * gh *
       approval: prompt
-    - match: "gh pr create*"
+    - match: gh pr create*
       approval: prompt
-    - match: "gh pr merge*"
+    - match: gh pr merge*
       approval: prompt
-    - match: "gh pr review*"
+    - match: gh pr review*
       approval: prompt
-    - match: "gh pr comment*"
+    - match: gh pr comment*
       approval: prompt
-    - match: "gh pr edit*"
+    - match: gh pr edit*
       approval: prompt
-    - match: "gh pr close*"
+    - match: gh pr close*
       approval: prompt
-    - match: "gh pr ready*"
+    - match: gh pr ready*
       approval: prompt
-    - match: "gh pr reopen*"
+    - match: gh pr reopen*
       approval: prompt
-    - match: "gh issue comment*"
+    - match: gh issue comment*
       approval: prompt
-    - match: "gh issue create*"
+    - match: gh issue create*
       approval: prompt
-    - match: "gh issue close*"
+    - match: gh issue close*
       approval: prompt
-    - match: "gh issue edit*"
+    - match: gh issue edit*
       approval: prompt
-    - match: "gh release create*"
+    - match: gh release create*
       approval: prompt
-    - match: "gh release edit*"
+    - match: gh release edit*
       approval: prompt
-    - match: "gh release upload*"
+    - match: gh release upload*
       approval: prompt
-    - match: "gh release delete*"
+    - match: gh release delete*
       approval: prompt
-    - match: "gh repo edit*"
+    - match: gh repo edit*
       approval: prompt
-    - match: "gh repo delete*"
+    - match: gh repo delete*
       approval: prompt
-    - match: "gh secret set*"
+    - match: gh secret set*
       approval: prompt
-    - match: "gh workflow run*"
+    - match: gh workflow run*
       approval: prompt
-    - match: "gh api -X*"
+    - match: gh api -X*
       approval: prompt
-    - match: "gh api * -X*"
+    - match: gh api * -X*
       approval: prompt
-    - match: "gh api --method*"
+    - match: gh api --method*
       approval: prompt
-    - match: "gh api * --method*"
+    - match: gh api * --method*
       approval: prompt
-    - match: "gh api -f*"
+    - match: gh api -f*
       approval: prompt
-    - match: "gh api * -f*"
+    - match: gh api * -f*
       approval: prompt
-    - match: "gh api -F*"
+    - match: gh api -F*
       approval: prompt
-    - match: "gh api * -F*"
+    - match: gh api * -F*
       approval: prompt
-    - match: "gh api --field*"
+    - match: gh api --field*
       approval: prompt
-    - match: "gh api * --field*"
+    - match: gh api * --field*
       approval: prompt
-    - match: "gh api --raw-field*"
+    - match: gh api --raw-field*
       approval: prompt
-    - match: "gh api * --raw-field*"
+    - match: gh api * --raw-field*
       approval: prompt
-    - match: "gh api --input*"
+    - match: gh api --input*
       approval: prompt
-    - match: "gh api * --input*"
+    - match: gh api * --input*
       approval: prompt
-    # Gate state is flow_gate's; a shell line that names it asks first. Eval is not covered.
     - match: "*.flow/runtime*"
       approval: prompt
-
-# Keep per-dispatch effort disabled so an orchestrator cannot silently turn a
-# cheap worker into the selected model's highest reasoning level.
 task:
   maxConcurrency: 4
   maxRecursionDepth: 2
   enableEffort: false
   isolation:
     enabled: true
-
 isolation:
   backend: auto
-
 symbolPreset: nerd
 composer:
   shape: rule
 theme:
   dark: titanium
   light: light
-setupVersion: 2
+setupVersion: 3
 statusLine:
   preset: custom
   leftSegments:
@@ -172,11 +138,15 @@ statusLine:
 colorBlindMode: true
 tui:
   codexResetFireworks: true
+  textSizing: true
+  completeScrollback: false
 cycleOrder:
   - smol
   - default
   - slow
 dev:
-  # Deny OMP's automated tool-issue reports: with consent granted they are
-  # stored locally and pushed to OMP's collector.
   autoqaConsent: denied
+display:
+  shimmer: classic
+update:
+  auto: true
