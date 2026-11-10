@@ -169,11 +169,11 @@ Windows support is CI-tested on `windows-latest` and not yet field-tested on a r
 
 OMP profiles map Flow roles (`default`, `smol`, `execute`, `task`, `plan`, `slow`, `critical`, ...) to models:
 
-- **anthropic:** Opus 5.5 for Main and acceptance, Sonnet 5.5 for execution, implementation and leaves, Haiku 5.5 for titles, Fable 5.1 for planning and critical escalation.
+- **anthropic:** Opus 5.5 for Main and acceptance, Sonnet 5.5 for execution, implementation and leaves, Haiku 5.5 for titles, Fable 5.2 for planning and critical escalation.
 - **openai-codex:** GPT-6 Luna for Main, leaves and execution; GPT-6.1 Sol for implementation, planning and review.
 - **commandcode:** DeepSeek V4.1 Flash for Main, planning, implementation, execution and leaves; GLM-5.3 for acceptance.
 
-The Claude Code port sets `model` and `effort` in agent frontmatter (`opus`, `sonnet`, and `claude-fable-5-1` for the planner); OpenCode sets `model` and `variant` in its profile files, with the same role-to-model map as OMP's `anthropic` and `commandcode` profiles. Reasons, effort levels and the per-port table: `docs/MODEL-ROUTING.md`. Assumptions about OMP itself: `docs/OMP-COMPATIBILITY.md`.
+The Claude Code port sets `model` and `effort` in agent frontmatter (`opus`, `sonnet`, and `claude-fable-5-2` for the planner); OpenCode sets `model` and `variant` in its profile files, with the same role-to-model map as OMP's `anthropic` and `commandcode` profiles. Reasons, effort levels and the per-port table: `docs/MODEL-ROUTING.md`. Assumptions about OMP itself: `docs/OMP-COMPATIBILITY.md`.
 
 ## Versioning
 

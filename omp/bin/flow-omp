@@ -57,8 +57,14 @@ link_owned() { # source dest
   src=$1 dst=$2
   if [ -L "$dst" ]; then
     target=$(readlink -f "$dst" 2>/dev/null || readlink "$dst")
+    # A dot segment refuses a link that does not resolve. Check the raw target: GNU `readlink -f`
+    # fails behind a missing directory, but uutils (Ubuntu 26.04) resolves such a path as text.
+    if [ ! -e "$dst" ]; then
+      case $(readlink "$dst") in
+        */../* | */./* | */.. | */.) fail "$dst is a symlink to $target, outside $ROOT; move or remove it manually" ;;
+      esac
+    fi
     case $target in
-      */../* | */./* | */.. | */.) fail "$dst is a symlink to $target, outside $ROOT; move or remove it manually" ;;
       "$ROOT" | "$ROOT"/* | "$OLD_ROOT" | "$OLD_ROOT"/*) ;;
       *) fail "$dst is a symlink to $target, outside $ROOT; move or remove it manually" ;;
     esac

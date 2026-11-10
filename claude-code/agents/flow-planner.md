@@ -1,7 +1,7 @@
 ---
 name: flow-planner
 description: Judgment-heavy planner that turns an approved Flow contract into an execution-grade plan and task briefs without writing production code.
-model: claude-fable-5-1
+model: claude-fable-5-2
 effort: high
 ---
 
