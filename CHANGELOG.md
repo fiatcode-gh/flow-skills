@@ -2,10 +2,14 @@
 
 Versions follow SemVer as described in the Versioning section of the README.
 
-## Unreleased
+## 1.3.0 — 2026-11-10
+
+The planner and `critical` escalation move to Claude Fable 5.2, and the sh installers work on uutils coreutils.
 
 ### Changed
 - The planner and `critical` escalation run on Claude Fable 5.2 at `high` (was Fable 5.1), in the OMP `anthropic` profile; the Claude Code planner uses `claude-fable-5-2`. The OpenCode `claude-agent` planner keeps the `fable` alias, which Claude Code 2.1.321 and later resolve to Fable 5.2.
+- The OMP `anthropic` and `commandcode` profiles take OMP's own saved form: no comments or quotes, plus `setupVersion: 3` and `update.auto`. `anthropic` also gains `tui.textSizing`, `tui.completeScrollback` and `display.shimmer`; `commandcode` drops its empty web search order. The reasons behind each model choice stay in `docs/MODEL-ROUTING.md`.
+- `WINDOWS-CHECKS.md` lists the checks to run for 1.2.0 on a real Windows machine.
 
 ### Fixed
 - The sh installers refuse a dangling link with a `/../` or `/./` segment under the previous checkout name on uutils coreutils too (Ubuntu 26.04, the current `ubuntu-latest`). Its `readlink -f` resolves a path behind a missing folder instead of failing, so such a link was relinked. The installers now check the raw link target, as the PowerShell installers do.
