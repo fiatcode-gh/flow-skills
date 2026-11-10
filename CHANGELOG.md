@@ -2,6 +2,11 @@
 
 Versions follow SemVer as described in the Versioning section of the README.
 
+## Unreleased
+
+### Changed
+- The planner and `critical` escalation run on Claude Fable 5.2 at `high` (was Fable 5.1), in the OMP `anthropic` profile; the Claude Code planner uses `claude-fable-5-2`. The OpenCode `claude-agent` planner keeps the `fable` alias, which Claude Code 2.1.321 and later resolve to Fable 5.2.
+
 ## 1.2.1 — 2026-11-03
 
 The PowerShell installers now follow the same link rules as the sh ones, and a few test gaps from the 1.2.0 review are closed.

@@ -471,10 +471,10 @@ expected_anthropic={
     'vision':'anthropic/claude-sonnet-5-5:medium',
     'execute':'anthropic/claude-sonnet-5-5:medium',
     'task':'anthropic/claude-sonnet-5-5:high',
-    'plan':'anthropic/claude-fable-5-1:high',
+    'plan':'anthropic/claude-fable-5-2:high',
     'slow':'anthropic/claude-opus-5-5:medium',
     'review_aux':'anthropic/claude-sonnet-5-5:high',
-    'critical':'anthropic/claude-fable-5-1:high',
+    'critical':'anthropic/claude-fable-5-2:high',
     'commit':'anthropic/claude-sonnet-5-5:low',
 }
 anthropic=yaml.safe_load(profile_cfgs['anthropic'].read_text()).get('modelRoles',{})
@@ -626,7 +626,7 @@ ANTHROPIC_PORT_NAMES={
     'anthropic/claude-opus-5-5':('opus','opus'),
     'anthropic/claude-sonnet-5-5':('sonnet','sonnet'),
     'anthropic/claude-haiku-5-5':('haiku','haiku'),
-    'anthropic/claude-fable-5-1':('claude-fable-5-1','fable'),
+    'anthropic/claude-fable-5-2':('claude-fable-5-2','fable'),
 }
 def port_model(profile,harness,role):
     """The OMP role's model as the harness (`claude-code`, `claude-agent` or `commandcode`) names it."""
