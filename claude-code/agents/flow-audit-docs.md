@@ -2,7 +2,7 @@
 name: flow-audit-docs
 description: Read-only whole-codebase audit specialist for documentation accuracy, comments, structure, boundaries and architectural drift.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 effort: high
 ---
 

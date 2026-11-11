@@ -1,7 +1,7 @@
 ---
 name: flow-implementer
 description: Implement one bounded, already-authorized semantic unit (open judgment, debugging, or a broken plan) with strict scope, behavior-first TDD and fresh self-verification.
-model: sonnet
+model: opus
 effort: high
 ---
 

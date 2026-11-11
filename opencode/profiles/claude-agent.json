@@ -7,35 +7,35 @@
       "variant": "medium"
     },
     "flow-acceptance-reviewer": {
-      "model": "claude-agent/opus",
-      "variant": "medium"
+      "model": "claude-agent/fable",
+      "variant": "high"
     },
     "flow-audit-code-health": {
-      "model": "claude-agent/sonnet",
+      "model": "claude-agent/opus",
       "variant": "high"
     },
     "flow-audit-docs": {
-      "model": "claude-agent/sonnet",
+      "model": "claude-agent/opus",
       "variant": "high"
     },
     "flow-audit-tests": {
-      "model": "claude-agent/sonnet",
+      "model": "claude-agent/opus",
       "variant": "high"
     },
     "flow-cor-reviewer": {
-      "model": "claude-agent/sonnet",
+      "model": "claude-agent/opus",
       "variant": "high"
     },
     "flow-craft-reviewer": {
-      "model": "claude-agent/sonnet",
+      "model": "claude-agent/opus",
       "variant": "high"
     },
     "flow-implementer": {
-      "model": "claude-agent/sonnet",
+      "model": "claude-agent/opus",
       "variant": "high"
     },
     "flow-plan-executor": {
-      "model": "claude-agent/sonnet",
+      "model": "claude-agent/opus",
       "variant": "medium"
     },
     "flow-planner": {
@@ -43,7 +43,7 @@
       "variant": "high"
     },
     "flow-ttc-reviewer": {
-      "model": "claude-agent/sonnet",
+      "model": "claude-agent/opus",
       "variant": "high"
     }
   }

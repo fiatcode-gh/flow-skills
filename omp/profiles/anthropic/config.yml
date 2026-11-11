@@ -5,14 +5,14 @@ disabledProviders:
 defaultThinkingLevel: auto
 modelRoles:
   smol: anthropic/claude-sonnet-5-5:low
-  tiny: anthropic/claude-haiku-5-5:medium
+  tiny: anthropic/claude-sonnet-5-5:low
   commit: anthropic/claude-sonnet-5-5:low
-  execute: anthropic/claude-sonnet-5-5:medium
+  execute: anthropic/claude-opus-5-5:medium
   vision: anthropic/claude-sonnet-5-5:medium
-  task: anthropic/claude-sonnet-5-5:high
-  review_aux: anthropic/claude-sonnet-5-5:high
+  task: anthropic/claude-opus-5-5:high
+  review_aux: anthropic/claude-opus-5-5:high
   default: anthropic/claude-opus-5-5:medium
-  slow: anthropic/claude-opus-5-5:medium
+  slow: anthropic/claude-fable-5-2:high
   plan: anthropic/claude-fable-5-2:high
   critical: anthropic/claude-fable-5-2:high
 bash:
