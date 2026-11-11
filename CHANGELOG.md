@@ -2,6 +2,13 @@
 
 Versions follow SemVer as described in the Versioning section of the README.
 
+## 1.4.0 — 2026-11-11
+
+In the Anthropic lineup, Opus takes over execution, implementation and lens review, Fable 5.2 takes over acceptance, and Sonnet keeps only the little-change lanes.
+
+### Changed
+- Anthropic lineup, in OMP, Claude Code and OpenCode `claude-agent`: the plan executor, implementer and lens/audit reviewers run on Opus 5.5 (was Sonnet 5.5) at their existing effort, and the acceptance reviewer (`slow`) runs on Fable 5.2 at `high` (was Opus 5.5 `medium`). Sonnet 5.5 keeps only the little-change lanes (`smol`, `commit`, `vision`) and takes over `tiny` titles at `low` from Haiku 5.5, which the profile no longer uses.
+
 ## 1.3.0 — 2026-11-10
 
 The planner and `critical` escalation move to Claude Fable 5.2, and the sh installers work on uutils coreutils.

@@ -467,13 +467,13 @@ if openai != expected_openai:
 expected_anthropic={
     'default':'anthropic/claude-opus-5-5:medium',
     'smol':'anthropic/claude-sonnet-5-5:low',
-    'tiny':'anthropic/claude-haiku-5-5:medium',
+    'tiny':'anthropic/claude-sonnet-5-5:low',
     'vision':'anthropic/claude-sonnet-5-5:medium',
-    'execute':'anthropic/claude-sonnet-5-5:medium',
-    'task':'anthropic/claude-sonnet-5-5:high',
+    'execute':'anthropic/claude-opus-5-5:medium',
+    'task':'anthropic/claude-opus-5-5:high',
     'plan':'anthropic/claude-fable-5-2:high',
-    'slow':'anthropic/claude-opus-5-5:medium',
-    'review_aux':'anthropic/claude-sonnet-5-5:high',
+    'slow':'anthropic/claude-fable-5-2:high',
+    'review_aux':'anthropic/claude-opus-5-5:high',
     'critical':'anthropic/claude-fable-5-2:high',
     'commit':'anthropic/claude-sonnet-5-5:low',
 }
@@ -625,7 +625,6 @@ def omp_effort(profile,role): return omp_route(profile,role)[1]
 ANTHROPIC_PORT_NAMES={
     'anthropic/claude-opus-5-5':('opus','opus'),
     'anthropic/claude-sonnet-5-5':('sonnet','sonnet'),
-    'anthropic/claude-haiku-5-5':('haiku','haiku'),
     'anthropic/claude-fable-5-2':('claude-fable-5-2','fable'),
 }
 def port_model(profile,harness,role):

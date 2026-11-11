@@ -2,7 +2,7 @@
 name: flow-audit-tests
 description: Read-only whole-codebase audit specialist for test coverage, CI enforcement, contracts, schemas, invalid states and compatibility.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 effort: high
 ---
 

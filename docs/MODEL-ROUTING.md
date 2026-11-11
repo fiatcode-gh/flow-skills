@@ -14,20 +14,20 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 
 | Load | Role / agent | OpenAI Codex profile | Anthropic profile | Command Code profile |
 |---|---|---|---|---|
-| tiny metadata/title/background | `@tiny` | GPT-6 Luna low | Haiku 5.5 medium | DeepSeek V4.1 Flash low |
+| tiny metadata/title/background | `@tiny` | GPT-6 Luna low | Sonnet 5.5 low | DeepSeek V4.1 Flash low |
 | commit/changelog generation | `@commit` | GPT-6 Luna low | Sonnet 5.5 low | DeepSeek V4.1 Flash low |
 | repo exploration | bundled `scout` / `@smol` | GPT-6 Luna low | Sonnet 5.5 low | DeepSeek V4.1 Flash low |
 | behavior-preserving mechanical work / diagnosed exact correction | bundled `sonic` / `@smol` | GPT-6 Luna low | Sonnet 5.5 low | DeepSeek V4.1 Flash low |
 | Main/controller | `@default` | GPT-6 Luna auto | Opus 5.5 medium | DeepSeek V4.1 Flash high |
-| execution-grade plan follower | `flow-plan-executor` / `@execute` | GPT-6 Luna xhigh | Sonnet 5.5 medium | DeepSeek V4.1 Flash high |
-| residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GPT-6.1 Sol medium | Sonnet 5.5 high | DeepSeek V4.1 Flash high |
+| execution-grade plan follower | `flow-plan-executor` / `@execute` | GPT-6 Luna xhigh | Opus 5.5 medium | DeepSeek V4.1 Flash high |
+| residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GPT-6.1 Sol medium | Opus 5.5 high | DeepSeek V4.1 Flash high |
 | deliberate execution planning | `flow-planner` / `@plan` | GPT-6.1 Sol high | Fable 5.2 high | DeepSeek V4.1 Flash high |
-| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | Opus 5.5 medium | GLM-5.3 high |
-| TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GPT-6.1 Sol high | Sonnet 5.5 high | DeepSeek V4.1 Flash high |
+| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | Fable 5.2 high | GLM-5.3 high |
+| TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GPT-6.1 Sol high | Opus 5.5 high | DeepSeek V4.1 Flash high |
 | vision / multimodal inspection | `@vision` | GPT-6 Luna medium | Sonnet 5.5 medium | DeepSeek V4.1 Flash high |
 | exceptional security/concurrency/data-integrity escalation | `@critical` | GPT-6.1 Sol xhigh | Fable 5.2 high | GLM-5.3 high |
 
-`slow` intentionally stops below the most expensive explicit escalation. `critical` is the escape hatch; no automatic Flow agent binds `@critical` on purpose. Escalation should be a conscious model/session choice, not accidental fan-out.
+In the OpenAI Codex profile `slow` stops below `critical`; in the Anthropic and Command Code profiles `slow` and `critical` share model and effort. `critical` is the escape hatch; no automatic Flow agent binds `@critical` on purpose. Escalation should be a conscious model/session choice, not accidental fan-out.
 
 ## Provider profiles
 
@@ -47,10 +47,9 @@ OMP discovers Codex models from the signed-in account, so a model newer than OMP
 
 ## Anthropic selection rationale
 
-- **Claude Haiku 5.5 medium** owns `tiny` only. Its 100k context window is too small for scout exploration, mechanical-edit leaves and large commit diffs, but title and metadata generation never comes near it. Haiku 5.5 uses adaptive thinking with the same effort ladder as Sonnet/Opus/Fable; `medium` is Anthropic's default for it.
-- **Claude Sonnet 5.5** owns `smol` / `commit` / `execute` / `task` / `vision` / `review_aux`: it is the high-throughput constrained-execution, semantic-implementation and multimodal lane, while auxiliary review stays independent from the Opus correctness lane. Sonnet 5.5 recalibrated its effort levels, so the Sonnet 5 `high` setting is not carried over. `smol` and `commit` run at `low`: they take Haiku's former leaves for the larger context window, not for more reasoning. Anthropic recommends `medium` for well-specified agentic work and `high` for harder or longer work: `execute` (decision-complete plans) and `vision` run at `medium`; `task` (unresolved judgment, debugging) and `review_aux` (independent review) run at `high`.
-- **Claude Opus 5.5 medium** owns `default` / `slow`: the Team Premium profile spends its larger allowance on controller reliability, long-horizon orchestration and primary correctness reasoning rather than making Main another implementation-tier session. `medium` is Anthropic's default for Opus 5.5 and matches or beats Opus 5 at `high` on agentic tasks.
-- **Claude Fable 5.2 high** owns `plan` and `critical`. Planning is one long, judgment-heavy session per unit, so it gets the frontier tier; `high` is Anthropic's default and recommended starting effort for Fable 5.2, which already holds most of the gain, and `xhigh` is only for the hardest long-running work where a gain is measured. `critical` is explicit-only on the same setting. Do not pin `max` on either; maximum effort would burn Team Premium allowance too aggressively for a reusable baseline.
+- **Claude Sonnet 5.5** owns only the little-change lanes: `smol` / `commit` / `tiny` at `low` and `vision` at `medium`. `tiny` moved off Haiku because Sonnet's larger context window covers titles too, and one small-work model is simpler than two. Sonnet 5.5 recalibrated its effort levels, so the Sonnet 5 `high` setting is not carried over.
+- **Claude Opus 5.5** owns `default` and `execute` at `medium`, and `task` / `review_aux` at `high`. Execution, implementation and lens review run on Opus; Sonnet is kept for little changes. `medium` is Anthropic's default for Opus 5.5 and matches or beats Opus 5 at `high` on agentic tasks, so it suits Main and decision-complete plans; `high` suits unresolved judgment, debugging and independent review. Lens review (Opus) and acceptance (Fable) are in different model lines.
+- **Claude Fable 5.2 high** owns `plan`, `slow` and `critical`. Planning is one long, judgment-heavy session per unit, so it gets the frontier tier; `high` is Anthropic's default and recommended starting effort for Fable 5.2, which already holds most of the gain, and `xhigh` is only for the hardest long-running work where a gain is measured. Acceptance runs on Fable because the final check of a whole unit is worth the frontier tier; it shares the model with the planner, so a plan defect is caught by checking against the contract and the code, not by model diversity, and it costs more allowance per planned unit. `critical` is explicit-only on the same setting. Do not pin `max` on any of the three; maximum effort would burn Team Premium allowance too aggressively for a reusable baseline.
 
 Authenticate the profile through OMP's Anthropic/Claude OAuth flow so Team entitlement remains profile-local. Do not put account credentials in this repository. Keep exact model IDs under review when OMP or Anthropic changes the first-party catalog.
 
@@ -78,14 +77,14 @@ The Claude Code and OpenCode ports route each Flow agent the way OMP routes its 
 |---|---|---|---|---|
 | `default` (Main) | OpenCode `build` and `model` | session model | `opus` medium | `deepseek/deepseek-v4.1-flash` high |
 | `plan` | `flow-planner` | `claude-fable-5-2` high | `fable` high | `deepseek/deepseek-v4.1-flash` high |
-| `slow` | `flow-acceptance-reviewer` | `opus` medium | `opus` medium | `zai-org/GLM-5.3` high |
-| `execute` | `flow-plan-executor` | `sonnet` medium | `sonnet` medium | `deepseek/deepseek-v4.1-flash` high |
-| `task` | `flow-implementer` | `sonnet` high | `sonnet` high | `deepseek/deepseek-v4.1-flash` high |
-| `review_aux` | `flow-cor-reviewer`, `flow-ttc-reviewer`, `flow-craft-reviewer`, the three audit agents | `sonnet` high | `sonnet` high | `deepseek/deepseek-v4.1-flash` high |
+| `slow` | `flow-acceptance-reviewer` | `claude-fable-5-2` high | `fable` high | `zai-org/GLM-5.3` high |
+| `execute` | `flow-plan-executor` | `opus` medium | `opus` medium | `deepseek/deepseek-v4.1-flash` high |
+| `task` | `flow-implementer` | `opus` high | `opus` high | `deepseek/deepseek-v4.1-flash` high |
+| `review_aux` | `flow-cor-reviewer`, `flow-ttc-reviewer`, `flow-craft-reviewer`, the three audit agents | `opus` high | `opus` high | `deepseek/deepseek-v4.1-flash` high |
 
 The OpenCode `opencode` profile stays on `opencode/big-pickle` for every agent, with no effort, until models are picked for it.
 
-**Claude Code.** `model` and `effort` sit in each agent's frontmatter; the planner names the full `claude-fable-5-2` id because the `fable` alias resolves to Fable 5 in Claude apps gateway sessions. Claude Code added `claude-fable-5-2` in 2.1.321; an older CLI warns `unrecognized_model` but still runs the request on Fable 5.2.
+**Claude Code.** `model` and `effort` sit in each agent's frontmatter; the planner and the acceptance reviewer name the full `claude-fable-5-2` id because the `fable` alias resolves to Fable 5 in Claude apps gateway sessions. Claude Code added `claude-fable-5-2` in 2.1.321; an older CLI warns `unrecognized_model` but still runs the request on Fable 5.2.
 
 **OpenCode.** OpenCode 2.2.5 calls an effort a *variant* (`low`, `medium`, `high`, `xhigh`, `max`). Two probes showed where a variant takes effect:
 
@@ -94,7 +93,7 @@ The OpenCode `opencode` profile stays on `opencode/big-pickle` for every agent, 
 
 So a profile sets `variant` next to `model` on each agent. The top-level `model` cannot carry an effort, so the profile also overrides the built-in `build` agent (OpenCode's default primary agent) with Main's model and variant. `build` must use the top-level `model`.
 
-The `claude-agent` provider passes `claude-agent/fable` to `claude --model=fable`, and Claude Code 2.1.321 and later resolve that alias to Fable 5.2, the same model as `claude-fable-5-2`, so the planner uses the alias; the catalog has no `claude-fable-5-2` id. With an older `claude` the alias still gives Fable 5.1, and in a Claude apps gateway session the OpenCode planner may get Fable 5 (not tested). `commandcode` is a built-in OpenCode provider with both profile models in its catalog and a `low`/`high`/`max` variant ladder, so the profile has no `provider` block. The key comes from OpenCode's own credential store (`/connect`, provider `commandcode`) and never appears in the repository. `tests/validate.py` requires `build` in each profile with an OMP counterpart, rejects any `apiKey` or `headers` object in a profile, and any `provider` block for another provider id.
+The `claude-agent` provider passes `claude-agent/fable` to `claude --model=fable`, and Claude Code 2.1.321 and later resolve that alias to Fable 5.2, the same model as `claude-fable-5-2`, so the planner and the acceptance reviewer use the alias; the catalog has no `claude-fable-5-2` id. With an older `claude` the alias still gives Fable 5.1, and in a Claude apps gateway session the OpenCode planner and acceptance reviewer may get Fable 5 (not tested). `commandcode` is a built-in OpenCode provider with both profile models in its catalog and a `low`/`high`/`max` variant ladder, so the profile has no `provider` block. The key comes from OpenCode's own credential store (`/connect`, provider `commandcode`) and never appears in the repository. `tests/validate.py` requires `build` in each profile with an OMP counterpart, rejects any `apiKey` or `headers` object in a profile, and any `provider` block for another provider id.
 
 ## Routing principle
 
