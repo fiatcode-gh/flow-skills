@@ -2,7 +2,7 @@
 name: flow-audit-code-health
 description: Read-only whole-codebase audit specialist for code health, correctness patterns, error handling, dead code and maintainability.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 effort: high
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: flow-plan-executor
 description: Constrained executor for one task of an approved execution-grade Flow plan; follows locked decisions, owns focused TDD/proof, and escalates plan contradictions instead of redesigning.
-model: sonnet
+model: opus
 effort: medium
 tools: Read, Edit, Write, Bash, Grep, Glob, Skill
 ---
