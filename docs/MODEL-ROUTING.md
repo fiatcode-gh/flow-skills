@@ -22,12 +22,12 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 | execution-grade plan follower | `flow-plan-executor` / `@execute` | GPT-6 Luna xhigh | Opus 5.5 medium | DeepSeek V4.1 Flash high |
 | residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GPT-6.1 Sol medium | Opus 5.5 high | DeepSeek V4.1 Flash high |
 | deliberate execution planning | `flow-planner` / `@plan` | GPT-6.1 Sol high | Fable 5.2 high | DeepSeek V4.1 Flash high |
-| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | Fable 5.2 high | GLM-5.3 high |
+| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | Fable 5.2 medium | GLM-5.3 high |
 | TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GPT-6.1 Sol high | Opus 5.5 high | DeepSeek V4.1 Flash high |
 | vision / multimodal inspection | `@vision` | GPT-6 Luna medium | Sonnet 5.5 medium | DeepSeek V4.1 Flash high |
 | exceptional security/concurrency/data-integrity escalation | `@critical` | GPT-6.1 Sol xhigh | Fable 5.2 high | GLM-5.3 high |
 
-In the OpenAI Codex profile `slow` stops below `critical`; in the Anthropic and Command Code profiles `slow` and `critical` share model and effort. `critical` is the escape hatch; no automatic Flow agent binds `@critical` on purpose. Escalation should be a conscious model/session choice, not accidental fan-out.
+In the OpenAI Codex profile `slow` stops below `critical`; in the Anthropic profile `slow` shares the model with `critical` at a lower effort (`medium` against `high`); in the Command Code profile they share model and effort. `critical` is the escape hatch; no automatic Flow agent binds `@critical` on purpose. Escalation should be a conscious model/session choice, not accidental fan-out.
 
 ## Provider profiles
 
@@ -49,7 +49,7 @@ OMP discovers Codex models from the signed-in account, so a model newer than OMP
 
 - **Claude Sonnet 5.5** owns only the little-change lanes: `smol` / `commit` / `tiny` at `low` and `vision` at `medium`. `tiny` moved off Haiku because Sonnet's larger context window covers titles too, and one small-work model is simpler than two. Sonnet 5.5 recalibrated its effort levels, so the Sonnet 5 `high` setting is not carried over.
 - **Claude Opus 5.5** owns `default` and `execute` at `medium`, and `task` / `review_aux` at `high`. Execution, implementation and lens review run on Opus; Sonnet is kept for little changes. `medium` is Anthropic's default for Opus 5.5 and matches or beats Opus 5 at `high` on agentic tasks, so it suits Main and decision-complete plans; `high` suits unresolved judgment, debugging and independent review. Lens review (Opus) and acceptance (Fable) are in different model lines.
-- **Claude Fable 5.2 high** owns `plan`, `slow` and `critical`. Planning is one long, judgment-heavy session per unit, so it gets the frontier tier; `high` is Anthropic's default and recommended starting effort for Fable 5.2, which already holds most of the gain, and `xhigh` is only for the hardest long-running work where a gain is measured. Acceptance runs on Fable because the final check of a whole unit is worth the frontier tier; it shares the model with the planner, so a plan defect is caught by checking against the contract and the code, not by model diversity, and it costs more allowance per planned unit. `critical` is explicit-only on the same setting. Do not pin `max` on any of the three; maximum effort would burn Team Premium allowance too aggressively for a reusable baseline.
+- **Claude Fable 5.2** owns `plan` and `critical` at `high` and `slow` at `medium`. Planning is one long, judgment-heavy session per unit, so it gets the frontier tier; `high` is Anthropic's default and recommended starting effort for Fable 5.2, which already holds most of the gain, and `xhigh` is only for the hardest long-running work where a gain is measured. Acceptance runs on Fable because the final check of a whole unit is worth the frontier tier; it shares the model with the planner, so a plan defect is caught by checking against the contract and the code, not by model diversity. Acceptance runs at `medium` to save Fable allowance: it runs once per planned unit plus each closure review, and checking code against an approved contract and plan is a narrower job than planning, whose defects reach every executor task. `critical` is explicit-only at `high`. Do not pin `max` on any of the three; maximum effort would burn Team Premium allowance too aggressively for a reusable baseline.
 
 Authenticate the profile through OMP's Anthropic/Claude OAuth flow so Team entitlement remains profile-local. Do not put account credentials in this repository. Keep exact model IDs under review when OMP or Anthropic changes the first-party catalog.
 
@@ -77,7 +77,7 @@ The Claude Code and OpenCode ports route each Flow agent the way OMP routes its 
 |---|---|---|---|---|
 | `default` (Main) | OpenCode `build` and `model` | session model | `opus` medium | `deepseek/deepseek-v4.1-flash` high |
 | `plan` | `flow-planner` | `claude-fable-5-2` high | `fable` high | `deepseek/deepseek-v4.1-flash` high |
-| `slow` | `flow-acceptance-reviewer` | `claude-fable-5-2` high | `fable` high | `zai-org/GLM-5.3` high |
+| `slow` | `flow-acceptance-reviewer` | `claude-fable-5-2` medium | `fable` medium | `zai-org/GLM-5.3` high |
 | `execute` | `flow-plan-executor` | `opus` medium | `opus` medium | `deepseek/deepseek-v4.1-flash` high |
 | `task` | `flow-implementer` | `opus` high | `opus` high | `deepseek/deepseek-v4.1-flash` high |
 | `review_aux` | `flow-cor-reviewer`, `flow-ttc-reviewer`, `flow-craft-reviewer`, the three audit agents | `opus` high | `opus` high | `deepseek/deepseek-v4.1-flash` high |
