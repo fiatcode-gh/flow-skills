@@ -53,7 +53,7 @@ Apply these whenever you create or change a skill, agent, rule or `omp/AGENTS.md
 | `memory-gc` | injected memory is scarce; re-home/merge before deleting; proposal/per-item approval | `weft-memory` GC mode |
 | `retrofit` | historical rewrites are dangerous; dry-run/proposal; preserve history/voice | `weft-maintenance` |
 | `frontend-design` | intentional aesthetics and production craft | `ui-design`; existing product/accessibility/platform conventions now outrank novelty |
-| `blog-post` | live corpus outranks static voice rules; concrete first-person thesis; user owns publishing | `blog-post` |
+| `blog-post` | live corpus outranks static voice rules; concrete first-person thesis; user owns publishing | moved to the `site` project as an OMP project skill (`.omp/skills/blog-post`); it writes into that one checkout |
 | `forgejo` | mechanics distinct from judgment; token safety; no silent stakeholder writes | deleted with Forgejo support; the principle survives in `flow-review` GitHub mechanics and the `flow-safety` publication rule |
 
 ## Non-negotiable invariants

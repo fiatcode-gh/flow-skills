@@ -38,7 +38,6 @@ Working state (contracts, plans, checkpoints, approvals) lives in the project's 
 | `flow-external-session` | External worktrees and planning handoffs |
 | `ui-design` | Interface design |
 | `weft-worklog`, `weft-memory`, `weft-maintenance` | The user's Weft knowledge graph (`WEFT_GRAPH`) |
-| `blog-post` | Blog write-ups (OMP only) |
 
 Agents: `flow-planner`, `flow-plan-executor`, `flow-implementer`, `flow-acceptance-reviewer`, the TTC, craft and (outside OMP) COR lens reviewers, and three audit agents. Skills and agents name roles, never concrete models; each harness's setup maps roles to models.
 

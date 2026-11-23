@@ -35,7 +35,7 @@ Native surfaces:
 | recall-memory + memory-update + memory-gc | weft-memory |
 | retrofit | weft-maintenance |
 | frontend-design | ui-design |
-| blog-post | blog-post |
+| blog-post | moved to the `site` project as an OMP project skill (`.omp/skills/blog-post`) |
 | forgejo | deleted; the stack is GitHub-only and `flow-review` carries the `gh` mechanics |
 
 ## Execution hierarchy

@@ -24,7 +24,7 @@ skills=list((ROOT/'omp/skills').glob('*/SKILL.md'))
 agents=list((ROOT/'omp/agents').glob('*.md'))
 rules=list((ROOT/'omp/rules').glob('*.md'))
 
-if len(skills)!=13: err(f'expected 13 skills, got {len(skills)}')
+if len(skills)!=12: err(f'expected 12 skills, got {len(skills)}')
 if len(agents)!=10: err(f'expected 10 agents, got {len(agents)}')
 if len(rules)!=3: err(f'expected 3 rules, got {len(rules)}')
 
@@ -41,7 +41,7 @@ for p in skills:
         if asset.is_file() and asset.suffix in {'.md','.json','.py','.sh',''} and MODEL_LEAK.search(asset.read_text(errors='replace')): err(f'{rel(asset)}: concrete model/provider identifier leaked into skill content')
 
 expected={
-'flow-design','flow-planning','flow-execution','flow-tdd','flow-debugging','flow-review','flow-integrating','flow-external-session','ui-design','blog-post','weft-worklog','weft-memory','weft-maintenance'}
+'flow-design','flow-planning','flow-execution','flow-tdd','flow-debugging','flow-review','flow-integrating','flow-external-session','ui-design','weft-worklog','weft-memory','weft-maintenance'}
 if names!=expected: err(f'skill set mismatch: {sorted(names^expected)}')
 
 agent_names=set()
@@ -674,7 +674,7 @@ OPORT_AGENTS={'flow-acceptance-reviewer','flow-audit-code-health','flow-audit-do
 OPORT_READ_ONLY=OPORT_AGENTS-{'flow-implementer','flow-plan-executor','flow-planner'}
 OPORT_AUDIT={'flow-audit-code-health','flow-audit-docs','flow-audit-tests'}
 OPORT_MODEL_LEAK=re.compile(r'claude-agent/|opencode/[a-z0-9.-]*-free|big-pickle|nemotron|flint-40b')
-OPORT_SKILLS={p.parent.name for p in skills}-{'blog-post'}  # `expected` and `names` are rebound by earlier blocks
+OPORT_SKILLS={p.parent.name for p in skills}  # `expected` and `names` are rebound by earlier blocks
 oport_skills=list((oport/'skills').glob('*/SKILL.md'))
 oport_agents=list((oport/'agents').glob('*.md'))
 oport_docs=oport_skills+oport_agents+list((oport/'skills').glob('*/references/*.md'))+[oport/'AGENTS.md']

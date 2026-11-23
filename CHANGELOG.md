@@ -7,6 +7,9 @@ Versions follow SemVer as described in the Versioning section of the README.
 ### Changed
 - Anthropic lineup, in OMP, Claude Code and OpenCode `claude-agent`: the acceptance reviewer (`slow`) runs on Fable 5.2 at `medium` (was `high`) to save Fable allowance. The planner and `critical` stay at `high`.
 
+### Removed
+- The `blog-post` skill. It writes into one checkout, so it now lives in the `site` repository as an OMP project skill (`.omp/skills/blog-post`) and loads only in sessions started there.
+
 ## 1.4.0 — 2026-11-11
 
 In the Anthropic lineup, Opus takes over execution, implementation and lens review, Fable 5.2 takes over acceptance, and Sonnet keeps only the little-change lanes.
