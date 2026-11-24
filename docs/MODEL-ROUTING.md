@@ -75,12 +75,13 @@ The Claude Code and OpenCode ports route each Flow agent the way OMP routes its 
 
 | Role | Flow agents | Claude Code | OpenCode `claude-agent` | OpenCode `commandcode` |
 |---|---|---|---|---|
-| `default` (Main) | OpenCode `build` and `model` | session model | `opus` medium | `deepseek/deepseek-v4.1-flash` high |
+| `default` (Main) | OpenCode `build`, `ask` and `model` | session model | `opus` medium | `deepseek/deepseek-v4.1-flash` high |
 | `plan` | `flow-planner` | `opus` high | `opus` high | `deepseek/deepseek-v4.1-flash` high |
 | `slow` | `flow-acceptance-reviewer` | `opus` high | `opus` high | `zai-org/GLM-5.3` high |
 | `execute` | `flow-plan-executor` | `opus` medium | `opus` medium | `deepseek/deepseek-v4.1-flash` high |
 | `task` | `flow-implementer` | `opus` high | `opus` high | `deepseek/deepseek-v4.1-flash` high |
 | `review_aux` | `flow-cor-reviewer`, `flow-ttc-reviewer`, `flow-craft-reviewer`, the three audit agents | `opus` high | `opus` high | `deepseek/deepseek-v4.1-flash` high |
+| `vision` | `flow-evidence-verifier` | not ported | `sonnet` medium | `deepseek/deepseek-v4.1-flash` high |
 
 The OpenCode `opencode` profile stays on `opencode/big-pickle` for every agent, with no effort, until models are picked for it.
 

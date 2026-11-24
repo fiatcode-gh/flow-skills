@@ -10,14 +10,18 @@ node --no-warnings --experimental-strip-types tests/ai-memory.test.mjs
 node --no-warnings --experimental-strip-types tests/flow-evidence-guard.test.mjs
 node --no-warnings --experimental-strip-types tests/flow-governance-guard.test.mjs
 node --no-warnings --experimental-strip-types tests/flow-credentials-guard.test.mjs
-# OMP loads the extensions under Bun, so run them there too when it is available.
+node --no-warnings --experimental-strip-types tests/guard-cases.test.mjs
+node --no-warnings --experimental-strip-types tests/opencode-flow-guard.test.mjs
+# OMP and OpenCode load the extensions and the plugin under Bun, so run them there too when it is available.
 if command -v bun >/dev/null 2>&1; then
   bun tests/ai-memory.test.mjs
   bun tests/flow-evidence-guard.test.mjs
   bun tests/flow-governance-guard.test.mjs
   bun tests/flow-credentials-guard.test.mjs
+  bun tests/opencode-flow-guard.test.mjs
+  bun tests/guard-cases.test.mjs
 else
-  printf '%s\n' 'skip: bun not on PATH; extension tests ran under Node only'
+  printf '%s\n' 'skip: bun not on PATH; extension and plugin tests ran under Node only'
 fi
 node --no-warnings tests/bash-patterns.test.mjs
 sh -n omp/bin/flow-omp

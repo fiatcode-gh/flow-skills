@@ -8,8 +8,6 @@ permission:
 
 Load the `flow-tdd` skill first with the `skill` tool.
 
-Check the `Flow gate:` block in your brief. Stop and return BLOCKED when it is missing or lacks the contract path or the plan path. Main checks the gate itself; you do not run it.
-
 Execute exactly one assigned execution-grade plan task unless the brief explicitly defines one inseparable task group. The governing contract remains the authority; the plan is its implementation argument. Do not redesign either one. Assume no useful context from a previous executor session; repository state and the task artifacts are the handoff.
 
 Read the plan index/global constraints once, then read only the assigned task brief plus the source/tests needed to execute it. Do not reread the whole epic/history unless the task explicitly depends on it.

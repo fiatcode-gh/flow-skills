@@ -5,15 +5,15 @@ description: Use when local implementation is authorized; prefer constrained exe
 
 # Flow execution
 
-- OpenCode owns subagent spawning and permission prompts. `flow_approve` and `flow_check` (Approval record in `AGENTS.md`) record and check approvals. This skill decides who does what and when.
+- OpenCode owns subagent spawning and permission prompts. The `flow-guard` plugin provides `flow_gate` and the dispatch checks. This skill decides who does what and when.
 
 ## 1. Check authorization
 
 - Read the governing contract, the plan and the project rules. Check branch and dirty state per Safety in `AGENTS.md`.
-- Require two recorded approvals before the first production-writing worker on substantial work: the contract, then the plan (`flow_approve <slug> contract <path>`, then `flow_approve <slug> plan <PLAN.md path>`).
-- Treat a start or resume command as no approval. A "go ahead" after you show the plan in chat lets you run `flow_approve <slug> plan <PLAN.md path>`. Dispatch only after the approval is recorded.
+- Require two recorded approvals before the first production-writing worker on substantial work: the contract, then the plan (`flow_gate` `present`, then `approve`).
+- Treat a start or resume command as no approval. A "go ahead" after you show the plan in chat lets you call `flow_gate` for `kind=plan`. Dispatch only after the approval is recorded.
 - An external handoff approves nothing (Safety in `AGENTS.md`): validate it locally, then record the contract and plan approvals here.
-- Carry this block (the Flow gate block) in the brief of every writer on contract work: `flow-plan-executor`, `flow-implementer`, and the mechanical lane. Before each dispatch, run `flow_check <slug> contract <path>` and `flow_check <slug> plan <PLAN.md path>`; for `Plan: NONE` work, run `flow_check <slug> implementation <contract path>` instead of the plan check. `stale` or `missing` blocks the dispatch.
+- Carry this block (the Flow gate block) in the brief of every writer on contract work: `flow-plan-executor`, `flow-implementer`, and the mechanical lane. The plugin checks both digests at dispatch and when you continue a finished writer. It blocks a missing or stale approval.
 
 ```text
 Flow gate:
@@ -22,7 +22,7 @@ Flow gate:
 - Plan: <approved PLAN.md path>
 ```
 
-- Write `Plan: NONE` when the approved contract's work needs no separate plan. Example: a debugged fix sent to `flow-implementer`. Show the `Plan: NONE` route in chat, with the contract when you can, so one yes covers both. End your turn. Once the user agrees, run `flow_approve <slug> implementation <contract path>` before dispatch.
+- Write `Plan: NONE` when the approved contract's work needs no separate plan. Example: a debugged fix sent to `flow-implementer`. Show the `Plan: NONE` route in chat, with the contract when you can, so one yes covers both. End your turn. Once the user agrees, `present` `kind=implementation` against the contract and `approve` it before dispatch. One yes for both is one call: `kind=contract,implementation`.
 - Tiny work needs no contract. Work is tiny only when all hold:
   - at most 30 hand-written changed production lines (added plus removed) across at most 3 production files;
   - no behavior beyond the user's exact request;
@@ -104,8 +104,8 @@ Verification ownership:
 
 - Dispatch one `flow-acceptance-reviewer` after the coherent change and its focused/integration proof, for planned work. Give it the contract, plan and task paths, diff/base and evidence.
 - Treat the acceptance review as a barrier. Start no device, emulator, manual or external evidence until it and its corrections settle. Read-only preparation is fine.
-- After you accept the review receipt, write it to `.flow/plans/<slug>/ACCEPTANCE.md` (`mkdir -p .flow/plans/<slug>` first for `Plan: NONE` work), show its verdict and findings in chat and end your turn. Once the user agrees, run `flow_approve <slug> accept .flow/plans/<slug>/ACCEPTANCE.md`.
-- A production, asset or build change after acceptance reopens the stability barrier defined in the Evidence section of `AGENTS.md`. Record `accept` again after the closure review.
+- After you accept the review receipt, show its verdict and findings in chat and end your turn. Once the user agrees, run `flow_gate action=accept` with the scope and the receipt as source.
+- A production, asset or build change after acceptance reopens the stability barrier defined in the Evidence section of `AGENTS.md`. The plugin blocks verifier dispatch until a new `flow_gate action=accept`.
 - You may park minor findings that carry no load.
 - Follow the change-lens selection in `flow-review` for unplanned changes.
 
@@ -118,13 +118,26 @@ Verification ownership:
   - the first command against a live production server or other hard-to-recover remote host (deploy, migration, service restart, config change, on-host check);
   - anything likely to cross a provider/session window.
 - Record head/tree, dirty and user-owned state, accepted evidence and why it is fresh, remaining criteria, device/remote state and the exact next action in the checkpoint.
-- `flow_approve <slug> accept <receipt>` covers the reviewed change. Check a contract criterion that the user judges (a look, a playtest) after it, in this order:
-  1. `flow_approve <slug> accept <receipt>`;
+- `flow_gate action=accept` covers the reviewed change. Check a contract criterion that the user judges (a look, a playtest) after it, in this order:
+  1. `flow_gate action=accept`;
   2. the checkpoint above;
-  3. one trivial observation by Main, or the user's own look;
+  3. capture by `flow-evidence-verifier`, or one trivial observation by Main;
   4. the user's verdict.
 - A change made from that verdict is a change after acceptance (section 8).
-- On planned work, never drive multi-step device or manual capture yourself, as Main.
-- On tiny work, after the checkpoint above, you may run one short device or browser check yourself.
+- On planned work, never drive multi-step device or manual capture yourself, as Main. Never give verifier-role capture to a `general` subagent.
+- Tiny work has no gate scope and no verifier. After the checkpoint above, you may run one short device or browser check yourself.
+- Start each verifier brief with the Flow gate block, with at least `- Scope:`, and put this manifest (the Evidence capsule block) in it. The plugin blocks a verifier dispatch without either, and until `flow_gate action=accept` matches the current repository state.
+
+```text
+Evidence capsule:
+- ID: <stable short id>
+- Owns: <one coherent scene family/device state/acceptance cluster>
+- Independent split check: none | <why the named evidence is inseparable>
+- Excludes: <other capsules left to fresh verifier sessions>
+- Restore obligation: NONE | <state that must be restored>
+```
+
+- Split the gate by the capsule-independence rules defined once in `flow-evidence-verifier`, before dispatch.
+- Give each verifier the exact acceptance criteria and the environment/device changes it may make. Send evidence to `.flow/evidence/<head>/<capsule-id>/`.
 - Follow the `MATCH` self-consistency rule in the Evidence section of `AGENTS.md` for restore receipts. Inspect consequential evidence and own acceptance as Main.
 - Use `flow-integrating` next.

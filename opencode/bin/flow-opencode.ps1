@@ -33,6 +33,8 @@ $ROOT = [IO.Path]::GetFullPath((Join-Path $HERE '..' '..'))
 $OLD_ROOT = Join-Path ([IO.Path]::GetDirectoryName($ROOT)) 'omp-stack'
 $PORT = Join-Path $ROOT 'opencode'
 $LINKED = 'AGENTS.md', 'skills', 'agents', 'profiles'
+# The plugin is linked inside $PLUGINS_DIR, which belongs to the user.
+$PLUGIN = 'flow-guard'
 $PathCompare = $IsWindows ? [StringComparison]::OrdinalIgnoreCase : [StringComparison]::Ordinal
 
 # Written to the console directly so step functions can print and still return their 0/1 status.
@@ -69,6 +71,7 @@ if (Get-Command opencode -ErrorAction SilentlyContinue) {
 } else {
     $CONFIG_ROOT = Join-Path ($env:XDG_CONFIG_HOME ? $env:XDG_CONFIG_HOME : (Join-Path $HomeDir '.config')) 'opencode'
 }
+$PLUGINS_DIR = Join-Path $CONFIG_ROOT 'plugins'
 
 # Stems of the profile files shipped with the port, space separated.
 function Get-ProfileStems {
@@ -238,15 +241,23 @@ function Install {
     try { New-Item -ItemType Directory -Force -Path $CONFIG_ROOT | Out-Null } catch { Fail "could not create $CONFIG_ROOT" }
     # Check every destination first so one refusal changes nothing. A real
     # opencode.json is Link-Config's call (relink or WARN); a symlink is checked here.
+    if ((Get-LinkType $PLUGINS_DIR) -or [IO.File]::Exists($PLUGINS_DIR)) {
+        Fail "$PLUGINS_DIR is not a real directory; flow-opencode links one plugin inside it, so move or remove it manually"
+    }
     foreach ($name in $LINKED) { Assert-Owned (Join-Path $PORT $name) (Join-Path $CONFIG_ROOT $name) }
+    Assert-Owned (Join-Path $PORT 'plugins' $PLUGIN) (Join-Path $PLUGINS_DIR $PLUGIN)
     if (Get-LinkType (Join-Path $CONFIG_ROOT 'opencode.json')) {
         Assert-Owned (Join-Path $PORT 'opencode.json') (Join-Path $CONFIG_ROOT 'opencode.json')
     }
+    try { New-Item -ItemType Directory -Force -Path $PLUGINS_DIR | Out-Null } catch { Fail "could not create $PLUGINS_DIR" }
     foreach ($name in $LINKED) { Link-Owned (Join-Path $PORT $name) (Join-Path $CONFIG_ROOT $name) }
+    Link-Owned (Join-Path $PORT 'plugins' $PLUGIN) (Join-Path $PLUGINS_DIR $PLUGIN)
     if ((Link-Config) -eq 1) { $rc = 1 }
     if ((Report-Duplicates) -eq 1) { $rc = 1 }
     Info "run 'opencode reload' so the background service picks up the config"
     if ($rc -ne 0) { Info 'nothing was overwritten' }
+    # The installer never reads or edits cli.json; the user sets it.
+    Info ('note: Flow works best with "session.permissions": "prompt" in ' + (Join-Path $CONFIG_ROOT 'cli.json') + '; "autoaccept" records flow_gate approvals without asking.')
     return $rc
 }
 
@@ -255,6 +266,7 @@ function Verify {
     foreach ($name in $LINKED + 'opencode.json') {
         if ((Verify-Link (Join-Path $PORT $name) (Join-Path $CONFIG_ROOT $name)) -eq 1) { $rc = 1 }
     }
+    if ((Verify-Link (Join-Path $PORT 'plugins' $PLUGIN) (Join-Path $PLUGINS_DIR $PLUGIN)) -eq 1) { $rc = 1 }
     if ((Report-Duplicates) -eq 1) { $rc = 1 }
     return $rc
 }
@@ -338,10 +350,12 @@ function Read-JsonFile([string]$path) {
     Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -AsHashtable -NoEnumerate
 }
 
-# Reads the `debug agents` JSON in $file. Mode `base`: every agent is a subagent
-# and the build agent asks for pushes and PR creation. Mode `profile`: every
-# agent (and build, when the profile names it) resolved to the profile's model
-# and effort, and the base asks still apply.
+# Reads the `debug agents` JSON in $file. Mode `base`: every Flow agent is a
+# subagent, `ask` is a primary agent and the build agent asks for pushes and PR
+# creation. Mode `profile`: every agent resolved to the profile's model and
+# effort, `build` and `ask` too when the profile names `build` (`ask` resolves
+# like `build`), and the base asks still apply. Both modes: the built-in `plan`
+# agent is off.
 function Check-Agents([string]$file, [string]$mode, [string[]]$agents, [string]$pfile, [string]$label) {
     try {
         $rows = @{}
@@ -357,19 +371,24 @@ function Check-Agents([string]$file, [string]$mode, [string[]]$agents, [string]$
             if ($rows.ContainsKey($a) -and $rows[$a]['mode'] -eq 'subagent') { "ok: agent $a is a subagent" }
             else { "FAIL: agent $a missing or not a subagent" }
         }
+        if ($rows.ContainsKey('ask') -and $rows['ask']['mode'] -eq 'primary') { 'ok: agent ask is a primary agent' }
+        else { 'FAIL: agent ask missing or not a primary agent' }
     } else {
         $want = (Read-JsonFile $pfile)['agent']
-        foreach ($a in @($agents) + @(if ($want.ContainsKey('build')) { 'build' })) {
+        foreach ($a in @($agents) + @(if ($want.ContainsKey('build')) { 'build', 'ask' })) {
             $m = $rows.ContainsKey($a) ? $rows[$a]['model'] : $null
             $got = 'None/None'
             if ($m) { $got = "$($m['providerID'])/$($m['id'])" + ($m['variant'] ? "#$($m['variant'])" : '') }
-            $entry = $want.ContainsKey($a) ? $want[$a] : @{}
+            $route = $a -eq 'ask' ? 'build' : $a
+            $entry = $want.ContainsKey($route) ? $want[$route] : @{}
             $exp = $entry['model']
             if ($entry['variant']) { $exp += '#' + $entry['variant'] }
             if ($got -eq $exp) { "ok: ${label}$a -> $got" }
             else { "FAIL: ${label}$a resolved to $got, expected $($exp ?? 'None')" }
         }
     }
+    if ($rows.ContainsKey('plan')) { "FAIL: ${label}built-in plan agent is still listed; agents/plan.md turns it off" }
+    else { "ok: ${label}built-in plan agent is off" }
     foreach ($res in 'git push*', 'gh pr create*') {
         $asks = @($build | Where-Object { $_.Count -eq 3 -and $_['action'] -eq 'shell' -and $_['resource'] -eq $res -and $_['effect'] -eq 'ask' })
         if ($asks.Count -gt 0) {
@@ -380,12 +399,19 @@ function Check-Agents([string]$file, [string]$mode, [string[]]$agents, [string]$
     }
 }
 
-function Check-MainModel([string]$file, [string]$pfile, [string]$stem, [int]$rc) {
+# Reads the `model.default` JSON in $file. Null data means this OpenCode gave no way to read the profile's model: a
+# SKIP naming the version in $version.
+function Check-MainModel([string]$file, [string]$pfile, [string]$stem, [int]$rc, [string]$version) {
     $label = "profile $stem`: main model"
     $want = (Read-JsonFile $pfile)['model']
     try {
         if ($rc -ne 0) { throw "opencode api exited $rc" }
         $data = (Read-JsonFile $file)['data']
+        if ($null -eq $data) {
+            $v = @($version -split '\s+' | Where-Object { $_ }) | Select-Object -Last 1
+            "SKIP: $label (not readable on OpenCode $($v ?? 'unknown'))"
+            return
+        }
         if ($null -eq $data['providerID'] -or $null -eq $data['modelID']) { throw 'model.default has no providerID or modelID' }
         $got = "$($data['providerID'])/$($data['modelID'])"
     } catch {
@@ -395,6 +421,18 @@ function Check-MainModel([string]$file, [string]$pfile, [string]$stem, [int]$rc)
     if ($got -eq $want) { "ok: $label $got" }
     elseif ($data['providerID'] -ne $stem) { "SKIP: $label (provider $stem not available)" }
     else { "FAIL: $label resolved to $got, expected $want" }
+}
+
+# What the `model.default` JSON in $file holds: 'model', 'null' or 'bad'.
+function Get-ModelData([string]$file) {
+    try {
+        $d = Read-JsonFile $file
+        if ($d -isnot [Collections.IDictionary] -or -not $d.Contains('data')) { return 'bad' }
+        if ($null -eq $d['data']) { return 'null' }
+        return $d['data'] -is [Collections.IDictionary] ? 'model' : 'bad'
+    } catch {
+        return 'bad'
+    }
 }
 
 function Test-UnderPrefix([string]$path, [string[]]$prefixes) {
@@ -432,6 +470,37 @@ function Check-Skills([string]$file, [string[]]$skills, [string[]]$prefixes) {
     }
 }
 
+# True when two paths name the same place, compared as the installer compares them
+# (both slash forms on Windows).
+function Test-SamePath([string]$path, [string]$want) {
+    $candidates = $IsWindows ? @($path, $path.Replace('/', '\')) : @($path)
+    foreach ($c in $candidates) {
+        if ([string]::Equals((Normalize $c), (Normalize $want), $PathCompare)) { return $true }
+    }
+    return $false
+}
+
+# Reads the `plugin.list` JSON in $file and reports the flow-guard row.
+function Check-Plugin([string]$file, [string]$want) {
+    $rows = (Read-JsonFile $file)['data']
+    if ($rows -isnot [array]) { throw 'plugin list data is not an array' }
+    $row = @($rows | Where-Object { $_['id'] -eq 'flow-guard' }) | Select-Object -First 1
+    if (-not $row) {
+        $row = @($rows | Where-Object { $_['source'] -and $_['source']['path'] -and (Test-SamePath ([string]$_['source']['path']) $want) }) | Select-Object -First 1
+    }
+    if (-not $row) {
+        "FAIL: plugin flow-guard is not loaded; run install, then 'opencode reload'"
+        return
+    }
+    $state = $row['state'] ?? @{}
+    $source = $row['source'] ?? @{}
+    $path = [string]$source['path']
+    if ($state['status'] -ne 'active') { "FAIL: plugin flow-guard failed to load: $($state['error'])" }
+    elseif ($source['type'] -ne 'local' -or -not $path -or -not (Test-SamePath $path $want)) {
+        "FAIL: plugin flow-guard loaded from $path, expected $want"
+    } else { "ok: plugin flow-guard is active at $path" }
+}
+
 # Runs opencode with stdout saved to $outFile and stderr to $errFile; returns its exit code.
 function Invoke-Opencode([string[]]$ocArgs, [string]$outFile, [string]$errFile) {
     $global:LASTEXITCODE = 0
@@ -456,6 +525,74 @@ function Read-ServeOutput {
     }
 }
 
+# Starts `opencode serve` with $extraEnv added to its environment and waits for its URL. Returns the URL, or $null
+# when none came within $script:serveCap seconds.
+function Start-Server([string]$log, [hashtable]$extraEnv) {
+    $script:serveLog = $log
+    $script:serveTasks = @{ out = $null; err = $null }
+    $psi = [System.Diagnostics.ProcessStartInfo]::new()
+    # A .ps1 shim (npm installs one next to the .cmd) cannot be launched directly.
+    if ($script:ocSource -like '*.ps1') {
+        $psi.FileName = (Get-Process -Id $PID).Path
+        foreach ($a in '-NoProfile', '-File', $script:ocSource) { $psi.ArgumentList.Add($a) }
+    } else {
+        $psi.FileName = $script:ocSource
+    }
+    foreach ($a in 'serve', '--port', '0', '--hostname', '127.0.0.1') { $psi.ArgumentList.Add($a) }
+    $psi.Environment['OPENCODE_SERVER_PASSWORD'] = $script:servePassword
+    foreach ($k in $extraEnv.Keys) { $psi.Environment[$k] = $extraEnv[$k] }
+    $psi.WorkingDirectory = $script:serveWd
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.UseShellExecute = $false
+    $script:serveProc = [System.Diagnostics.Process]::Start($psi)
+    $script:serveTasks['out'] = $script:serveProc.StandardOutput.ReadLineAsync()
+    $script:serveTasks['err'] = $script:serveProc.StandardError.ReadLineAsync()
+
+    $line = $null
+    for ($waited = 0; $waited -lt $script:serveCap; $waited++) {
+        Read-ServeOutput
+        $line = Get-Content -LiteralPath $script:serveLog -ErrorAction SilentlyContinue | Where-Object { $_ -match 'server listening on ' } | Select-Object -First 1
+        if ($line) { break }
+        Start-Sleep -Seconds 1
+    }
+    if (-not $line) { return $null }
+    $marker = 'server listening on '
+    return $line.Substring($line.IndexOf($marker) + $marker.Length).Trim()
+}
+
+function Stop-Server {
+    if ($script:serveProc -and -not $script:serveProc.HasExited) {
+        try { $script:serveProc.Kill($true) } catch { }
+    }
+    if ($script:serveProc) { [void]$script:serveProc.WaitForExit(5000) }
+    $script:serveProc = $null
+}
+
+# OpenCode 2.4 answers a one-shot `model.default` before the config's plugins set the profile's model. A server for
+# the profile answers once it lists its plugins; its answer replaces $model only when it holds a model.
+function Get-ServedModel([string]$pfile, [string]$model, [string]$tmp) {
+    try {
+        $url = Start-Server (Join-Path $tmp 'pserve.log') @{ OPENCODE_CONFIG = $pfile }
+        if (-not $url) { return }
+        $env:OPENCODE_PASSWORD = $script:servePassword
+        $pluginsFile = Join-Path $tmp 'pplugins.json'
+        for ($tries = 0; $tries -lt $script:pluginCap; $tries++) {
+            [void](Invoke-Opencode @('api', '--server', $url, 'plugin.list') $pluginsFile (Join-Path $tmp 'pplugins.err'))
+            if ((Get-Content -LiteralPath $pluginsFile -Raw -ErrorAction SilentlyContinue) -match '"id"') { break }
+            Read-ServeOutput
+            Start-Sleep -Seconds 1
+        }
+        $served = Join-Path $tmp 'smodel.json'
+        if ((Invoke-Opencode @('api', '--server', $url, 'model.default') $served (Join-Path $tmp 'smodel.err')) -eq 0 -and (Get-ModelData $served) -eq 'model') {
+            Move-Item -Force -LiteralPath $served -Destination $model
+        }
+    } finally {
+        Remove-Item Env:OPENCODE_PASSWORD -ErrorAction SilentlyContinue
+        Stop-Server
+    }
+}
+
 function Doctor {
     try { $version = Get-Content -LiteralPath (Join-Path $ROOT 'VERSION') -First 1 } catch { Fail "cannot read $(Join-Path $ROOT 'VERSION')" }
     Info "flow-skills $version"
@@ -467,8 +604,10 @@ function Doctor {
     Remove-Item Env:OPENCODE_CONFIG -ErrorAction SilentlyContinue
     try { $tmp = (New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath()) "flow-opencode-doctor-$([guid]::NewGuid().ToString('N'))")).FullName } catch { Restore-Env 'OPENCODE_CONFIG' $prevConfig; Fail 'could not create a temporary directory' }
     $script:serveProc = $null
-    $script:serveTasks = @{ out = $null; err = $null }
-    $script:serveLog = Join-Path $tmp 'serve.log'
+    $script:ocSource = $oc.Source
+    $script:servePassword = [guid]::NewGuid().ToString('N')
+    $script:serveCap = [int]($env:FLOW_OPENCODE_SERVE_WAIT ? $env:FLOW_OPENCODE_SERVE_WAIT : 30)
+    $script:pluginCap = [int]($env:FLOW_OPENCODE_PLUGIN_WAIT ? $env:FLOW_OPENCODE_PLUGIN_WAIT : 20)
     Push-Location -LiteralPath $tmp
     try {
         $wd = Join-Path $tmp 'wd'
@@ -476,8 +615,10 @@ function Doctor {
         & git init -q $wd | Out-Null
         if ($LASTEXITCODE -ne 0) { Fail 'could not create a scratch repository' }
         Set-Location -LiteralPath $wd
+        $script:serveWd = $wd
 
-        $agents = @(Get-ChildItem -LiteralPath (Join-Path $PORT 'agents') -Filter '*.md' | Sort-Object Name | ForEach-Object BaseName)
+        # `ask` and `plan` are OpenCode's own agents; Check-Agents checks them apart.
+        $agents = @(Get-ChildItem -LiteralPath (Join-Path $PORT 'agents') -Filter '*.md' | Where-Object Name -notin 'ask.md', 'plan.md' | Sort-Object Name | ForEach-Object BaseName)
         $skills = @(Get-ChildItem -LiteralPath (Join-Path $PORT 'skills') -Directory | Sort-Object Name | ForEach-Object Name)
 
         $agentsFile = Join-Path $tmp 'agents.json'
@@ -489,6 +630,7 @@ function Doctor {
         }
 
         $profilesDir = Join-Path $CONFIG_ROOT 'profiles'
+        $ocVersion = ''
         $pfiles = @(Get-ChildItem -LiteralPath $profilesDir -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name)
         if ($pfiles.Count -eq 0) { Report "FAIL: no profiles found in $profilesDir" }
         foreach ($pf in $pfiles) {
@@ -508,44 +650,24 @@ function Doctor {
             } else {
                 Report "FAIL: profile $stem`: opencode debug agents failed: $((Get-Content -LiteralPath $perr -Raw -ErrorAction SilentlyContinue)?.Trim())"
             }
-            Invoke-Check 'Check-MainModel' ${function:Check-MainModel} @($model, $pf.FullName, $stem, $mrc)
+            if ($mrc -eq 0 -and (Get-ModelData $model) -eq 'null') {
+                Get-ServedModel $pf.FullName $model $tmp
+                if (-not $ocVersion) {
+                    $versionFile = Join-Path $tmp 'version.txt'
+                    [void](Invoke-Opencode @('--version') $versionFile (Join-Path $tmp 'version.err'))
+                    $ocVersion = (Get-Content -LiteralPath $versionFile -Raw -ErrorAction SilentlyContinue)?.Trim()
+                }
+            }
+            Invoke-Check 'Check-MainModel' ${function:Check-MainModel} @($model, $pf.FullName, $stem, $mrc, $ocVersion)
         }
 
-        $pw = [guid]::NewGuid().ToString('N')
-        $psi = [System.Diagnostics.ProcessStartInfo]::new()
-        # A .ps1 shim (npm installs one next to the .cmd) cannot be launched directly.
-        if ($oc.Source -like '*.ps1') {
-            $psi.FileName = (Get-Process -Id $PID).Path
-            foreach ($a in '-NoProfile', '-File', $oc.Source) { $psi.ArgumentList.Add($a) }
+        $url = Start-Server (Join-Path $tmp 'serve.log') @{}
+        if (-not $url) {
+            Report "FAIL: server did not report a listening URL within $($script:serveCap)s"
         } else {
-            $psi.FileName = $oc.Source
-        }
-        foreach ($a in 'serve', '--port', '0', '--hostname', '127.0.0.1') { $psi.ArgumentList.Add($a) }
-        $psi.Environment['OPENCODE_SERVER_PASSWORD'] = $pw
-        $psi.WorkingDirectory = $wd
-        $psi.RedirectStandardOutput = $true
-        $psi.RedirectStandardError = $true
-        $psi.UseShellExecute = $false
-        $script:serveProc = [System.Diagnostics.Process]::Start($psi)
-        $script:serveTasks['out'] = $script:serveProc.StandardOutput.ReadLineAsync()
-        $script:serveTasks['err'] = $script:serveProc.StandardError.ReadLineAsync()
-
-        $cap = [int]($env:FLOW_OPENCODE_SERVE_WAIT ? $env:FLOW_OPENCODE_SERVE_WAIT : 30)
-        $line = $null
-        for ($waited = 0; $waited -lt $cap; $waited++) {
-            Read-ServeOutput
-            $line = Get-Content -LiteralPath $script:serveLog -ErrorAction SilentlyContinue | Where-Object { $_ -match 'server listening on ' } | Select-Object -First 1
-            if ($line) { break }
-            Start-Sleep -Seconds 1
-        }
-        if (-not $line) {
-            Report "FAIL: server did not report a listening URL within ${cap}s"
-        } else {
-            $marker = 'server listening on '
-            $url = $line.Substring($line.IndexOf($marker) + $marker.Length).Trim()
             $skillsFile = Join-Path $tmp 'skills.json'
             $ready = $false
-            $env:OPENCODE_PASSWORD = $pw
+            $env:OPENCODE_PASSWORD = $script:servePassword
             for ($tries = 0; $tries -lt 20; $tries++) {
                 [void](Invoke-Opencode @('api', '--server', $url, 'skill.list') $skillsFile (Join-Path $tmp 'skills.err'))
                 if ((Get-Content -LiteralPath $skillsFile -Raw -ErrorAction SilentlyContinue) -match '"flow-tdd"') { $ready = $true; break }
@@ -557,12 +679,17 @@ function Doctor {
             } else {
                 Invoke-Check 'Check-Skills' ${function:Check-Skills} @($skillsFile, $skills, @((Join-Path $CONFIG_ROOT 'skills'), (Join-Path $PORT 'skills')))
             }
+            $pluginsFile = Join-Path $tmp 'plugins.json'
+            for ($tries = 0; $tries -lt $script:pluginCap; $tries++) {
+                [void](Invoke-Opencode @('api', '--server', $url, 'plugin.list') $pluginsFile (Join-Path $tmp 'plugins.err'))
+                if ((Get-Content -LiteralPath $pluginsFile -Raw -ErrorAction SilentlyContinue) -match 'flow-guard"') { break }
+                Read-ServeOutput
+                Start-Sleep -Seconds 1
+            }
+            Invoke-Check 'Check-Plugin' ${function:Check-Plugin} @($pluginsFile, (Join-Path $PLUGINS_DIR $PLUGIN))
         }
     } finally {
-        if ($script:serveProc -and -not $script:serveProc.HasExited) {
-            try { $script:serveProc.Kill($true) } catch { }
-        }
-        if ($script:serveProc) { [void]$script:serveProc.WaitForExit(5000) }
+        Stop-Server
         Restore-Env 'OPENCODE_PASSWORD' $prevPassword
         Restore-Env 'OPENCODE_CONFIG' $prevConfig
         Pop-Location

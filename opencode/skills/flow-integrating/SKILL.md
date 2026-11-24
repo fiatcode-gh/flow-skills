@@ -13,7 +13,7 @@ Ensure the appropriate final test/build/lint/format/static gates cover the **cur
 
 Do not rerun an expensive final command merely because control moved into this skill. Reuse fresh proof by the Evidence rule in `AGENTS.md`.
 
-Reconcile the result against the governing request/spec/approved plan. Name omissions/deviations rather than silently redefining done. When the work has a Flow gate scope, run `flow_check` for each kind it used before presenting integration choices. Any `stale` line is a blocker. A `missing` line for a kind the work never used is expected: `plan` for `Plan: NONE` work, `implementation` for planned work.
+Reconcile the result against the governing request/spec/approved plan. Name omissions/deviations rather than silently redefining done. When the work has a Flow gate scope, run `flow_gate action=status` for it before presenting integration choices. Any `stale` line is a blocker. A `missing` line for a kind the work never used is expected: `plan` for `Plan: NONE` work, `implementation` for planned work.
 
 ## 2. Record the decisions
 
@@ -46,7 +46,7 @@ Delete a local feature branch only when it is integrated and safe. Report a user
 
 After confirmed integration:
 
-- Remove the scope's lines from `.flow/runtime/approvals.log`.
-- Remove its `.flow/contracts`, `.flow/plans`, `.flow/handoffs` and `.flow/checkpoints` entries (Flow artifacts in `AGENTS.md`). Report what was removed.
+- Call `flow_gate action=clear` for the integrated scope.
+- Remove its `.flow/contracts`, `.flow/plans`, `.flow/handoffs`, `.flow/checkpoints` and `.flow/evidence` entries (Flow artifacts in `AGENTS.md`). Report what was removed.
 - After the last unit, do both for the parent.
 - Never touch a frozen `.flow/ldd/` ledger.

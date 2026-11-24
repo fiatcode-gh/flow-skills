@@ -9,6 +9,9 @@ OLD_ROOT=$(dirname -- "$ROOT")/omp-stack
 PORT="$ROOT/opencode"
 CONFIG_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 LINKED="AGENTS.md skills agents profiles"
+# The plugin is linked inside $PLUGINS_DIR, which belongs to the user.
+PLUGIN=flow-guard
+PLUGINS_DIR="$CONFIG_ROOT/plugins"
 
 info() { printf '%s\n' "$*"; }
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -99,17 +102,25 @@ install() {
   mkdir -p -- "$CONFIG_ROOT" || fail "could not create $CONFIG_ROOT"
   # Check every destination first so one refusal changes nothing. A real
   # opencode.json is link_config's call (relink or WARN); a symlink is checked here.
+  if [ -L "$PLUGINS_DIR" ] || { [ -e "$PLUGINS_DIR" ] && [ ! -d "$PLUGINS_DIR" ]; }; then
+    fail "$PLUGINS_DIR is not a real directory; flow-opencode links one plugin inside it, so move or remove it manually"
+  fi
   for name in $LINKED; do
     check_owned "$PORT/$name" "$CONFIG_ROOT/$name"
   done
+  check_owned "$PORT/plugins/$PLUGIN" "$PLUGINS_DIR/$PLUGIN"
   [ ! -L "$CONFIG_ROOT/opencode.json" ] || check_owned "$PORT/opencode.json" "$CONFIG_ROOT/opencode.json"
+  mkdir -p -- "$PLUGINS_DIR" || fail "could not create $PLUGINS_DIR"
   for name in $LINKED; do
     link_owned "$PORT/$name" "$CONFIG_ROOT/$name"
   done
+  link_owned "$PORT/plugins/$PLUGIN" "$PLUGINS_DIR/$PLUGIN"
   link_config || rc=1
   report_duplicates || rc=1
   info "run 'opencode reload' so the background service picks up the config"
   [ "$rc" -eq 0 ] || info "nothing was overwritten"
+  # The installer never reads or edits cli.json; the user sets it.
+  info "note: Flow works best with \"session.permissions\": \"prompt\" in $CONFIG_ROOT/cli.json; \"autoaccept\" records flow_gate approvals without asking."
   return "$rc"
 }
 
@@ -118,6 +129,7 @@ verify() {
   for name in $LINKED opencode.json; do
     verify_link "$PORT/$name" "$CONFIG_ROOT/$name" || rc=1
   done
+  verify_link "$PORT/plugins/$PLUGIN" "$PLUGINS_DIR/$PLUGIN" || rc=1
   report_duplicates || rc=1
   return "$rc"
 }
@@ -160,10 +172,12 @@ run_check() { # checker args...
   fi
 }
 
-# Reads the `debug agents` JSON in $1. Mode `base`: every agent is a subagent
-# and the build agent asks for pushes and PR creation. Mode `profile`: every
-# agent (and build, when the profile names it) resolved to the profile's model
-# and effort, and the base asks still apply.
+# Reads the `debug agents` JSON in $1. Mode `base`: every Flow agent is a
+# subagent, `ask` is a primary agent and the build agent asks for pushes and PR
+# creation. Mode `profile`: every agent resolved to the profile's model and
+# effort, `build` and `ask` too when the profile names `build` (`ask` resolves
+# like `build`), and the base asks still apply. Both modes: the built-in `plan`
+# agent is off.
 check_agents() { # file mode agents profile-file label
   python3 - "$@" <<'PY'
 import json, sys
@@ -180,19 +194,28 @@ if mode == 'base':
             print(f'ok: agent {a} is a subagent')
         else:
             print(f'FAIL: agent {a} missing or not a subagent')
+    if rows.get('ask', {}).get('mode') == 'primary':
+        print('ok: agent ask is a primary agent')
+    else:
+        print('FAIL: agent ask missing or not a primary agent')
 else:
     want = json.load(open(pfile))['agent']
-    for a in agents.split() + (['build'] if 'build' in want else []):
+    for a in agents.split() + (['build', 'ask'] if 'build' in want else []):
         got = rows.get(a, {}).get('model') or {}
         got_variant = got.get('variant')
         got = f"{got.get('providerID')}/{got.get('id')}" + (f'#{got_variant}' if got_variant else '')
-        exp = want.get(a, {}).get('model')
-        if want.get(a, {}).get('variant'):
-            exp += '#' + want[a]['variant']
+        route = want['build'] if a == 'ask' else want.get(a, {})
+        exp = route.get('model')
+        if route.get('variant'):
+            exp += '#' + route['variant']
         if got == exp:
             print(f'ok: {label}{a} -> {got}')
         else:
             print(f'FAIL: {label}{a} resolved to {got}, expected {exp}')
+if 'plan' in rows:
+    print(f'FAIL: {label}built-in plan agent is still listed; agents/plan.md turns it off')
+else:
+    print(f'ok: {label}built-in plan agent is off')
 for res in ('git push*', 'gh pr create*'):
     if {'action': 'shell', 'resource': res, 'effect': 'ask'} in build:
         print(f'ok: {label}base config asks for {res}' if mode == 'base' else
@@ -202,16 +225,21 @@ for res in ('git push*', 'gh pr create*'):
 PY
 }
 
-check_main_model() { # file profile-file stem rc
+# Reads the `model.default` JSON in $1. Null data means this OpenCode gave no
+# way to read the profile's model: a SKIP naming the version in $5.
+check_main_model() { # file profile-file stem rc version
   python3 - "$@" <<'PY'
 import json, sys
-path, pfile, stem, rc = sys.argv[1:5]
+path, pfile, stem, rc, version = sys.argv[1:6]
 label = f'profile {stem}: main model'
 want = json.load(open(pfile))['model']
 try:
     if rc != '0':
         raise ValueError(f'opencode api exited {rc}')
     data = json.load(open(path))['data']
+    if data is None:
+        print(f'SKIP: {label} (not readable on OpenCode {version.split()[-1] if version.split() else "unknown"})')
+        raise SystemExit
     got = f"{data['providerID']}/{data['modelID']}"
 except Exception as exc:
     print(f'FAIL: {label} unavailable: {exc}')
@@ -223,6 +251,62 @@ elif data['providerID'] != stem:
 else:
     print(f'FAIL: {label} resolved to {got}, expected {want}')
 PY
+}
+
+# Prints what the `model.default` JSON in $1 holds: model, null or bad.
+model_data() { # file
+  python3 -c '
+import json, sys
+try:
+    data = json.load(open(sys.argv[1]))["data"]
+except Exception:
+    data = "bad"
+print("null" if data is None else "model" if isinstance(data, dict) else "bad")' "$1"
+}
+
+# Starts `opencode serve` with the given environment assignments and waits for
+# its URL. Sets $pid, and $url to the URL or to nothing when none came in time.
+start_server() { # log [NAME=value...]
+  log=$1
+  shift
+  env "$@" OPENCODE_SERVER_PASSWORD="$pw" opencode serve --port 0 --hostname 127.0.0.1 >"$log" 2>&1 &
+  pid=$!
+  waited=0 cap=${FLOW_OPENCODE_SERVE_WAIT:-30} line=
+  while [ "$waited" -lt "$cap" ]; do
+    line=$(grep -m1 'server listening on ' "$log" 2>/dev/null || true)
+    [ -z "$line" ] || break
+    sleep 1
+    waited=$((waited + 1))
+  done
+  url=
+  [ -z "$line" ] || url=${line#*server listening on }
+}
+
+stop_server() {
+  kill "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  pid=
+}
+
+# OpenCode 2.4 answers a one-shot `model.default` before the config's plugins
+# set the profile's model. A server for the profile answers once it lists its
+# plugins; its answer replaces $2 only when it holds a model.
+served_model() { # profile-file model-file
+  start_server "$tmp/pserve.log" OPENCODE_CONFIG="$1"
+  if [ -n "$url" ]; then
+    tries=0 cap=${FLOW_OPENCODE_PLUGIN_WAIT:-20}
+    while [ "$tries" -lt "$cap" ]; do
+      OPENCODE_PASSWORD=$pw opencode api --server "$url" plugin.list >"$tmp/pplugins.json" 2>/dev/null || true
+      if grep -q '"id"' "$tmp/pplugins.json" 2>/dev/null; then break; fi
+      tries=$((tries + 1))
+      sleep 1
+    done
+    if OPENCODE_PASSWORD=$pw opencode api --server "$url" model.default >"$tmp/smodel.json" 2>/dev/null &&
+      [ "$(model_data "$tmp/smodel.json")" = model ]; then
+      mv "$tmp/smodel.json" "$2"
+    fi
+  fi
+  stop_server
 }
 
 check_skills() { # file expected-skills prefix
@@ -247,6 +331,30 @@ for s in skills.split():
 PY
 }
 
+# Reads the `plugin.list` JSON in $1 and reports the flow-guard row.
+check_plugin() { # file expected-path
+  python3 - "$@" <<'PY'
+import json, sys
+path, want = sys.argv[1:3]
+rows = json.load(open(path))['data']
+if not isinstance(rows, list):
+    raise TypeError(f'plugin list data is {type(rows).__name__}, not a list')
+row = next((r for r in rows if r.get('id') == 'flow-guard'), None) or \
+    next((r for r in rows if (r.get('source') or {}).get('path') == want), None)
+if row is None:
+    print("FAIL: plugin flow-guard is not loaded; run install, then 'opencode reload'")
+    raise SystemExit
+state = row.get('state') or {}
+source = row.get('source') or {}
+if state.get('status') != 'active':
+    print(f"FAIL: plugin flow-guard failed to load: {state.get('error')}")
+elif source.get('type') != 'local' or source.get('path') != want:
+    print(f"FAIL: plugin flow-guard loaded from {source.get('path')}, expected {want}")
+else:
+    print(f"ok: plugin flow-guard is active at {source['path']}")
+PY
+}
+
 doctor() {
   { read -r version || [ -n "$version" ]; } <"$ROOT/VERSION" || fail "cannot read $ROOT/VERSION"
   info "flow-skills $version"
@@ -260,9 +368,11 @@ doctor() {
   git init -q "$tmp/wd" || fail "could not create a scratch repository"
   cd "$tmp/wd"
 
+  # `ask` and `plan` are OpenCode's own agents; check_agents checks them apart.
   agents=
   for f in "$PORT"/agents/*.md; do
     b=${f##*/}
+    case $b in ask.md | plan.md) continue ;; esac
     agents="$agents ${b%.md}"
   done
   skills=
@@ -277,6 +387,8 @@ doctor() {
     report "FAIL: opencode debug agents failed: $(cat "$tmp/agents.err")"
   fi
 
+  pw=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+  ocversion=
   set -- "$CONFIG_ROOT"/profiles/*.json
   [ -e "$1" ] || report "FAIL: no profiles found in $CONFIG_ROOT/profiles"
   for pfile in "$@"; do
@@ -290,23 +402,17 @@ doctor() {
     fi
     mrc=0
     OPENCODE_CONFIG="$pfile" opencode api --standalone model.default >"$tmp/model.json" 2>/dev/null || mrc=$?
-    run_check check_main_model "$tmp/model.json" "$pfile" "$stem" "$mrc"
+    if [ "$mrc" -eq 0 ] && [ "$(model_data "$tmp/model.json")" = null ]; then
+      served_model "$pfile" "$tmp/model.json"
+      [ -n "$ocversion" ] || ocversion=$(opencode --version 2>/dev/null || true)
+    fi
+    run_check check_main_model "$tmp/model.json" "$pfile" "$stem" "$mrc" "$ocversion"
   done
 
-  pw=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
-  OPENCODE_SERVER_PASSWORD=$pw opencode serve --port 0 --hostname 127.0.0.1 >"$tmp/serve.log" 2>&1 &
-  pid=$!
-  waited=0 cap=${FLOW_OPENCODE_SERVE_WAIT:-30} line=
-  while [ "$waited" -lt "$cap" ]; do
-    line=$(grep -m1 'server listening on ' "$tmp/serve.log" 2>/dev/null || true)
-    [ -z "$line" ] || break
-    sleep 1
-    waited=$((waited + 1))
-  done
-  if [ -z "$line" ]; then
+  start_server "$tmp/serve.log"
+  if [ -z "$url" ]; then
     report "FAIL: server did not report a listening URL within ${cap}s"
   else
-    url=${line#*server listening on }
     tries=0 ready=
     while [ "$tries" -lt 20 ]; do
       OPENCODE_PASSWORD=$pw opencode api --server "$url" skill.list >"$tmp/skills.json" 2>/dev/null || true
@@ -319,6 +425,14 @@ doctor() {
     else
       run_check check_skills "$tmp/skills.json" "$skills" "$CONFIG_ROOT/skills/"
     fi
+    tries=0 cap=${FLOW_OPENCODE_PLUGIN_WAIT:-20}
+    while [ "$tries" -lt "$cap" ]; do
+      OPENCODE_PASSWORD=$pw opencode api --server "$url" plugin.list >"$tmp/plugins.json" 2>/dev/null || true
+      if grep -q 'flow-guard"' "$tmp/plugins.json" 2>/dev/null; then break; fi
+      tries=$((tries + 1))
+      sleep 1
+    done
+    run_check check_plugin "$tmp/plugins.json" "$PLUGINS_DIR/$PLUGIN"
   fi
   return "$drc"
 }

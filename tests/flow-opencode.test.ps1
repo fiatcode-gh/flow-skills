@@ -9,6 +9,8 @@ $FLOW = Join-Path $PORT 'bin/flow-opencode.ps1'
 $PWSH = (Get-Process -Id $PID).Path
 $LINKED = 'AGENTS.md', 'skills', 'agents', 'profiles'
 $FIVE = $LINKED + 'opencode.json'
+$PLUGIN_REL = 'plugins/flow-guard'
+$SIX = $FIVE + $PLUGIN_REL
 $PathCompare = $IsWindows ? [StringComparison]::OrdinalIgnoreCase : [StringComparison]::Ordinal
 $TMP = (New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath()) "flow-opencode-test-$([guid]::NewGuid().ToString('N'))")).FullName
 
@@ -105,7 +107,9 @@ $names = @(Get-ChildItem -LiteralPath (Join-Path $PORT 'skills') -Directory | So
 $SKILL1 = $names[0]
 $SKILL2 = $names[1]
 $skillNames = $names
-$agentNames = @(Get-ChildItem -LiteralPath (Join-Path $PORT 'agents') -Filter '*.md' | Sort-Object Name | ForEach-Object BaseName)
+# `ask` and `plan` are OpenCode's own agents: `ask` is primary like `build`, and `plan.md` keeps the built-in plan off the list.
+$agentNames = @(Get-ChildItem -LiteralPath (Join-Path $PORT 'agents') -Filter '*.md' | Where-Object Name -notin 'ask.md', 'plan.md' | Sort-Object Name | ForEach-Object BaseName)
+function Install-Note([string]$h) { 'note: Flow works best with "session.permissions": "prompt" in ' + (Join-Path (Cfg $h) 'cli.json') + '; "autoaccept" records flow_gate approvals without asking.' }
 
 # Fixture JSON for the doctor stub, with the shapes of `opencode debug agents`, `api model.default` and `api skill.list`.
 function Write-Json([string]$path, $value) {
@@ -114,8 +118,8 @@ function Write-Json([string]$path, $value) {
 function Make-Fixtures([string]$out, [string]$skillsPrefix) {
     $asks = @(foreach ($r in 'git push*', 'gh pr create*') { [ordered]@{ action = 'shell'; resource = $r; effect = 'ask' } })
     function Agent-List($routes) {
-        @(foreach ($a in @('build') + $agentNames) {
-            $row = [ordered]@{ id = $a; mode = ($a -eq 'build' ? 'primary' : 'subagent'); permissions = $asks }
+        @(foreach ($a in @('build', 'ask') + $agentNames) {
+            $row = [ordered]@{ id = $a; mode = (($a -in 'build', 'ask') ? 'primary' : 'subagent'); permissions = $asks }
             if ($routes -and $routes.ContainsKey($a)) {
                 $model = $routes[$a].model
                 $p, $m = $model -split '/', 2
@@ -135,9 +139,16 @@ function Make-Fixtures([string]$out, [string]$skillsPrefix) {
         Write-Json (Join-Path $out "agents-$stem.json") (Agent-List $routes)
         $p, $m = $prof['model'] -split '/', 2
         Write-Json (Join-Path $out "model-$stem.json") ([ordered]@{ data = [ordered]@{ providerID = $p; modelID = $m } })
+        Write-Json (Join-Path $out "served-model-$stem.json") ([ordered]@{ data = [ordered]@{ providerID = $p; modelID = $m } })
     }
     $rows = @([ordered]@{ id = 'opencode'; path = '/builtin' }) + @(foreach ($s in $skillNames) { [ordered]@{ id = $s; path = "$skillsPrefix/$s/SKILL.md" } })
     Write-Json (Join-Path $out 'skills.json') ([ordered]@{ data = $rows })
+    $plugin = "$(Split-Path $skillsPrefix -Parent)/plugins/flow-guard"
+    Write-Json (Join-Path $out 'plugins.json') ([ordered]@{ data = @(
+        [ordered]@{ id = 'opencode.tool.read'; source = [ordered]@{ type = 'builtin' }; features = [ordered]@{ server = $true }; state = [ordered]@{ status = 'active' } },
+        [ordered]@{ id = 'flow-guard'; source = [ordered]@{ type = 'local'; path = $plugin }; features = [ordered]@{ server = $true }; state = [ordered]@{ status = 'active' } }
+    ) })
+    [IO.File]::WriteAllText((Join-Path $out 'version'), "opencode v2.2.5`n")
 }
 
 function Edit-Json([string]$path, [scriptblock]$edit) {
@@ -148,24 +159,29 @@ function Edit-Json([string]$path, [scriptblock]$edit) {
 
 $rc = 0
 try {
-    # 1. Fresh install links exactly the five destinations.
+    # 1. Fresh install links exactly the five destinations and the plugin.
     $h = New-ScratchHome 'h1'
     $r = Invoke-Flow $h @() @('install')
     if ($r.Code -ne 0) { fail "fresh install failed: $($r.Out)" }
     $cfg = Cfg $h
-    foreach ($name in $FIVE) {
+    if ((Count-Lines $r.Out '^linked ') -ne 6) { fail "expected six linked lines, got: $($r.Out)" }
+    foreach ($name in $SIX) {
         if (-not (Is-Link (Join-Path $cfg $name))) { fail "$name is not a symlink" }
         if (-not (Same (Final (Join-Path $cfg $name)) (Join-Path $PORT $name))) { fail "$name does not point at the port" }
     }
-    if ((Count-Lines $r.Out '^linked ') -ne 5) { fail "expected five linked lines, got: $($r.Out)" }
     if (-not $r.Out.Contains('opencode reload')) { fail 'missing the opencode reload hint' }
-    if (@([IO.Directory]::GetFileSystemEntries($cfg)).Count -ne 5) { fail 'installer wrote something besides the five links' }
+    if ((Lines $r.Out)[-1] -ne (Install-Note $h)) { fail "install does not end with the permissions note: $($r.Out)" }
+    if (@([IO.Directory]::GetFileSystemEntries($cfg)).Count -ne 6) { fail 'installer wrote something besides the five links and plugins/' }
+    $plugins = Join-Path $cfg 'plugins'
+    if (-not [IO.Directory]::Exists($plugins) -or (Is-Link $plugins)) { fail 'plugins is not a real directory' }
+    $pluginEntries = @([IO.Directory]::GetFileSystemEntries($plugins) | ForEach-Object { [IO.Path]::GetFileName($_) })
+    if (($pluginEntries -join ',') -ne 'flow-guard') { fail "plugins holds more than flow-guard: $($pluginEntries -join ', ')" }
 
     # 2. Second install changes nothing: same entries, same link targets.
-    $before = (Get-LinkTargets $cfg) -join "`n"
+    $before = (@(Get-LinkTargets $cfg) + @(Get-LinkTargets $plugins)) -join "`n"
     $r = Invoke-Flow $h @() @('install')
     if ($r.Code -ne 0) { fail "second install failed: $($r.Out)" }
-    if (((Get-LinkTargets $cfg) -join "`n") -ne $before) { fail 'second install changed the config root' }
+    if (((@(Get-LinkTargets $cfg) + @(Get-LinkTargets $plugins)) -join "`n") -ne $before) { fail 'second install changed the config root' }
 
     # 3. verify passes.
     $r = Invoke-Flow $h @() @('verify')
@@ -178,6 +194,7 @@ try {
     if ($r.Code -ne 0) { fail "install failed on an identical copy: $($r.Out)" }
     if (-not $r.Out.Contains('replaced identical copy')) { fail "missing 'replaced identical copy': $($r.Out)" }
     if (-not (Is-Link (Join-Path $cfg 'opencode.json'))) { fail 'identical copy was not relinked' }
+    if (-not (Is-Link (Join-Path $cfg $PLUGIN_REL))) { fail 'plugin link lost after relinking an identical copy' }
 
     # 5. A divergent real copy is refused; everything else is still linked.
     $h5 = New-ScratchHome 'h5'
@@ -189,6 +206,7 @@ try {
     if ($r.Code -eq 0) { fail 'install accepted a divergent opencode.json' }
     if ($r.Out -notmatch 'WARN:.*differs from') { fail "missing the divergence WARN: $($r.Out)" }
     if (-not $r.Out.Contains('nothing was overwritten')) { fail "missing 'nothing was overwritten': $($r.Out)" }
+    if ((Lines $r.Out)[-1] -ne (Install-Note $h5)) { fail "a refused opencode.json: install does not end with the permissions note: $($r.Out)" }
     if (-not [Linq.Enumerable]::SequenceEqual($divergentBefore, [IO.File]::ReadAllBytes((Join-Path $cfg5 'opencode.json')))) { fail 'divergent opencode.json was modified' }
     if (Is-Link (Join-Path $cfg5 'opencode.json')) { fail 'divergent opencode.json became a symlink' }
     foreach ($name in $LINKED) {
@@ -298,6 +316,65 @@ try {
     if (-not $r.Out.Contains('outside')) { fail "missing the foreign opencode.json refusal: $($r.Out)" }
     if (@([IO.Directory]::GetFileSystemEntries($cfg7b)).Count -ne 1) { fail 'a link was made although opencode.json was refused' }
 
+    # P1. A plugins directory the user already has keeps its other plugins.
+    $hp1 = New-ScratchHome 'hp1'
+    $other = Join-Path (Cfg $hp1) 'plugins' 'other'
+    New-Item -ItemType Directory -Force -Path $other | Out-Null
+    [IO.File]::WriteAllText((Join-Path $other 'index.ts'), "export {}`n")
+    $otherBefore = [IO.File]::ReadAllBytes((Join-Path $other 'index.ts'))
+    $r = Invoke-Flow $hp1 @() @('install')
+    if ($r.Code -ne 0) { fail "install failed next to another plugin: $($r.Out)" }
+    if (-not [IO.Directory]::Exists($other) -or (Is-Link $other)) { fail 'the other plugin directory was touched' }
+    if (-not [Linq.Enumerable]::SequenceEqual($otherBefore, [IO.File]::ReadAllBytes((Join-Path $other 'index.ts')))) { fail 'the other plugin was modified' }
+    if (-not (Same (Final (Join-Path (Cfg $hp1) $PLUGIN_REL)) (Join-Path $PORT $PLUGIN_REL))) { fail 'flow-guard not linked beside the other plugin' }
+
+    # P2. A real plugins/flow-guard directory is refused before anything is linked.
+    $hp2 = New-ScratchHome 'hp2'
+    $cfgp2 = Cfg $hp2
+    New-Item -ItemType Directory -Force -Path (Join-Path $cfgp2 $PLUGIN_REL) | Out-Null
+    $r = Invoke-Flow $hp2 @() @('install')
+    if ($r.Code -eq 0) { fail 'install replaced a real plugins/flow-guard directory' }
+    if ($r.Out -notmatch 'plugins[\\/]flow-guard.*move/merge it manually') { fail "missing the real plugin directory refusal: $($r.Out)" }
+    if ((@([IO.Directory]::GetFileSystemEntries($cfgp2) | ForEach-Object { [IO.Path]::GetFileName($_) }) -join ',') -ne 'plugins') { fail 'something was linked although the plugin was refused' }
+    if (-not [IO.Directory]::Exists((Join-Path $cfgp2 $PLUGIN_REL)) -or (Is-Link (Join-Path $cfgp2 $PLUGIN_REL))) { fail 'the real plugin directory was touched' }
+
+    # P3. A plugins/flow-guard symlink outside the checkout is refused and left as it was.
+    $hp3 = New-ScratchHome 'hp3'
+    $cfgp3 = Cfg $hp3
+    $elsewhere3 = Join-Path $hp3 'elsewhere'
+    New-Item -ItemType Directory -Force -Path (Join-Path $cfgp3 'plugins'), $elsewhere3 | Out-Null
+    New-FixtureLink $elsewhere3 (Join-Path $cfgp3 $PLUGIN_REL)
+    $r = Invoke-Flow $hp3 @() @('install')
+    if ($r.Code -eq 0) { fail 'install replaced a foreign plugin symlink' }
+    if (-not $r.Out.Contains('outside')) { fail "missing the foreign plugin refusal: $($r.Out)" }
+    if ((RawTarget (Join-Path $cfgp3 $PLUGIN_REL)) -ne $elsewhere3) { fail 'installer changed a foreign plugin symlink' }
+    if ((@([IO.Directory]::GetFileSystemEntries($cfgp3) | ForEach-Object { [IO.Path]::GetFileName($_) }) -join ',') -ne 'plugins') { fail 'something was linked although the plugin was refused' }
+
+    # P4. plugins itself must be a real directory: a symlink or a regular file is refused.
+    foreach ($kind in 'link', 'file') {
+        $hp4 = New-ScratchHome "hp4-$kind"
+        $cfgp4 = Cfg $hp4
+        $elsewhere4 = Join-Path $hp4 'elsewhere'
+        New-Item -ItemType Directory -Force -Path $cfgp4, $elsewhere4 | Out-Null
+        $pluginsp4 = Join-Path $cfgp4 'plugins'
+        if ($kind -eq 'link') { New-FixtureLink $elsewhere4 $pluginsp4 } else { New-Item -ItemType File -Path $pluginsp4 | Out-Null }
+        $r = Invoke-Flow $hp4 @() @('install')
+        if ($r.Code -eq 0) { fail "install accepted plugins as a $kind" }
+        if (-not $r.Out.Contains("$pluginsp4 is not a real directory")) { fail "plugins as a ${kind}: missing the real-directory refusal: $($r.Out)" }
+        if ((@([IO.Directory]::GetFileSystemEntries($cfgp4) | ForEach-Object { [IO.Path]::GetFileName($_) }) -join ',') -ne 'plugins') { fail "plugins as a ${kind}: something was linked" }
+        if (@([IO.Directory]::GetFileSystemEntries($elsewhere4)).Count -ne 0) { fail "plugins as a ${kind}: wrote through the plugins link" }
+    }
+
+    # P5. verify names a missing plugin link.
+    $hp5 = New-ScratchHome 'hp5'
+    $r = Invoke-Flow $hp5 @() @('install')
+    if ($r.Code -ne 0) { fail "install failed for the plugin verify case: $($r.Out)" }
+    $pluginp5 = Join-Path (Cfg $hp5) $PLUGIN_REL
+    Remove-LinkObject $pluginp5
+    $r = Invoke-Flow $hp5 @() @('verify')
+    if ($r.Code -eq 0) { fail 'verify passed without the plugin link' }
+    if (-not $r.Out.Contains("FAIL: $pluginp5")) { fail "verify did not name the plugin link: $($r.Out)" }
+
     # 8. Duplicate skills under ~/.claude and ~/.agents are reported, never deleted.
     $h8 = New-ScratchHome 'h8'
     $r = Invoke-Flow $h8 @() @('install')
@@ -316,7 +393,7 @@ try {
         if (-not $r.Out.Contains($dup1)) { fail "${cmd}: missing the .claude path: $($r.Out)" }
         if (-not $r.Out.Contains($dup2)) { fail "${cmd}: missing the .agents path: $($r.Out)" }
     }
-    foreach ($name in $FIVE) {
+    foreach ($name in $SIX) {
         if (-not (Is-Link (Join-Path $cfg8 $name))) { fail "$name lost its link next to duplicates" }
     }
     if (-not ([IO.File]::Exists($dup1) -and [IO.File]::Exists($dup2))) { fail 'a duplicate was deleted' }
@@ -328,7 +405,7 @@ try {
     $h9 = New-ScratchHome 'h9'
     $r = Invoke-Flow $h9 @() @('install') @{ XDG_CONFIG_HOME = (Join-Path $h9 'xdg') }
     if ($r.Code -ne 0) { fail "XDG install failed: $($r.Out)" }
-    foreach ($name in $FIVE) {
+    foreach ($name in $SIX) {
         if (-not (Is-Link (Join-Path $h9 'xdg' 'opencode' $name))) { fail "XDG: $name not linked" }
     }
     if (Test-Path -LiteralPath (Join-Path $h9 '.config')) { fail 'XDG install wrote under ~/.config' }
@@ -346,7 +423,7 @@ exit 1
 '@
     $r = Invoke-Flow $h9b @((Join-Path $h9b 'bin')) @('install')
     if ($r.Code -ne 0) { fail "install through the opencode stub failed: $($r.Out)" }
-    foreach ($name in $FIVE) {
+    foreach ($name in $SIX) {
         if (-not (Is-Link (Join-Path $discovered $name))) { fail "discovery: $name not linked under the discovered root" }
     }
     if (Test-Path -LiteralPath (Join-Path $h9b '.config')) { fail 'discovery install wrote under ~/.config' }
@@ -429,6 +506,7 @@ b=base
 [ -z "${OPENCODE_CONFIG:-}" ] || b=$(basename "$OPENCODE_CONFIG" .json)
 [ -z "${OPENCODE_CONFIG:-}" ] || printf '%s\n' "$OPENCODE_CONFIG" >> "$FIXTURE_DIR/configs.log"
 case $1 in
+  --version) cat "$FIXTURE_DIR/version" ;;
   debug)
     case $2 in
       paths) echo "$HOME/.config/opencode" ;;
@@ -437,10 +515,20 @@ case $1 in
   api)
     case $2 in
       --standalone) cat "$FIXTURE_DIR/model-$b.json" ;;
-      --server) cat "$FIXTURE_DIR/skills.json" ;;
+      --server)
+        # The server's URL ends in its config's stem.
+        s=${3##*/}
+        case $4 in
+          plugin.list) : > "$FIXTURE_DIR/listed-$s"; cat "$FIXTURE_DIR/plugins.json" ;;
+          # Like OpenCode 2.4.1, a server knows the config's model only once its plugins are listed.
+          model.default)
+            if [ -e "$FIXTURE_DIR/listed-$s" ]; then cat "$FIXTURE_DIR/served-model-$s.json"; else echo '{"data": null}'; fi ;;
+          *) cat "$FIXTURE_DIR/skills.json" ;;
+        esac ;;
     esac ;;
   serve)
-    [ -e "$FIXTURE_DIR/noserve" ] || echo 'server listening on http://127.0.0.1:1'
+    rm -f "$FIXTURE_DIR/listed-$b"
+    [ -e "$FIXTURE_DIR/noserve" ] || echo "server listening on http://127.0.0.1:1/$b"
     exec sleep 60 ;;
 esac
 '@
@@ -449,7 +537,7 @@ esac
         $fx = (New-Item -ItemType Directory -Path (Join-Path $TMP 'fx')).FullName
         $skillsPrefix = (Join-Path (Cfg $h11) 'skills')
         Make-Fixtures $fx $skillsPrefix
-        $docEnv = @{ FIXTURE_DIR = $fx; FLOW_OPENCODE_SERVE_WAIT = '2' }
+        $docEnv = @{ FIXTURE_DIR = $fx; FLOW_OPENCODE_SERVE_WAIT = '2'; FLOW_OPENCODE_PLUGIN_WAIT = '1' }
         function Run-Doctor() { Invoke-Flow $h11 @($docBin) @('doctor') $docEnv }
 
         # A: everything good.
@@ -465,7 +553,11 @@ esac
         }
         if (-not $r.Out.Contains('ok: profile claude-agent: flow-planner ->')) { fail "doctor A: no flow-planner mapping line: $($r.Out)" }
         if (-not ($r.Out.Contains('ok: profile claude-agent: main model') -or $r.Out.Contains('SKIP: profile claude-agent: main model'))) { fail "doctor A: no main model line: $($r.Out)" }
+        $pluginOk = "ok: plugin flow-guard is active at $(Split-Path $skillsPrefix -Parent)/plugins/flow-guard"
+        if (-not $r.Out.Contains($pluginOk)) { fail "doctor A: no ok line for the plugin: $($r.Out)" }
         if ($r.Out.Contains('FAIL')) { fail "doctor A: unexpected FAIL: $($r.Out)" }
+        if (-not $r.Out.Contains('ok: agent ask is a primary agent')) { fail "doctor A: no ok line for ask: $($r.Out)" }
+        if (-not $r.Out.Contains('ok: built-in plan agent is off')) { fail "doctor A: no ok line for the plan agent: $($r.Out)" }
         # The profiles checked are the installed ones, not the repository copies.
         $logged = @(Get-Content -LiteralPath (Join-Path $fx 'configs.log'))
         if ($logged.Count -eq 0) { fail 'doctor A: the stub saw no OPENCODE_CONFIG' }
@@ -473,6 +565,25 @@ esac
         foreach ($c in $logged) {
             if (-not $c.StartsWith($profilesDir + [IO.Path]::DirectorySeparatorChar)) { fail "doctor A: profile checked from $c, not the config root" }
         }
+
+        # N: OpenCode 2.4.1 answers a one-shot model.default with null data; a profile server answers once its plugins load.
+        Make-Fixtures $fx $skillsPrefix
+        [IO.File]::WriteAllText((Join-Path $fx 'version'), "opencode v2.4.1`n")
+        foreach ($f in Get-ChildItem -LiteralPath (Join-Path $PORT 'profiles') -Filter '*.json') {
+            [IO.File]::WriteAllText((Join-Path $fx "model-$($f.BaseName).json"), '{"location": {"directory": "/tmp"}, "data": null}')
+        }
+        $r = Run-Doctor
+        if ($r.Code -ne 0) { fail "doctor N failed on 2.4.1 fixtures: $($r.Out)" }
+        if (-not $r.Out.Contains('ok: profile claude-agent: main model claude-agent/opus')) { fail "doctor N: no main model ok line on 2.4.1: $($r.Out)" }
+        if ($r.Out.Contains('FAIL')) { fail "doctor N: unexpected FAIL: $($r.Out)" }
+
+        # O: when no server answers with the model either, the check is skipped with the version, never failed.
+        [IO.File]::WriteAllText((Join-Path $fx 'served-model-claude-agent.json'), '{"data": null}')
+        $r = Run-Doctor
+        if ($r.Code -ne 0) { fail "doctor O failed with an unreadable main model: $($r.Out)" }
+        if (-not $r.Out.Contains('SKIP: profile claude-agent: main model (not readable on OpenCode v2.4.1)')) { fail "doctor O: no not-readable SKIP: $($r.Out)" }
+        if ($r.Out.Contains('FAIL')) { fail "doctor O: unexpected FAIL: $($r.Out)" }
+        Make-Fixtures $fx $skillsPrefix
 
         # B: a missing agent.
         Edit-Json (Join-Path $fx 'agents-base.json') { param($d) , @($d | Where-Object { $_['id'] -ne 'flow-planner' }) }
@@ -486,6 +597,9 @@ esac
         if ($r.Code -ne 0) { fail "doctor G: failed on good fixtures: $($r.Out)" }
         if (-not $r.Out.Contains('ok: profile claude-agent: build -> claude-agent/opus#medium')) { fail "doctor G: no build mapping line with its effort: $($r.Out)" }
         if (-not $r.Out.Contains('ok: profile claude-agent: flow-planner -> claude-agent/opus#high')) { fail "doctor G: no flow-planner line with its effort: $($r.Out)" }
+        if (-not $r.Out.Contains('ok: profile claude-agent: ask -> claude-agent/opus#medium')) { fail "doctor G: no ask mapping line with the build effort: $($r.Out)" }
+        if (-not $r.Out.Contains('ok: profile commandcode: ask -> commandcode/deepseek/deepseek-v4.1-flash#high')) { fail "doctor G: no commandcode ask line: $($r.Out)" }
+        if ($r.Out.Contains('profile opencode: ask')) { fail "doctor G: the opencode profile maps no build, so ask is not checked: $($r.Out)" }
         Edit-Json (Join-Path $fx 'agents-claude-agent.json') {
             param($d)
             foreach ($row in $d) { if ($row['id'] -eq 'flow-planner') { $row['model']['variant'] = 'low' } }
@@ -494,6 +608,27 @@ esac
         $r = Run-Doctor
         if ($r.Code -eq 0) { fail 'doctor G exited 0 with a wrong effort' }
         if (-not $r.Out.Contains('FAIL: profile claude-agent: flow-planner resolved to claude-agent/opus#low, expected claude-agent/opus#high')) { fail "doctor G: missing the effort FAIL: $($r.Out)" }
+
+        # L: ask resolves to another effort than build.
+        Make-Fixtures $fx $skillsPrefix
+        Edit-Json (Join-Path $fx 'agents-claude-agent.json') {
+            param($d)
+            foreach ($row in $d) { if ($row['id'] -eq 'ask') { $row['model']['variant'] = 'high' } }
+            , $d
+        }
+        $r = Run-Doctor
+        if ($r.Code -eq 0) { fail 'doctor L exited 0 with ask unlike build' }
+        if (-not $r.Out.Contains('FAIL: profile claude-agent: ask resolved to claude-agent/opus#high, expected claude-agent/opus#medium')) { fail "doctor L: missing the ask FAIL: $($r.Out)" }
+
+        # M: the built-in plan agent is still listed, in the base config and under a profile.
+        foreach ($b in 'base', 'claude-agent') {
+            Make-Fixtures $fx $skillsPrefix
+            Edit-Json (Join-Path $fx "agents-$b.json") { param($d) , @(@($d) + @([ordered]@{ id = 'plan'; mode = 'primary'; permissions = @() })) }
+            $r = Run-Doctor
+            if ($r.Code -eq 0) { fail "doctor M ($b) exited 0 with a plan agent" }
+            $label = $b -eq 'base' ? '' : "profile ${b}: "
+            if (-not $r.Out.Contains("FAIL: ${label}built-in plan agent is still listed")) { fail "doctor M ($b): missing the plan FAIL: $($r.Out)" }
+        }
 
         # C: a skill loaded from outside the config root.
         Make-Fixtures $fx $skillsPrefix
@@ -524,6 +659,39 @@ esac
         # Case F (a checker that prints nothing) has no counterpart here: the checkers are in-process
         # functions, so there is no interpreter to stub; the empty-output rule lives in Invoke-Check.
 
+        # H: flow-guard is not in the plugin list.
+        Make-Fixtures $fx $skillsPrefix
+        Edit-Json (Join-Path $fx 'plugins.json') { param($d) $d['data'] = @($d['data'] | Where-Object { $_['id'] -ne 'flow-guard' }); $d }
+        $r = Run-Doctor
+        if ($r.Code -eq 0) { fail "doctor H exited 0 without the plugin: $($r.Out)" }
+        if (-not $r.Out.Contains('FAIL: plugin flow-guard is not loaded')) { fail "doctor H: missing the not-loaded FAIL: $($r.Out)" }
+        # I: the plugin failed to load.
+        Make-Fixtures $fx $skillsPrefix
+        Edit-Json (Join-Path $fx 'plugins.json') {
+            param($d)
+            foreach ($p in $d['data']) { if ($p['id'] -eq 'flow-guard') { $p['state'] = [ordered]@{ status = 'failed'; error = 'boom' } } }
+            $d
+        }
+        $r = Run-Doctor
+        if ($r.Code -eq 0) { fail "doctor I exited 0 with a failed plugin: $($r.Out)" }
+        if (-not $r.Out.Contains('FAIL: plugin flow-guard failed to load: boom')) { fail "doctor I: missing the failed-load FAIL: $($r.Out)" }
+        # J: the plugin loaded from somewhere else.
+        Make-Fixtures $fx $skillsPrefix
+        Edit-Json (Join-Path $fx 'plugins.json') {
+            param($d)
+            foreach ($p in $d['data']) { if ($p['id'] -eq 'flow-guard') { $p['source']['path'] = '/elsewhere/flow-guard' } }
+            $d
+        }
+        $r = Run-Doctor
+        if ($r.Code -eq 0) { fail "doctor J exited 0 with a foreign plugin path: $($r.Out)" }
+        if (-not $r.Out.Contains('FAIL: plugin flow-guard loaded from /elsewhere/flow-guard')) { fail "doctor J: missing the loaded-from FAIL: $($r.Out)" }
+        # K: a plugin list with an unexpected shape crashes the checker, which is a FAIL.
+        Make-Fixtures $fx $skillsPrefix
+        [IO.File]::WriteAllText((Join-Path $fx 'plugins.json'), "{`"data`": {}}`n")
+        $r = Run-Doctor
+        if ($r.Code -eq 0) { fail "doctor K exited 0 although Check-Plugin crashed: $($r.Out)" }
+        if (-not $r.Out.Contains('FAIL: checker Check-Plugin exited ')) { fail "doctor K: no 'checker Check-Plugin exited' line: $($r.Out)" }
+
         # In-process doctor leaves the caller's OPENCODE_CONFIG and OPENCODE_PASSWORD as they were.
         $dw = Join-Path $TMP 'doctor-inproc.ps1'
         [IO.File]::WriteAllText($dw, "`$env:OPENCODE_CONFIG='before-cfg'; `$env:OPENCODE_PASSWORD='before-pw'; & '$FLOW' doctor | Out-Null; [Console]::Out.WriteLine(""CFG=`$env:OPENCODE_CONFIG""); [Console]::Out.WriteLine(""PW=`$env:OPENCODE_PASSWORD"")`n")
@@ -536,7 +704,7 @@ esac
     $to = New-ScratchHome 'old-root'
     $new = Join-Path $to 'flow-skills'
     $old = Join-Path $to 'omp-stack'
-    foreach ($d in 'bin', 'skills', 'agents', 'profiles') { New-Item -ItemType Directory -Force -Path (Join-Path $new "opencode/$d") | Out-Null }
+    foreach ($d in 'bin', 'skills', 'agents', 'profiles', 'plugins/flow-guard') { New-Item -ItemType Directory -Force -Path (Join-Path $new "opencode/$d") | Out-Null }
     Copy-Item -LiteralPath $FLOW -Destination (Join-Path $new 'opencode/bin/flow-opencode.ps1')
     $newFlow = Join-Path $new 'opencode/bin/flow-opencode.ps1'
     foreach ($name in 'AGENTS.md', 'opencode.json') { New-Item -ItemType File -Force -Path (Join-Path $new "opencode/$name") | Out-Null }
@@ -549,8 +717,8 @@ esac
     }
     $r = Invoke-Flow $ho @() @('install') @{} $newFlow
     if ($r.Code -ne 0) { fail "installer refused links into the previous checkout name: $($r.Out)" }
-    if ((Count-Lines $r.Out '^linked ') -ne 5) { fail "previous-name relink: expected five linked lines, got: $($r.Out)" }
-    foreach ($name in $FIVE) {
+    if ((Count-Lines $r.Out '^linked ') -ne 6) { fail "previous-name relink: expected six linked lines, got: $($r.Out)" }
+    foreach ($name in $SIX) {
         if (-not (Same (Final (Join-Path $cfgo $name)) (Join-Path $new "opencode/$name"))) { fail "$name not relinked from the previous checkout name" }
     }
     $r = Invoke-Flow $ho @() @('verify') @{} $newFlow
@@ -602,6 +770,7 @@ esac
     $r = Invoke-Flow $hs @() @('install') @{} (Join-Path $binDir 'flow-opencode.ps1')
     if ($r.Code -ne 0) { fail "install through a symlinked launcher failed: $($r.Out)" }
     if (-not (Same (Final (Join-Path (Cfg $hs) 'AGENTS.md')) (Join-Path $PORT 'AGENTS.md'))) { fail 'symlinked launcher linked the wrong port' }
+    if (-not (Same (Final (Join-Path (Cfg $hs) $PLUGIN_REL)) (Join-Path $PORT $PLUGIN_REL))) { fail 'symlinked launcher linked the wrong plugin' }
 
     # 13. Windows only (plan D14): the symlink-permission stop and the Developer Mode path, with the privilege removed from the token.
     $elevated = $false

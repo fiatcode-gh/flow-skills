@@ -56,7 +56,8 @@ omp/                          OMP: the canonical doctrine and its setup
   bin/flow-sessions           list and render OMP sessions for field-trial audits
 claude-code/                  Claude Code plugin: skills, agents, session-start hook
 opencode/                     OpenCode port: AGENTS.md, skills, agents, base config,
-                              profiles/<provider>.json, bin/flow-opencode, bin/flow-opencode.ps1
+                              plugins/flow-guard, profiles/<provider>.json,
+                              bin/flow-opencode, bin/flow-opencode.ps1
 open-webui/                   system prompt and design/planning/review/handoff prompts
 .claude-plugin/marketplace.json   makes this repository a Claude Code marketplace
 VERSION  CHANGELOG.md         the repository's one SemVer version and its release notes
@@ -113,7 +114,7 @@ opencode reload
 ./opencode/bin/flow-opencode doctor
 ```
 
-The installer links `AGENTS.md`, `skills/`, `agents/`, `profiles/` and the base `opencode.json` into `~/.config/opencode/`. The base config only adds approval prompts for publication commands (`git push`, `gh pr create`, ...).
+The installer links `AGENTS.md`, `skills/`, `agents/`, `profiles/` and the base `opencode.json` into `~/.config/opencode/`, and `plugins/flow-guard/` into `~/.config/opencode/plugins/`. The `flow-guard` plugin enforces the Flow gates (it records approvals through `flow_gate` and refuses a gated subagent without them) and refuses tool calls that would print a secret file; `doctor` reports whether it is active. It needs OpenCode 2.2.5 or later; what it does not catch is listed in `docs/OPENCODE-COMPATIBILITY.md`. Beside the plugin, the base config adds approval prompts for publication commands (`git push`, `gh pr create`, ...).
 
 Models are chosen per provider. Each `opencode/profiles/<provider>.json` maps every Flow agent to a model and an effort, following the OMP profile of the same role; add a provider by adding one file. Launch with a profile:
 

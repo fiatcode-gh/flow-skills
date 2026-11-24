@@ -1,11 +1,13 @@
 #!/usr/bin/env sh
 # Exercises the flow_digest / flow_approve / flow_check functions the Claude
-# Code and OpenCode ports define in their instructions, extracted from each file.
+# Code port defines in its instructions, extracted from that file. The OpenCode
+# port records through the flow_gate plugin tool instead;
+# tests/opencode-flow-guard.test.mjs R1 proves the two read each other's lines.
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 
-for doc in claude-code/hooks/flow-context.md opencode/AGENTS.md; do
+for doc in claude-code/hooks/flow-context.md; do
   tmp=$(mktemp -d)
   sed -n '/^flow_digest() {/,/^}/p;/^flow_approve() {/,/^}/p;/^flow_check() {/,/^}/p' "$ROOT/$doc" >"$tmp/functions.sh"
   (

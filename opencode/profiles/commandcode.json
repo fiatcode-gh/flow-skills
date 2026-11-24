@@ -2,6 +2,10 @@
   "$schema": "https://opencode.ai/config.json",
   "model": "commandcode/deepseek/deepseek-v4.1-flash",
   "agent": {
+    "ask": {
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
+      "variant": "high"
+    },
     "build": {
       "model": "commandcode/deepseek/deepseek-v4.1-flash",
       "variant": "high"
@@ -27,6 +31,10 @@
       "variant": "high"
     },
     "flow-craft-reviewer": {
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
+      "variant": "high"
+    },
+    "flow-evidence-verifier": {
       "model": "commandcode/deepseek/deepseek-v4.1-flash",
       "variant": "high"
     },

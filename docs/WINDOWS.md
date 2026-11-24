@@ -104,7 +104,7 @@ To do on a real Windows machine:
 1. Turn on Developer Mode. Install Git for Windows, PowerShell 7, OMP, OpenCode and Claude Code.
 2. Clone the repository and run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 3. Run `.\omp\bin\flow-omp.ps1 install`, `verify` and `doctor`. Log in with `omp --profile anthropic` and run one Flow turn that uses `mktemp -d` and `sha256sum` in the bash tool.
-4. Run `.\opencode\bin\flow-opencode.ps1 install`, `opencode reload`, `doctor`, then `run claude-agent`. Connect with `/connect` and ask it to run `uname -s`; expect `MINGW64_NT...`.
+4. Run `.\opencode\bin\flow-opencode.ps1 install`, `opencode reload`, `doctor` (it also reports the plugin: `ok: plugin flow-guard is active at …`), then `run claude-agent`. Connect with `/connect` and ask it to run `uname -s`; expect `MINGW64_NT...`.
 5. Run `claude plugin marketplace add fiatcode-gh/flow-skills` and `claude plugin install fiatcode@flow-skills`. Start a session and confirm the Flow core prints and `flow_approve` / `flow_check` work in its Bash tool.
 6. Put the launchers on `PATH` with the recipe above, add the `oc` function to `$PROFILE`, and run `oc claude-agent`.
 

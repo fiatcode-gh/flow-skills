@@ -1,0 +1,393 @@
+{
+	"secretRead": [
+		{ "path": ".env", "refuse": true, "name": ".env" },
+		{ "path": "app/.env.local", "refuse": true, "name": ".env.local" },
+		{ "path": "config/credentials.json", "refuse": true, "name": "credentials.json" },
+		{ "path": "sandbox-credentials.md", "refuse": true, "name": "sandbox-credentials.md" },
+		{ "path": "keys/id_rsa", "refuse": true, "name": "id_rsa" },
+		{ "path": "certs/server.pem", "refuse": true, "name": "server.pem" },
+		{ "path": "certs/server.key", "refuse": true, "name": "server.key" },
+		{ "path": "mcp.json", "refuse": true, "name": "mcp.json" },
+		{ "path": "app/.mcp.json", "refuse": true, "name": ".mcp.json" },
+		{ "path": "~/.config/opencode/service.json", "refuse": true, "name": "service.json" },
+		{ "path": "~/.aws/credentials", "refuse": true, "name": "credentials" },
+		{ "path": "./config/../.env", "refuse": true, "name": ".env" },
+		{ "path": "sites/app.example.com/.env", "refuse": true, "name": ".env" },
+		{ "path": ".env.example", "refuse": false },
+		{ "path": "app/.env.sample", "refuse": false },
+		{ "path": "secrets/credentials.sample.yml", "refuse": false },
+		{ "path": "src/auth/credentials.ts", "refuse": false },
+		{ "path": "keys/id_rsa.pub", "refuse": false },
+		{ "path": "certs/fullchain.pem", "refuse": false },
+		{ "path": "omp/mcp.example.json", "refuse": false },
+		{ "path": "service.json", "refuse": false },
+		{ "path": "README.md", "refuse": false }
+	],
+	"secretGrep": [
+		{ "dir": "src", "glob": ".env*", "refuse": true },
+		{ "dir": "config/.env", "glob": null, "refuse": true, "name": ".env" },
+		{ "dir": ".", "glob": "*credentials*.json", "refuse": true },
+		{ "dir": "keys", "glob": "id_rsa*", "refuse": true },
+		{ "dir": "certs", "glob": "*.pem", "refuse": true },
+		{ "dir": "src", "glob": "*.ts", "refuse": false },
+		{ "dir": ".", "glob": ".env.example", "refuse": false },
+		{ "dir": "docs", "glob": null, "refuse": false }
+	],
+	"secretShell": [
+		{ "command": "cat .env", "refuse": true, "name": ".env" },
+		{ "command": "grep -r TOKEN .env", "refuse": true, "name": ".env" },
+		{ "command": ". ./.env", "refuse": true, "name": ".env" },
+		{ "command": "source .env && env", "refuse": true, "name": ".env" },
+		{ "command": "head -n 5 config/credentials.yml", "refuse": true, "name": "credentials.yml" },
+		{ "command": "python -c \"print(open('.env').read())\"", "refuse": true, "name": ".env" },
+		{ "command": "git diff -- .env", "refuse": true, "name": ".env" },
+		{ "command": "cat ~/.config/opencode/service.json", "refuse": true, "name": "service.json" },
+		{ "command": "cat < .env", "refuse": true, "name": ".env" },
+		{ "command": "base64 keys/id_rsa", "refuse": true, "name": "id_rsa" },
+		{ "command": "jq . mcp.json", "refuse": true, "name": "mcp.json" },
+		{ "command": "sed -n 1p app/.env.local", "refuse": true, "name": ".env.local" },
+		{ "command": "cat .env.example", "refuse": false },
+		{ "command": "grep .env README.md", "refuse": false },
+		{ "command": "( set -a; . ./.env >/dev/null 2>&1; set +a; exec ./run )", "refuse": false },
+		{ "command": "docker run --env-file .env app", "refuse": false },
+		{ "command": "echo hi > .env", "refuse": false },
+		{ "command": "ls -la .env", "refuse": false },
+		{ "command": "cp .env .env.bak", "refuse": false },
+		{ "command": "cat keys/id_rsa.pub", "refuse": false },
+		{ "command": "test -f .env && echo yes", "refuse": false },
+		{ "command": "cat README.md", "refuse": false }
+	],
+	"scenarios": [
+		{
+			"name": "gate/planner-missing",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n" } },
+				{ "dispatch": { "role": "planner", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n\nPlan it." }, "expect": "deny", "reason": "no recorded contract approval" }
+			]
+		},
+		{
+			"name": "gate/planner-current",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }], "scope": "demo" },
+				{ "dispatch": { "role": "planner", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n\nPlan it." }, "expect": "allow" },
+				{ "dispatch": { "role": "planner", "brief": "Flow gate:\n- Scope: `demo`\n- Contract: `.flow/contracts/demo.md`\n\nPlan it." }, "expect": "allow" },
+				{ "dispatch": { "role": "planner", "brief": "Flow gate:\n- Scope: \"demo\"\n- Contract: '.flow/contracts/demo.md'\n\nPlan it." }, "expect": "allow" },
+				{ "dispatch": { "role": "planner", "brief": "flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n\nPlan it." }, "expect": "allow" },
+				{ "dispatch": { "role": "planner", "brief": "Flow gate:\r\n- Scope: demo\r\n- Contract: .flow/contracts/demo.md\r\n\r\nPlan it.\r\n" }, "expect": "allow" }
+			]
+		},
+		{
+			"name": "gate/planner-stale",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }], "scope": "demo" },
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nB\n" } },
+				{ "dispatch": { "role": "planner", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n\nPlan it." }, "expect": "deny", "reason": "contract artifact changed after approval" }
+			]
+		},
+		{
+			"name": "gate/planner-wrong-path",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }], "scope": "demo" },
+				{ "write": { ".flow/contracts/other.md": "# Contract\nA\n" } },
+				{ "dispatch": { "role": "planner", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/other.md\n\nPlan it." }, "expect": "deny", "reason": "contract path is not the approved artifact" }
+			]
+		},
+		{
+			"name": "gate/malformed",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }], "scope": "demo" },
+				{ "dispatch": { "role": "planner", "brief": "Plan the demo contract." }, "expect": "deny", "reason": "must include Flow gate with Scope and Contract" },
+				{ "dispatch": { "role": "planner", "brief": "Flow gate:\n- Scope: demo\n\nPlan it." }, "expect": "deny", "reason": "must include Flow gate with Scope and Contract" },
+				{ "dispatch": { "role": "planner", "brief": "Flow gate:\n- Scope: demo\nThe contract follows.\n- Contract: .flow/contracts/demo.md\n\nPlan it." }, "expect": "deny", "reason": "must include Flow gate with Scope and Contract" }
+			]
+		},
+		{
+			"name": "gate/later-bullet-not-read",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }], "scope": "demo" },
+				{ "dispatch": { "role": "planner", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\nNotes for later:\n- Contract: .flow/contracts/other.md\n\nPlan it." }, "expect": "allow" }
+			]
+		},
+		{
+			"name": "gate/writer-plan",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n", ".flow/plans/demo/PLAN.md": "# Plan\ntask\n## In-scope amendments\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }, { "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "dispatch": { "role": "executor", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n- Plan: .flow/plans/demo/PLAN.md\n\nBuild it." }, "expect": "allow" },
+				{ "dispatch": { "role": "implementer", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n- Plan: .flow/plans/demo/PLAN.md\n\nBuild it." }, "expect": "allow" },
+				{ "dispatch": { "role": "executor", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n\nBuild it." }, "expect": "deny", "reason": "must include Flow gate with Scope, Contract, and Plan" },
+				{ "write": { ".flow/plans/demo/PLAN.md": "# Plan\ntask changed\n## In-scope amendments\n" } },
+				{ "dispatch": { "role": "executor", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n- Plan: .flow/plans/demo/PLAN.md\n\nBuild it." }, "expect": "deny", "reason": "plan artifact changed after approval" }
+			]
+		},
+		{
+			"name": "gate/plan-none",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n", ".flow/contracts/other.md": "# Contract\nO\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }, { "kind": "implementation", "path": ".flow/contracts/demo.md" }], "scope": "demo" },
+				{ "dispatch": { "role": "implementer", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n- Plan: NONE\n\nBuild it." }, "expect": "allow" },
+				{ "dispatch": { "role": "implementer", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n- Plan: none\n\nBuild it." }, "expect": "allow" },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/other.md" }], "scope": "other" },
+				{ "dispatch": { "role": "implementer", "brief": "Flow gate:\n- Scope: other\n- Contract: .flow/contracts/other.md\n- Plan: NONE\n\nBuild it." }, "expect": "deny", "reason": "no recorded implementation approval" }
+			]
+		},
+		{
+			"name": "gate/mechanical",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n", ".flow/plans/demo/PLAN.md": "# Plan\ntask\n", ".flow/contracts/other.md": "# Contract\nO\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }, { "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/other.md" }], "scope": "other" },
+				{ "dispatch": { "role": "mechanical", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n- Plan: .flow/plans/demo/PLAN.md\n\nRename it." }, "expect": "allow" },
+				{ "dispatch": { "role": "mechanical", "brief": "Flow gate:\n- Scope: other\n- Contract: .flow/contracts/other.md\n- Plan: .flow/plans/other/PLAN.md\n\nRename it." }, "expect": "deny", "reason": "no recorded plan approval" },
+				{ "dispatch": { "role": "mechanical", "brief": "Rename the helper." }, "expect": "allow" },
+				{ "dispatch": { "role": "reader", "brief": "Find the helper." }, "expect": "allow" }
+			]
+		},
+		{
+			"name": "gate/contract-reapproval-clears",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n", ".flow/plans/demo/PLAN.md": "# Plan\ntask\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }, { "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nB\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }], "scope": "demo" },
+				{ "status": "demo", "expect": { "contract": "current", "plan": "missing" } },
+				{ "dispatch": { "role": "executor", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n- Plan: .flow/plans/demo/PLAN.md\n\nBuild it." }, "expect": "deny", "reason": "no recorded plan approval" }
+			]
+		},
+		{
+			"name": "gate/same-call-keeps-plan",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n", ".flow/plans/demo/PLAN.md": "# Plan\ntask\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }, { "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nB\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }, { "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "status": "demo", "expect": { "contract": "current", "plan": "current" } },
+				{ "dispatch": { "role": "executor", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n- Plan: .flow/plans/demo/PLAN.md\n\nBuild it." }, "expect": "allow" }
+			]
+		},
+		{
+			"name": "digest/amend-under-heading",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n", ".flow/plans/demo/PLAN.md": "# Plan\ntask\n## In-scope amendments\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }, { "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "write": { ".flow/plans/demo/PLAN.md": "# Plan\ntask\n## In-scope amendments\n- task 03: fix\n" } },
+				{ "status": "demo", "expect": { "plan": "current" } },
+				{ "dispatch": { "role": "executor", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n- Plan: .flow/plans/demo/PLAN.md\n\nBuild it." }, "expect": "allow" }
+			]
+		},
+		{
+			"name": "digest/edit-above-heading",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n", ".flow/plans/demo/PLAN.md": "# Plan\ntask\n## In-scope amendments\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }, { "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "write": { ".flow/plans/demo/PLAN.md": "# Plan\ntask changed\n## In-scope amendments\n" } },
+				{ "status": "demo", "expect": { "plan": "stale" } },
+				{ "dispatch": { "role": "executor", "brief": "Flow gate:\n- Scope: demo\n- Contract: .flow/contracts/demo.md\n- Plan: .flow/plans/demo/PLAN.md\n\nBuild it." }, "expect": "deny", "reason": "plan artifact changed after approval" }
+			]
+		},
+		{
+			"name": "digest/heading-added-later",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n", ".flow/plans/demo/PLAN.md": "# Plan\ntask\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }, { "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "write": { ".flow/plans/demo/PLAN.md": "# Plan\ntask\n## In-scope amendments\n- task 03: fix\n" } },
+				{ "status": "demo", "expect": { "plan": "stale" } }
+			]
+		},
+		{
+			"name": "digest/earlier-heading-in-fence",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n", ".flow/plans/demo/PLAN.md": "# Plan\n```\n## In-scope amendments\n```\ndecision: A\n## In-scope amendments\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }, { "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "write": { ".flow/plans/demo/PLAN.md": "# Plan\n```\n## In-scope amendments\n```\ndecision: B\n## In-scope amendments\n" } },
+				{ "status": "demo", "expect": { "plan": "stale" } },
+				{ "approve": [{ "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "write": { ".flow/plans/demo/PLAN.md": "# Plan\n```\n## In-scope amendments\n```\ndecision: B\n## In-scope amendments\n- task 03: fix\n" } },
+				{ "status": "demo", "expect": { "plan": "current" } }
+			]
+		},
+		{
+			"name": "digest/second-heading",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n", ".flow/plans/demo/PLAN.md": "# Plan\ntask\n## In-scope amendments\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }, { "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "write": { ".flow/plans/demo/PLAN.md": "# Plan\ntask\n## In-scope amendments\n## In-scope amendments\n- task 03: fix\n" } },
+				{ "status": "demo", "expect": { "plan": "stale" } }
+			]
+		},
+		{
+			"name": "digest/crlf-heading",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n", ".flow/plans/demo/PLAN.md": "# Plan\r\ntask\r\n## In-scope amendments\r\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }, { "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "write": { ".flow/plans/demo/PLAN.md": "# Plan\r\ntask\r\n## In-scope amendments\r\n- task 03: fix\r\n" } },
+				{ "status": "demo", "expect": { "plan": "stale" } }
+			]
+		},
+		{
+			"name": "digest/contract-ignores-heading",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n## In-scope amendments\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }], "scope": "demo" },
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n## In-scope amendments\n- fix\n" } },
+				{ "status": "demo", "expect": { "contract": "stale" } }
+			]
+		},
+		{
+			"name": "tree/verifier-no-acceptance",
+			"unborn": false,
+			"steps": [
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "deny", "reason": "no acceptance/closure recorded" },
+				{ "status": "demo", "expect": { "contract": "missing", "plan": "missing", "implementation": "missing", "acceptance": "missing" } }
+			]
+		},
+		{
+			"name": "tree/accept-current",
+			"unborn": false,
+			"steps": [
+				{ "accept": ["demo"] },
+				{ "status": "demo", "expect": { "acceptance": "current" } },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "allow" }
+			]
+		},
+		{
+			"name": "tree/commit-keeps",
+			"unborn": false,
+			"steps": [
+				{ "write": { "app.txt": "v2\n" } },
+				{ "accept": ["demo"] },
+				{ "git": ["add", "-A"] },
+				{ "git": ["commit", "-qm", "next"] },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "allow" },
+				{ "status": "demo", "expect": { "acceptance": "current" } }
+			]
+		},
+		{
+			"name": "tree/edit-stales",
+			"unborn": false,
+			"steps": [
+				{ "accept": ["demo"] },
+				{ "write": { "app.txt": "v3\n" } },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "deny", "reason": "repository state changed after acceptance" },
+				{ "status": "demo", "expect": { "acceptance": "stale" } }
+			]
+		},
+		{
+			"name": "tree/untracked-stales",
+			"unborn": false,
+			"steps": [
+				{ "accept": ["demo"] },
+				{ "write": { "new.txt": "new\n" } },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "deny", "reason": "repository state changed after acceptance" }
+			]
+		},
+		{
+			"name": "tree/ignored-keeps",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".gitignore": "ignored/\n" } },
+				{ "git": ["add", "-A"] },
+				{ "git": ["commit", "-qm", "ignore"] },
+				{ "accept": ["demo"] },
+				{ "write": { "ignored/x": "x\n" } },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "allow" }
+			]
+		},
+		{
+			"name": "tree/flow-dir-keeps",
+			"unborn": false,
+			"steps": [
+				{ "accept": ["demo"] },
+				{ "write": { ".flow/notes.md": "notes\n" } },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "allow" }
+			]
+		},
+		{
+			"name": "tree/staged-then-reverted",
+			"unborn": false,
+			"steps": [
+				{ "write": { "app.txt": "v2\n" } },
+				{ "git": ["add", "app.txt"] },
+				{ "write": { "app.txt": "v1\n" } },
+				{ "accept": ["demo"] },
+				{ "git": ["reset", "-q", "app.txt"] },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "deny", "reason": "repository state changed after acceptance" }
+			]
+		},
+		{
+			"name": "tree/move-keeps",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }], "scope": "demo" },
+				{ "accept": ["demo"] },
+				{ "move": true },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "allow" },
+				{ "status": "demo", "expect": { "contract": "current", "acceptance": "current" } }
+			]
+		},
+		{
+			"name": "tree/unborn",
+			"unborn": true,
+			"steps": [
+				{ "write": { "app.txt": "v1\n" } },
+				{ "accept": ["demo"] },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "allow" },
+				{ "write": { "app.txt": "v2\n" } },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "deny", "reason": "repository state changed after acceptance" }
+			]
+		},
+		{
+			"name": "tree/capsule-missing",
+			"unborn": false,
+			"steps": [
+				{ "accept": ["demo"] },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nVerify it." }, "expect": "deny", "reason": "Flow evidence-capsule preflight failed" },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n\nVerify it." }, "expect": "deny", "reason": "restore obligation:" }
+			]
+		},
+		{
+			"name": "tree/verifier-no-scope",
+			"unborn": false,
+			"steps": [
+				{ "accept": ["demo"] },
+				{ "dispatch": { "role": "verifier", "brief": "Evidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "deny", "reason": "must include Flow gate with Scope" }
+			]
+		},
+		{
+			"name": "tree/plan-approval-clears-acceptance",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".flow/contracts/demo.md": "# Contract\nA\n", ".flow/plans/demo/PLAN.md": "# Plan\ntask\n" } },
+				{ "approve": [{ "kind": "contract", "path": ".flow/contracts/demo.md" }], "scope": "demo" },
+				{ "accept": ["demo"] },
+				{ "approve": [{ "kind": "plan", "path": ".flow/plans/demo/PLAN.md" }], "scope": "demo" },
+				{ "status": "demo", "expect": { "acceptance": "missing" } },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "deny", "reason": "no acceptance/closure recorded" }
+			]
+		}
+	]
+}

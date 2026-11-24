@@ -105,7 +105,8 @@ verifier_fm,verifier_body=frontmatter(verifier_path)
 if verifier_fm.get('model') != '@vision': err('flow-evidence-verifier must use @vision')
 # The capsule manifest labels are what flow-evidence-guard and Main parse; the
 # receipt labels are what Main reads back.
-for required in ['Evidence capsule:\n- ID:', '\n- Owns:', '\n- Independent split check:', '\n- Excludes:', '\n- Restore obligation:', '`STATUS`: EVIDENCE/BLOCKED', '`RESTORE`', '`before` identity/hash', '`after` identity/hash', 'MATCH/MISMATCH/UNKNOWN']:
+VERIFIER_MARKERS=['Evidence capsule:\n- ID:', '\n- Owns:', '\n- Independent split check:', '\n- Excludes:', '\n- Restore obligation:', '`STATUS`: EVIDENCE/BLOCKED', '`RESTORE`', '`before` identity/hash', '`after` identity/hash', 'MATCH/MISMATCH/UNKNOWN']
+for required in VERIFIER_MARKERS:
     if required not in verifier_body: err(f'flow-evidence-verifier missing machine-read marker: {required!r}')
 
 # The guards' behavior, including passing native hub waits through untouched,
@@ -669,7 +670,7 @@ if (port/'hooks/flow-context.md').as_posix() not in core: err('claude-code/hooks
 
 # OpenCode port: opencode/, installed under ~/.config/opencode by opencode/bin/flow-opencode.
 oport=ROOT/'opencode'
-OPORT_AGENTS={'flow-acceptance-reviewer','flow-audit-code-health','flow-audit-docs','flow-audit-tests','flow-cor-reviewer','flow-craft-reviewer','flow-implementer','flow-plan-executor','flow-planner','flow-ttc-reviewer'}
+OPORT_AGENTS={'flow-acceptance-reviewer','flow-audit-code-health','flow-audit-docs','flow-audit-tests','flow-cor-reviewer','flow-craft-reviewer','flow-evidence-verifier','flow-implementer','flow-plan-executor','flow-planner','flow-ttc-reviewer'}
 OPORT_READ_ONLY=OPORT_AGENTS-{'flow-implementer','flow-plan-executor','flow-planner'}
 OPORT_AUDIT={'flow-audit-code-health','flow-audit-docs','flow-audit-tests'}
 OPORT_MODEL_LEAK=re.compile(r'claude-agent/|opencode/[a-z0-9.-]*-free|big-pickle|nemotron|flint-40b')
@@ -678,7 +679,9 @@ oport_skills=list((oport/'skills').glob('*/SKILL.md'))
 oport_agents=list((oport/'agents').glob('*.md'))
 oport_docs=oport_skills+oport_agents+list((oport/'skills').glob('*/references/*.md'))+[oport/'AGENTS.md']
 if {p.parent.name for p in oport_skills}!=OPORT_SKILLS: err(f'opencode/skills: skill set mismatch: {sorted({p.parent.name for p in oport_skills}^OPORT_SKILLS)}')
-if {p.stem for p in oport_agents}!=OPORT_AGENTS: err(f'opencode/agents: agent set mismatch: {sorted({p.stem for p in oport_agents}^OPORT_AGENTS)}')
+# OpenCode's own agents: `ask` replaces the built-in `plan`, which `plan.md` turns off.
+OPORT_OWN={'ask','plan'}
+if {p.stem for p in oport_agents}!=OPORT_AGENTS|OPORT_OWN: err(f'opencode/agents: agent set mismatch: {sorted({p.stem for p in oport_agents}^(OPORT_AGENTS|OPORT_OWN))}')
 for p in oport_skills:
     fm,_=frontmatter(p)
     if not fm or fm.get('name')!=p.parent.name or not fm.get('description'): err(f'{rel(p)}: frontmatter needs name {p.parent.name} and a description')
@@ -693,16 +696,33 @@ oport_agents_md=oport/'AGENTS.md'
 if not oport_agents_md.exists(): err('opencode/AGENTS.md: missing')
 else:
     oport_ctx=oport_agents_md.read_text()
-    for marker in ['# Flow (flow-skills, OpenCode port)','## Approval record','flow_digest() {','flow_approve() {','flow_check() {','.flow/runtime/approvals.log','`subagent`','`skill`','`general`','`explore`','`flow-plan-executor`','`flow-implementer`','`flow-acceptance-reviewer`','## Harness: [[OpenCode]]','<!-- flow-exclude-guard -->',"printf '/.flow/\\n'",'## Safety','## Evidence','## Flow artifacts','`execute`']:
+    for marker in ['# Flow (flow-skills, OpenCode port)','## Approval record','.flow/runtime/approvals.log','`flow_gate`','`present`','`approve`','`accept`','`status`','`clear`','`flow-guard`','`flow-evidence-verifier`','`subagent`','`skill`','`general`','`explore`','`flow-plan-executor`','`flow-implementer`','`flow-acceptance-reviewer`','## Harness: [[OpenCode]]','<!-- flow-exclude-guard -->',"printf '/.flow/\\n'",'## Safety','## Evidence','## Flow artifacts','`execute`',"OpenCode's own agents (`build`, `ask`)"]:
         if marker not in oport_ctx: err(f'opencode/AGENTS.md missing marker: {marker!r}')
-    def approval_functions(text):
-        start=text.find('flow_digest() {'); end=text.find('\n}\n',text.find('flow_check() {'))
-        return text[start:end+3] if start>=0 and end>=0 else None
-    if approval_functions(oport_ctx)!=approval_functions((ROOT/'claude-code/hooks/flow-context.md').read_text()) or approval_functions(oport_ctx) is None:
-        err('opencode/AGENTS.md: flow_digest/flow_approve/flow_check bodies must equal claude-code/hooks/flow-context.md')
+# The OpenCode skills carry the same gate markers as their OMP sources; the
+# flow-guard plugin parses the brief blocks.
+OPORT_DOCTRINE_MARKERS={
+    'skills/flow-design/SKILL.md': ['`flow_gate`', '`kind=contract`', '`present`', '`approve`'],
+    'skills/flow-planning/SKILL.md': [next(m for m in PLANNING_MARKERS if m.startswith('Flow gate:')), '`flow_gate`', '`kind=plan`', '`flow-guard`'],
+    'skills/flow-execution/SKILL.md': [EXECUTION_MARKERS[i] for i in (0, 1, 2, 3, 5)],
+    'skills/flow-integrating/SKILL.md': ['flow_gate action=status', 'flow_gate action=clear'],
+    'agents/flow-evidence-verifier.md': VERIFIER_MARKERS,
+}
+for path,markers in OPORT_DOCTRINE_MARKERS.items():
+    text=(oport/path).read_text() if (oport/path).exists() else ''
+    for required in markers:
+        if required not in text: err(f'opencode/{path} missing machine-read marker or pointer target: {required!r}')
 for p in oport_agents:
-    fm,_=frontmatter(p)
+    fm,body=frontmatter(p)
     if not fm or fm.get('name')!=p.stem or not fm.get('description'): err(f'{rel(p)}: frontmatter needs name {p.stem} and a description')
+    # No body: an `ask` prompt would make its system prompt differ from `build`'s.
+    if p.stem in OPORT_OWN and body.strip(): err(f'{rel(p)}: must have no body')
+    if p.stem=='plan':
+        if fm.get('disable') is not True or set(fm)!={'name','description','disable'}: err(f'{rel(p)}: must only turn the built-in plan agent off: name, description and disable: true')
+        continue
+    if p.stem=='ask':
+        # `ask` keeps `build`'s tools (an `ask` rule keeps a tool listed, a `*` deny removes it); edits, shell commands and subagent dispatches (`task`, OpenCode's `subagent`) prompt.
+        if fm.get('mode')!='primary' or set(fm)!={'name','description','mode','permission'} or fm.get('permission')!={'edit':'ask','bash':'ask','task':'ask'}: err(f'{rel(p)}: must be a primary agent whose permission is exactly edit: ask, bash: ask and task: ask')
+        continue
     if fm.get('mode')!='subagent': err(f'{rel(p)}: mode must be subagent')
     if not set(fm)<={'name','description','mode','permission'}: err(f'{rel(p)}: unexpected frontmatter keys {sorted(set(fm)-{"name","description","mode","permission"})}')
     permission=fm.get('permission')
@@ -713,8 +733,10 @@ for p in oport_agents:
 for p in oport_docs:
     if not p.exists(): continue
     text=p.read_text()
-    for omp_only in ['flow_gate','skill://','`hub`','hub wait','@task','@execute','@slow','@smol','@plan','@vision','@review_aux','`sonic`','`scout`','ast_grep','gates.json','flow-evidence-verifier','.flow/evidence/','`todo`']:
+    for omp_only in ['skill://','`hub`','hub wait','@task','@execute','@slow','@smol','@plan','@vision','@review_aux','`sonic`','`scout`','ast_grep','gates.json','`todo`']:
         if omp_only in text: err(f'{rel(p)}: OMP-only mechanic in the OpenCode port: {omp_only}')
+    for retired in ['flow_approve','flow_check','flow_digest','ACCEPTANCE.md']:
+        if retired in text: err(f'{rel(p)}: retired approval mechanic in the OpenCode port: {retired}')
     if re.search(r'(?<![\w-])fiatcode:(?=\w)',text): err(f'{rel(p)}: Claude Code fiatcode: prefix in the OpenCode port')
     for claude_only in ['CLAUDE_PLUGIN_ROOT','SendMessage','general-purpose','isolation: "worktree"','TaskCreate','TodoWrite','mcp__github__','`Explore`','CLAUDE.md','model: opus','model: sonnet','model: haiku','model: inherit','weft_publish','WEFT_GRAPH_REPO']:
         if claude_only in text: err(f'{rel(p)}: Claude Code-only mechanic in the OpenCode port: {claude_only}')
@@ -807,7 +829,8 @@ for p in oport_profiles:
     if not isinstance(prof['model'],str) or not prof['model'].startswith(f'{p.stem}/'): err(f'{rel(p)}: model must be a string starting with {p.stem}/')
     mapping=prof['agent']
     # `build` is the primary agent: it carries Main's model and effort, which the top-level `model` cannot.
-    if not isinstance(mapping,dict) or set(mapping) not in (OPORT_AGENTS,OPORT_AGENTS|{'build'}): err(f'{rel(p)}: agent map must name the ten Flow agents, plus an optional build'); continue
+    # `ask` comes with it and equals it, so a Shift+Tab switch keeps the model and effort.
+    if not isinstance(mapping,dict) or set(mapping) not in (OPORT_AGENTS,OPORT_AGENTS|{'build','ask'}): err(f'{rel(p)}: agent map must name the eleven Flow agents, plus optional build and ask together'); continue
     rows={}
     for name,entry in mapping.items():
         if not (isinstance(entry,dict) and set(entry)<={'model','variant'} and isinstance(entry.get('model'),str) and entry['model'].startswith(f'{p.stem}/') and isinstance(entry.get('variant','x'),str)):
@@ -816,28 +839,73 @@ for p in oport_profiles:
         rows[name]=(entry['model'],entry.get('variant'))
     else:
         omp_profile=OPORT_OMP_PROFILE.get(p.stem)
-        unmapped=sorted(n for n in rows if n!='build' and n not in ROLE_OF)
+        if 'ask' in rows and rows['ask']!=rows['build']: err(f'{rel(p)}: ask {rows["ask"]} must equal build {rows["build"]}')
+        unmapped=sorted(n for n in rows if n not in ('build','ask') and n not in ROLE_OF)
         if unmapped: err(f'{rel(p)}: agents with no OMP role: {unmapped}'); continue
-        check_roles(rel(p),{n:v for n,v in rows.items() if n!='build'})
+        check_roles(rel(p),{n:v for n,v in rows.items() if n not in ('build','ask')})
         if not omp_profile:
             for name,(model,variant) in rows.items():
                 if variant is not None: err(f'{rel(p)}: {name} has a variant; the free {p.stem} profile has no effort')
             continue
         if 'build' not in rows: err(f'{rel(p)}: build is required: it carries Main model and effort')
         for name,(model,variant) in rows.items():
-            role='default' if name=='build' else ROLE_OF[name]
+            role='default' if name in ('build','ask') else ROLE_OF[name]
             if variant!=omp_effort(omp_profile,role): err(f'{rel(p)}: {name} variant {variant!r} differs from the OMP {omp_profile} profile effort {omp_effort(omp_profile,role)!r} for role {role}')
             if model!=port_model(omp_profile,p.stem,role): err(f'{rel(p)}: {name} model {model} differs from the OMP {omp_profile} profile model {port_model(omp_profile,p.stem,role)} for role {role}')
         if prof['model']!=port_model(omp_profile,p.stem,'default'): err(f'{rel(p)}: model differs from the OMP {omp_profile} default role')
 
+# OpenCode plugin: opencode/plugins/flow-guard/, linked to <config>/plugins/flow-guard and loaded by OpenCode 2.2.5.
+oplugin=oport/'plugins/flow-guard'
+oplugin_index=oplugin/'index.ts'
+if not oplugin_index.exists(): err('opencode/plugins/flow-guard/index.ts: missing')
+else:
+    _oindex=oplugin_index.read_text()
+    for marker in ['from "@opencode/plugin"','Plugin.define(','id: "flow-guard"','"./setup.ts"']:
+        if marker not in _oindex: err(f'opencode/plugins/flow-guard/index.ts: missing marker: {marker}')
+# OpenCode reads these names as plugin parts or a package; the plugin needs none of them.
+for p in (sorted(oplugin.iterdir()) if oplugin.is_dir() else []):
+    if p.name in {'server.ts','tui.ts','rpc.ts','package.json'}: err(f'{rel(p)}: OpenCode reads this name as a plugin part or package; the plugin must not have it')
+# No node_modules and no package.json: only node: built-ins, sibling modules and, in index.ts, the host's own module.
+OPLUGIN_IMPORT=re.compile(r'''\bfrom\s*["']([^"']*)["']|\bimport\s*\(\s*["']([^"']*)["']|^\s*import\s*["']([^"']*)["']''',re.M)
+for p in sorted(oplugin.glob('*.ts')):
+    for m in OPLUGIN_IMPORT.finditer(p.read_text()):
+        spec=next(g for g in m.groups() if g is not None)
+        if re.fullmatch(r'node:[a-z_/]+',spec) or re.fullmatch(r'\./[A-Za-z0-9_.-]+\.ts',spec) or (p.name=='index.ts' and spec=='@opencode/plugin'): continue
+        err(f'{rel(p)}: import {spec!r}: only node:<name>, ./<file>.ts and, in index.ts, @opencode/plugin')
+# Mirrored OMP regions (plan L4): start anchor inclusive, end anchor exclusive, trailing whitespace trimmed, copied
+# byte for byte into the plugin file, so the two ports keep one matcher.
+OPORT_MIRRORS=[
+    ('flow-credentials-guard.ts','// Rule 1: what a credentials file is','// Rule 2:','credentials.ts'),
+    ('flow-credentials-guard.ts','// Rule 3: `bash` and `eval` text.','function refusal(','credentials.ts'),
+    ('flow-governance-guard.ts','// Bounded so a stalled git','function statePath(','git.ts'),
+    ('flow-governance-guard.ts','function ensureFlowExcluded(','function writeState(','git.ts'),
+    ('flow-governance-guard.ts','function gitBytes(','function presentationKey(','git.ts'),
+    ('flow-governance-guard.ts','// Lines logged under this heading in a PLAN.md','// Bounded so a stalled git','record.ts'),
+    ('flow-evidence-guard.ts','const CAPSULE_MARKERS = [','function verifierBriefErrors(','dispatch.ts'),
+]
+for omp_file,start,end,plugin_file in OPORT_MIRRORS:
+    _osource=(ROOT/'omp/extensions'/omp_file).read_text()
+    _ostart=_osource.find(start)
+    _oend=_osource.find(end,_ostart+len(start)) if _ostart>=0 else -1
+    if _ostart<0 or _oend<0: err(f'tests/validate.py OPORT_MIRRORS ({start}): mirror anchor lost in omp/extensions/{omp_file}'); continue
+    _otarget=oplugin/plugin_file
+    if not _otarget.exists() or _osource[_ostart:_oend].rstrip() not in _otarget.read_text():
+        err(f'opencode/plugins/flow-guard/{plugin_file}: mirrored block drifted from omp/extensions/{omp_file} ({start})')
+
 # Rule 11: the OpenCode port is documented where readers look.
 _readme=(ROOT/'README.md').read_text()
-for marker in ['`opencode/`','flow-opencode']:
+for marker in ['`opencode/`','flow-opencode','docs/OPENCODE-COMPATIBILITY.md']:
     if marker not in _readme: err(f'README.md: missing OpenCode port marker: {marker}')
 _interop=(ROOT/'docs/EXTERNAL-INTEROP.md').read_text().lower()
-for marker in ['## opencode port','`opencode/`','`subagent`','`skill`']:
+for marker in ['## opencode port','`opencode/`','`subagent`','`skill`','`plugins/flow-guard/`','enforced']:
     if marker not in _interop: err(f'docs/EXTERNAL-INTEROP.md: missing OpenCode port marker: {marker}')
 if not (ROOT/'docs/decisions/opencode-port.md').exists(): err('docs/decisions/opencode-port.md: missing')
+_ocompat=ROOT/'docs/OPENCODE-COMPATIBILITY.md'
+if not _ocompat.exists(): err('docs/OPENCODE-COMPATIBILITY.md: missing')
+else:
+    _octext=_ocompat.read_text()
+    for marker in ['OpenCode 2.2.5','`execute.before`','## Known misses','## Upgrade smoke test']:
+        if marker not in _octext: err(f'docs/OPENCODE-COMPATIBILITY.md: missing marker: {marker}')
 
 # Windows support is documented where readers look.
 for marker in ['docs/WINDOWS.md','flow-opencode.ps1']:

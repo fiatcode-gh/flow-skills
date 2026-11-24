@@ -100,19 +100,20 @@ Keep `WEFT_GRAPH` on its own clone. A session that has `fiat-codex` attached che
 
 | Port path | Mirrors |
 |---|---|
-| `AGENTS.md` | `omp/AGENTS.md` sections, the three rules (`flow-safety`, `flow-evidence`, `flow-artifacts`) and the approval record; loaded in full |
+| `AGENTS.md` | `omp/AGENTS.md` sections, the three rules (`flow-safety`, `flow-evidence`, `flow-artifacts`) and the `flow_gate` description; loaded in full |
 | `skills/flow-tdd`, `skills/ui-design` | verbatim; `tests/validate.py` fails on drift |
 | the other `skills/` | the OMP skills with OMP mechanics reworded |
-| `agents/` | the OMP agents except `flow-evidence-verifier`, plus `flow-cor-reviewer` |
+| `agents/` | the OMP agents, plus `flow-cor-reviewer`; the primary `ask`, which replaces OpenCode's `plan` (`plan.md` turns it off) |
 | `opencode.json` | `bash.patterns` of `omp/profiles/*/config.yml`, as `permission.bash` asks; the credentials guard's secret-file list, as `permission.read` deny rules with the `.pub`, example and sample endings allowed last (the last matching rule wins; `*` also matches `/`, so each allow is a plain ending and every `.pem` is denied) |
 | `profiles/` | `modelRoles`, as `model` and `agent.<name>.model` |
+| `plugins/flow-guard/` | the three guard extensions `flow-governance-guard`, `flow-credentials-guard` and `flow-evidence-guard`; `tests/validate.py` pins the mirrored blocks, and `tests/guard-cases.test.mjs` runs one case table against both |
 | `bin/flow-opencode` | `omp/bin/flow-omp` |
 
 Mechanics map:
 
 | OMP | OpenCode port |
 |---|---|
-| `flow_gate` and the guard extensions | `flow_digest`, `flow_approve` / `flow_check` in `AGENTS.md`, logging to `.flow/runtime/approvals.log`; Main checks before dispatch. `flow_digest` hashes a plan only through its last `## In-scope amendments` line, so lines under it stay out of the digest |
+| `flow_gate` and the guard extensions | the `flow-guard` plugin: the `flow_gate` tool behind one permission prompt, records in `.flow/runtime/approvals.log`; dispatch, follow-up, record and secret-file checks are enforced in the plugin's tool hook |
 | roles `@plan`, `@slow`, `@execute`, `@task`, `@review_aux` | the profile file maps each agent name to a model |
 | `sonic` (`@smol`), `scout` | the built-in `general` and `explore` subagents |
 | spawning through the OMP task tool | the `subagent` tool |
@@ -120,13 +121,15 @@ Mechanics map:
 | OMP `todo` | no task-list tool; the stage list stays in the forward pointer |
 | OMP isolation | not used; writers on the same files run one at a time |
 | `skill://<name>` reads | the `skill` tool |
-| `flow-evidence-verifier` | not ported; the checkpoint step keeps Main's own observation or the user's own look |
+| `flow-evidence-verifier` | ported; its dispatch is enforced by the plugin (current acceptance and a complete capsule) |
 | `ai-memory` hub injection | `weft-memory` recall, with `## Harness: [[OpenCode]]` |
 | `bash.patterns` prompts | `permission.bash` asks in `opencode.json` |
 
 On Windows `flow-opencode.ps1 run` sets OpenCode's shell to Git Bash; see `docs/WINDOWS.md`.
 
-Not ported: `flow-evidence-verifier`, OMP isolation and OMP todo. OpenCode also scans `~/.claude/skills` and `~/.agents/skills`; the installer reports a same-named skill there.
+Not ported: OMP isolation and OMP todo. OpenCode also scans `~/.claude/skills` and `~/.agents/skills`; the installer reports a same-named skill there.
+
+The plugin needs OpenCode 2.2.5 or later; its known misses are listed in `docs/OPENCODE-COMPATIBILITY.md`.
 
 ## Handoff rule
 
@@ -157,3 +160,4 @@ A changed commit SHA triggers targeted revalidation, not automatic rejection or 
 - OMP-only execution mechanics do not require a mirror in `open-webui/`. In `claude-code/`, port them by the mechanics map above.
 - When an `omp/` skill, agent, rule or `AGENTS.md` section listed in the Claude Code port table changes, update its port file in the same change cycle.
 - When an `omp/` skill, agent, rule or `AGENTS.md` section changes, update its `opencode/` file in the same change cycle; the validator pins the verbatim ones.
+- When a guard under `omp/extensions/` changes, update `opencode/plugins/flow-guard/` in the same change cycle; the validator fails on a drifted mirrored block.

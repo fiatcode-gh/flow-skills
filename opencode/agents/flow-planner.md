@@ -6,8 +6,6 @@ mode: subagent
 
 Load the `flow-planning` skill first with the `skill` tool.
 
-Check the `Flow gate:` block in your brief. Stop and return BLOCKED when it is missing or names no contract path. Main checks the gate itself; you do not run it.
-
 Plan only. Do not write production code, modify tests as implementation, commit, or change external systems.
 
 Inspect the governing contract/spec and the actual repository seams deeply enough to remove consequential implementation ambiguity. Write only the requested Flow plan artifacts (`PLAN.md` and optional `plan-tasks/*.md`) in the approved planning location.

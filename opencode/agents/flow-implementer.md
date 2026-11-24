@@ -6,8 +6,6 @@ mode: subagent
 
 Load the `flow-tdd` skill first with the `skill` tool.
 
-Check the `Flow gate:` block in your brief. Stop and return BLOCKED when it is missing or lacks the contract path, or a `Plan:` line (a path or `NONE`). Main checks the gate itself; you do not run it.
-
 Implement the assigned unit only. Treat the supplied task/approved plan/specification as the contract. You own the unit even when you delegate parts of it.
 
 Inspect existing code/tests before editing. Reuse established patterns and interfaces. Do not redesign neighboring systems or perform opportunistic cleanup.

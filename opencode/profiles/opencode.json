@@ -20,6 +20,9 @@
     "flow-craft-reviewer": {
       "model": "opencode/big-pickle"
     },
+    "flow-evidence-verifier": {
+      "model": "opencode/big-pickle"
+    },
     "flow-implementer": {
       "model": "opencode/big-pickle"
     },

@@ -93,13 +93,18 @@ $doctorExit = $LASTEXITCODE
 $out | ForEach-Object { Write-Output $_ }
 if ($doctorExit -ne 0) { Fail "flow-opencode.ps1 doctor exited $doctorExit" }
 if ($out[0] -ne "flow-skills $version") { Fail "flow-opencode.ps1 doctor first line: $($out[0])" }
-foreach ($f in Get-ChildItem opencode/agents -Filter *.md -File) {
+# `ask` and `plan` are OpenCode's own agents: `ask` is primary, and `plan.md` turns the built-in plan off.
+foreach ($f in Get-ChildItem opencode/agents -Filter *.md -File | Where-Object Name -notin 'ask.md', 'plan.md') {
     $a = $f.BaseName
     if ($out -notcontains "ok: agent $a is a subagent") { Fail "doctor lacks 'ok: agent $a is a subagent'" }
+}
+foreach ($line in 'ok: agent ask is a primary agent', 'ok: built-in plan agent is off') {
+    if ($out -notcontains $line) { Fail "doctor lacks '$line'" }
 }
 foreach ($d in Get-ChildItem opencode/skills) {
     if (-not ($out | Where-Object { $_.StartsWith("ok: skill $($d.Name) at ") })) { Fail "doctor lacks 'ok: skill $($d.Name) at '" }
 }
+if (-not ($out | Where-Object { $_.StartsWith('ok: plugin flow-guard is active at ') })) { Fail "doctor lacks 'ok: plugin flow-guard is active at '" }
 if ($out | Where-Object { $_ -match 'FAIL:' }) { Fail 'doctor printed FAIL lines' }
 Ok 'flow-opencode.ps1 doctor'
 
@@ -118,9 +123,10 @@ Ok 'run sets shell to Git Bash'
 $agents = (Launch opencode/bin/flow-opencode.ps1 run claude-agent debug agents | Out-String) | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0) { Fail "flow-opencode.ps1 run debug agents exited $LASTEXITCODE" }
 $ids = @($agents | ForEach-Object { $_.id ?? $_.name })
-foreach ($f in Get-ChildItem opencode/agents -Filter *.md -File) {
+foreach ($f in Get-ChildItem opencode/agents -Filter *.md -File | Where-Object Name -ne 'plan.md') {
     if ($ids -notcontains $f.BaseName) { Fail "run claude-agent lacks agent $($f.BaseName)" }
 }
-Ok 'run claude-agent lists every Flow agent'
+if ($ids -contains 'plan') { Fail 'run claude-agent still lists the built-in plan agent' }
+Ok 'run claude-agent lists every Flow agent and ask, without plan'
 
 Write-Output 'ok: Windows tool checks'
