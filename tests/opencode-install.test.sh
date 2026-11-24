@@ -233,7 +233,7 @@ case $out in *"FAIL: agent flow-planner"*) ;; *) fail "doctor B: missing the age
 make_fixtures "$FX" "$H/$CFG_REL/skills"
 out=$(doctor) || fail "doctor G: failed on good fixtures: $out"
 case $out in *"ok: profile claude-agent: build -> claude-agent/opus#medium"*) ;; *) fail "doctor G: no build mapping line with its effort: $out" ;; esac
-case $out in *"ok: profile claude-agent: flow-planner -> claude-agent/fable#high"*) ;; *) fail "doctor G: no flow-planner line with its effort: $out" ;; esac
+case $out in *"ok: profile claude-agent: flow-planner -> claude-agent/opus#high"*) ;; *) fail "doctor G: no flow-planner line with its effort: $out" ;; esac
 python3 - "$FX/agents-claude-agent.json" <<'PY'
 import json, sys
 p = sys.argv[1]
@@ -244,7 +244,7 @@ for r in rows:
 json.dump(rows, open(p, 'w'))
 PY
 if out=$(doctor); then fail 'doctor G exited 0 with a wrong effort'; fi
-case $out in *"FAIL: profile claude-agent: flow-planner resolved to claude-agent/fable#low, expected claude-agent/fable#high"*) ;; *) fail "doctor G: missing the effort FAIL: $out" ;; esac
+case $out in *"FAIL: profile claude-agent: flow-planner resolved to claude-agent/opus#low, expected claude-agent/opus#high"*) ;; *) fail "doctor G: missing the effort FAIL: $out" ;; esac
 
 # C: a skill loaded from outside the config root.
 make_fixtures "$FX" "$H/$CFG_REL/skills"

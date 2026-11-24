@@ -12,9 +12,9 @@ modelRoles:
   task: anthropic/claude-opus-5-5:high
   review_aux: anthropic/claude-opus-5-5:high
   default: anthropic/claude-opus-5-5:medium
-  slow: anthropic/claude-fable-5-2:medium
-  plan: anthropic/claude-fable-5-2:high
-  critical: anthropic/claude-fable-5-2:high
+  slow: anthropic/claude-opus-5-5:high
+  plan: anthropic/claude-opus-5-5:high
+  critical: anthropic/claude-opus-5-5:high
 bash:
   patterns:
     - match: git push*

@@ -48,7 +48,7 @@ Mechanics map:
 | OMP | Claude Code port |
 |---|---|
 | `flow_gate` and the guard extensions | `flow_digest`, `flow_approve` / `flow_check` in `flow-context.md`: a sha256 per approved artifact in `.flow/runtime/approvals.log`, checked by Main before dispatch. `flow_digest` hashes a plan only through its last `## In-scope amendments` line, so lines under it stay out of the digest. No hook enforces it. |
-| roles `@plan`, `@slow`; `@execute`, `@task`, `@review_aux` | agent `model: claude-fable-5-2`; `model: opus`, each with the profile's `effort` |
+| roles `@plan`, `@slow`, `@execute`, `@task`, `@review_aux` | agent `model: opus`, each with the profile's `effort` |
 | `sonic` (`@smol`), `scout` | a `general-purpose` agent with `model: sonnet`; the `Explore` agent |
 | `hub` clarification and `hub wait` | the agent returns BLOCKED; Main continues it with `SendMessage`; background agents notify on completion |
 | OMP `todo` | the task list |

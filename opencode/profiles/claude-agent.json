@@ -7,8 +7,8 @@
       "variant": "medium"
     },
     "flow-acceptance-reviewer": {
-      "model": "claude-agent/fable",
-      "variant": "medium"
+      "model": "claude-agent/opus",
+      "variant": "high"
     },
     "flow-audit-code-health": {
       "model": "claude-agent/opus",
@@ -39,7 +39,7 @@
       "variant": "medium"
     },
     "flow-planner": {
-      "model": "claude-agent/fable",
+      "model": "claude-agent/opus",
       "variant": "high"
     },
     "flow-ttc-reviewer": {

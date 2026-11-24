@@ -12,7 +12,7 @@ Versions follow SemVer as described in the Versioning section of the README.
 - The governance guard checks a `sonic` that carries a `Flow gate:` block like an executor, and checks a message to a parked writer like a new dispatch. A message to a live agent always goes through.
 
 ### Changed
-- Anthropic lineup, in OMP, Claude Code and OpenCode `claude-agent`: the acceptance reviewer (`slow`) runs on Fable 5.2 at `medium` (was `high`) to save Fable allowance. The planner and `critical` stay at `high`.
+- Anthropic lineup, in OMP, Claude Code and OpenCode `claude-agent`: Fable 5.2 is dropped because it used up the plan allowance too fast. The planner (`plan`), the acceptance reviewer (`slow`) and `critical` run on Opus 5.5 at `high`. For a critical case, switch a role to Fable for one session only.
 - `flow_gate accept` binds the working tree's content, not the commit, so committing the accepted tree or moving the folder keeps it current. An acceptance recorded before this change reads stale once; record it again.
 - Approval records hold the artifact path relative to the repository, so a moved or renamed checkout keeps its approvals. Older records are still read.
 - The tiny limit in `flow-execution` counts only hand-written production lines: the change's tests, CHANGELOG entry, docs and generated lines do not count. Skills, agents and rules are production.

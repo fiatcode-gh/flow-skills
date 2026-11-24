@@ -485,7 +485,7 @@ esac
         $r = Run-Doctor
         if ($r.Code -ne 0) { fail "doctor G: failed on good fixtures: $($r.Out)" }
         if (-not $r.Out.Contains('ok: profile claude-agent: build -> claude-agent/opus#medium')) { fail "doctor G: no build mapping line with its effort: $($r.Out)" }
-        if (-not $r.Out.Contains('ok: profile claude-agent: flow-planner -> claude-agent/fable#high')) { fail "doctor G: no flow-planner line with its effort: $($r.Out)" }
+        if (-not $r.Out.Contains('ok: profile claude-agent: flow-planner -> claude-agent/opus#high')) { fail "doctor G: no flow-planner line with its effort: $($r.Out)" }
         Edit-Json (Join-Path $fx 'agents-claude-agent.json') {
             param($d)
             foreach ($row in $d) { if ($row['id'] -eq 'flow-planner') { $row['model']['variant'] = 'low' } }
@@ -493,7 +493,7 @@ esac
         }
         $r = Run-Doctor
         if ($r.Code -eq 0) { fail 'doctor G exited 0 with a wrong effort' }
-        if (-not $r.Out.Contains('FAIL: profile claude-agent: flow-planner resolved to claude-agent/fable#low, expected claude-agent/fable#high')) { fail "doctor G: missing the effort FAIL: $($r.Out)" }
+        if (-not $r.Out.Contains('FAIL: profile claude-agent: flow-planner resolved to claude-agent/opus#low, expected claude-agent/opus#high')) { fail "doctor G: missing the effort FAIL: $($r.Out)" }
 
         # C: a skill loaded from outside the config root.
         Make-Fixtures $fx $skillsPrefix

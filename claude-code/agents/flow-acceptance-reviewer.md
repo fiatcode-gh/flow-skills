@@ -1,8 +1,8 @@
 ---
 name: flow-acceptance-reviewer
 description: Strong read-only acceptance reviewer for execution-grade plan work; checks contract satisfaction, plan conformance, correctness, tests, craft and applicable security without becoming a plan-compliance advocate.
-model: claude-fable-5-2
-effort: medium
+model: opus
+effort: high
 tools: Read, Grep, Glob, Bash
 ---
 
