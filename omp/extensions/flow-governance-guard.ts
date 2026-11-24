@@ -1,7 +1,9 @@
 /**
  * flow-skills — Flow governance guard.
  *
- * Invariant: a planner, executor, implementer or verifier dispatch runs only
+ * Invariant: a planner, executor, implementer or verifier dispatch, a `sonic`
+ * dispatch that carries a Flow gate block, and a message to a parked writer
+ * (`write` to `agent://<id>` whose transcript ends in `session_exit`) run only
  * against a current recorded approval or acceptance. State:
  * `.flow/runtime/gates.json`, written only by the `flow_gate` tool registered
  * here; the `tool_call` hook also blocks file-writing tools on `.flow/runtime/`.
@@ -10,21 +12,28 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
 	appendFileSync,
+	closeSync,
+	copyFileSync,
 	existsSync,
-	lstatSync,
+	fstatSync,
 	mkdirSync,
+	mkdtempSync,
+	openSync,
 	readdirSync,
 	readFileSync,
-	readlinkSync,
+	readSync,
 	realpathSync,
 	renameSync,
+	rmSync,
+	statSync,
+	utimesSync,
 	writeFileSync,
 } from "node:fs";
-import { homedir } from "node:os";
+import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 import { agentName } from "../lib/agent-name.ts";
+import { expandToolPath, nonFileUrlPath } from "../lib/tool-path.ts";
 
 type ToolInput = Record<string, unknown>;
 type GateKind = "contract" | "plan" | "implementation";
@@ -38,6 +47,7 @@ type ApprovalRecord = {
 
 type AcceptanceRecord = {
 	head: string;
+	tree: string;
 	fingerprint: string;
 	recordedAt: string;
 	source: string;
@@ -84,6 +94,8 @@ type GateManifest = {
 const STATE_RELATIVE_PATH = ".flow/runtime/gates.json";
 const PLANNER = "flow-planner";
 const WRITERS = new Set(["flow-plan-executor", "flow-implementer"]);
+// A `sonic` is a writer on gated work only when it carries a Flow gate block.
+const SONIC = "sonic";
 const VERIFIER = "flow-evidence-verifier";
 const GATE_HEADER = "flow gate:";
 const ACCEPT_ORDER_HINT =
@@ -114,7 +126,36 @@ const AST_NO_TARGET_REASON =
 // Git output above this size fails closed instead of being truncated.
 const GIT_OUTPUT_LIMIT = 256 * 1024 * 1024;
 
-const sha256 = (data: string | Buffer) => createHash("sha256").update(data).digest("hex");
+// Lines logged under this heading in a PLAN.md stay outside the plan's digest, so an in-scope amendment keeps the approval current.
+const AMENDMENTS_HEADING = Buffer.from("## In-scope amendments");
+
+// Offset just past the last line that is exactly the amendments heading (its newline included), or undefined.
+// A `\r\n` line, a deeper heading or one with trailing text does not count. The last one binds, so an earlier
+// heading line (quoted in a code fence, say) stays inside the digest.
+function amendmentsStart(bytes: Buffer): number | undefined {
+	for (let at = bytes.lastIndexOf(AMENDMENTS_HEADING); at !== -1; at = at === 0 ? -1 : bytes.lastIndexOf(AMENDMENTS_HEADING, at - 1)) {
+		if (at > 0 && bytes[at - 1] !== 0x0a) continue;
+		const end = at + AMENDMENTS_HEADING.length;
+		if (end === bytes.length) return end;
+		if (bytes[end] === 0x0a) return end + 1;
+	}
+	return undefined;
+}
+
+// A plan is hashed through its amendments heading; every other kind, and a plan without the heading, whole.
+function artifactDigest(kind: GateKind, bytes: Buffer): string {
+	const end = kind === "plan" ? amendmentsStart(bytes) : undefined;
+	return createHash("sha256")
+		.update(end === undefined ? bytes : bytes.subarray(0, end))
+		.digest("hex");
+}
+
+// Non-blank lines under a plan's amendments heading; counted for status, never judged.
+function amendmentCount(bytes: Buffer): number {
+	const start = amendmentsStart(bytes);
+	if (start === undefined) return 0;
+	return bytes.subarray(start).toString("utf8").split("\n").filter((line) => line.trim() !== "").length;
+}
 
 // Bounded so a stalled git (unreachable mount, remote GIT_DIR) cannot hold every file tool; callers treat a failure as
 // "outside git" and fall back to the working directory.
@@ -186,13 +227,28 @@ function resolveFlowArtifact(root: string, inputPath: string): string {
 	return real;
 }
 
-function artifactIdentity(root: string, inputPath: string): { path: string; sha256: string } {
+function artifactIdentity(root: string, inputPath: string, kind: GateKind): { path: string; sha256: string; amendments: number } {
 	const path = resolveFlowArtifact(root, inputPath);
-	return { path, sha256: sha256(readFileSync(path)) };
+	const bytes = readFileSync(path);
+	return { path, sha256: artifactDigest(kind, bytes), amendments: kind === "plan" ? amendmentCount(bytes) : 0 };
 }
 
-function gitBytes(root: string, args: string[]): Buffer {
-	return execFileSync("git", args, { cwd: root, stdio: ["ignore", "pipe", "pipe"], maxBuffer: GIT_OUTPUT_LIMIT });
+// An artifact's path relative to the repository root, `/`-separated: the form an approval record stores.
+function rootRelativePath(root: string, path: string): string {
+	return relative(root, path).split(sep).join("/");
+}
+
+// The root-relative path an approval record names. An older record holds an absolute path: it is read from its last
+// `/.flow/` segment on, so a moved checkout still matches; one without that segment is kept and never matches.
+function recordedArtifactPath(stored: string): string {
+	if (!isAbsolute(stored)) return stored;
+	const normalized = stored.replaceAll("\\", "/");
+	const at = normalized.lastIndexOf("/.flow/");
+	return at === -1 ? stored : normalized.slice(at + 1);
+}
+
+function gitBytes(root: string, args: string[], env?: NodeJS.ProcessEnv): Buffer {
+	return execFileSync("git", args, { cwd: root, env, stdio: ["ignore", "pipe", "pipe"], maxBuffer: GIT_OUTPUT_LIMIT });
 }
 
 function headRevision(root: string): string {
@@ -205,29 +261,64 @@ function headRevision(root: string): string {
 	}
 }
 
-function worktreeIdentity(root: string): { head: string; fingerprint: string } {
-	const head = headRevision(root);
-	// An unborn repository diffs its tracked (staged) paths against the empty tree.
-	const base = head === "UNBORN" ? git(root, ["hash-object", "-t", "tree", "/dev/null"]) : "HEAD";
-	// Raw bytes only: a configured external diff or textconv driver could print the same text for different edits.
-	const diff = gitBytes(root, ["diff", "--binary", "--no-ext-diff", "--no-textconv", base, "--", "."]);
-	// The index is state too: a change staged and then reverted in the worktree leaves no trace in the diff above.
-	const staged = gitBytes(root, ["diff", "--cached", "--binary", "--no-ext-diff", "--no-textconv", base, "--", "."]);
-	const untrackedRaw = gitBytes(root, ["ls-files", "--others", "--exclude-standard", "-z"]).toString("utf8");
-	const untracked = untrackedRaw.split("\0").filter(Boolean).sort();
-	const hash = createHash("sha256");
-	hash.update(`head\0${head}\0diff\0`);
-	hash.update(diff);
-	hash.update("\0staged\0");
-	hash.update(staged);
-	for (const rel of untracked) {
-		const path = resolve(root, rel);
-		const stat = lstatSync(path);
-		hash.update(`\0path\0${rel}\0mode\0${stat.mode}\0`);
-		if (stat.isSymbolicLink()) hash.update(readlinkSync(path));
-		else hash.update(readFileSync(path));
+// The tree `git add -A` would write for the working tree: tracked and untracked files, ignore rules applied. It is
+// built in a scratch index and a scratch object directory that reads the real one as an alternate, so nothing is
+// written into the repository.
+function worktreeTree(root: string): string {
+	const index = git(root, ["rev-parse", "--path-format=absolute", "--git-path", "index"]);
+	const objects = git(root, ["rev-parse", "--path-format=absolute", "--git-path", "objects"]);
+	const scratch = mkdtempSync(join(tmpdir(), "flow-gate-tree-"));
+	try {
+		const scratchIndex = join(scratch, "index");
+		if (existsSync(index)) {
+			copyFileSync(index, scratchIndex);
+			// Git's racy-entry check compares entry mtimes with the index's own mtime; keep it, or a same-size
+			// rewrite in the second of the last index write looks clean and `add -A` keeps the stale blob.
+			const { atime, mtime } = statSync(index);
+			utimesSync(scratchIndex, atime, mtime);
+		}
+		const scratchObjects = join(scratch, "objects");
+		mkdirSync(scratchObjects);
+		const env = {
+			...process.env,
+			GIT_INDEX_FILE: scratchIndex,
+			GIT_OBJECT_DIRECTORY: scratchObjects,
+			// The variable is `:`-separated; a C-quoted entry keeps a path that holds `:` whole.
+			GIT_ALTERNATE_OBJECT_DIRECTORIES: `"${objects.replace(/[\\"]/g, "\\$&")}"`,
+		};
+		gitBytes(root, ["add", "-A", "--", "."], env);
+		return gitBytes(root, ["write-tree"], env).toString("utf8").trim();
+	} finally {
+		rmSync(scratch, { recursive: true, force: true });
 	}
-	return { head, fingerprint: hash.digest("hex") };
+}
+
+// Index entries of the paths staged differently from `base` and edited again in the working tree: the tree above
+// reads only the working tree, so a change staged and then reverted would otherwise leave no trace.
+function mixedEntries(root: string, base: string): Buffer {
+	const stagedPaths = gitBytes(root, ["diff", "--cached", "--name-only", "-z", "--no-ext-diff", base, "--", "."]);
+	const editedPaths = gitBytes(root, ["diff", "--name-only", "-z", "--no-ext-diff", "--no-textconv", "--", "."]);
+	const staged = new Set(stagedPaths.toString("utf8").split("\0").filter(Boolean));
+	const edited = editedPaths.toString("utf8").split("\0").filter(Boolean);
+	const mixed = edited.filter((path) => staged.has(path)).sort();
+	if (mixed.length === 0) return Buffer.alloc(0);
+	return gitBytes(root, ["--literal-pathspecs", "ls-files", "-s", "-z", "--", ...mixed]);
+}
+
+// `head` is for messages only: a commit of the accepted tree keeps the fingerprint.
+function worktreeIdentity(root: string): { head: string; tree: string; fingerprint: string } {
+	const head = headRevision(root);
+	// An unborn repository compares its staged paths against the empty tree.
+	const base = head === "UNBORN" ? git(root, ["hash-object", "-t", "tree", "/dev/null"]) : "HEAD";
+	const tree = worktreeTree(root);
+	const mixed = mixedEntries(root, base);
+	const hash = createHash("sha256");
+	hash.update(`tree\0${tree}`);
+	if (mixed.length > 0) {
+		hash.update("\0mixed\0");
+		hash.update(mixed);
+	}
+	return { head, tree, fingerprint: hash.digest("hex") };
 }
 
 function presentationKey(scope: string, kind: GateKind): string {
@@ -249,6 +340,27 @@ function gateAction(input: ToolInput): GateAction | undefined {
 	return value === "present" || value === "approve" || value === "accept" || value === "status" || value === "clear"
 		? value
 		: undefined;
+}
+
+const GATE_KINDS: readonly GateKind[] = ["contract", "plan", "implementation"];
+
+// A list parameter: split on `,`, trimmed, empty items and repeats dropped, order kept.
+function listParam(input: ToolInput, key: string): string[] {
+	const value = input[key];
+	if (typeof value !== "string") return [];
+	return [...new Set(value.split(",").map((item) => item.trim()).filter((item) => item !== ""))];
+}
+
+type GateTarget = { scope: string; kind: GateKind };
+
+// Every scope × kind pair an approve names: scopes in the order given, kinds in contract, plan, implementation
+// order. Undefined when no scope or kind is named or any kind is unknown.
+function approvalTargets(input: ToolInput): GateTarget[] | undefined {
+	const scopes = listParam(input, "scope");
+	const kinds = listParam(input, "kind");
+	if (scopes.length === 0 || kinds.length === 0) return undefined;
+	if (!kinds.every((kind) => (GATE_KINDS as readonly string[]).includes(kind))) return undefined;
+	return scopes.flatMap((scope) => GATE_KINDS.filter((kind) => kinds.includes(kind)).map((kind) => ({ scope, kind })));
 }
 
 function normalizeManifestValue(raw: string): string | undefined {
@@ -306,35 +418,44 @@ function parseManifest(task: unknown): GateManifest | undefined {
 	return result;
 }
 
-function approvalError(root: string, scope: string, kind: GateKind, manifestPath: string): string | undefined {
+// Whether a scope and kind has a presentation waiting for `approve`. The map lives in the extension instance.
+type IsPresented = (scope: string, kind: GateKind) => boolean;
+
+function approvalError(root: string, scope: string, kind: GateKind, manifestPath: string, isPresented: IsPresented): string | undefined {
 	const state = readState(root);
 	const approval = state.scopes[scope]?.approvals?.[kind];
-	if (!approval) return `scope ${scope}: no recorded ${kind} approval`;
-	const current = artifactIdentity(root, manifestPath);
-	if (current.path !== approval.path) return `scope ${scope}: ${kind} path is not the approved artifact`;
-	if (current.sha256 !== approval.sha256) return `scope ${scope}: ${kind} artifact changed after approval`;
+	// An approve issued in the same tool batch as this dispatch has not run yet: say that, not that the artifact moved.
+	const pending = isPresented(scope, kind)
+		? `scope ${scope}: ${kind} approval is presented but not recorded yet; flow_gate approve must finish before this dispatch, so do not issue both in the same tool batch`
+		: undefined;
+	if (!approval) return pending ?? `scope ${scope}: no recorded ${kind} approval`;
+	const current = artifactIdentity(root, manifestPath, kind);
+	if (rootRelativePath(root, current.path) !== recordedArtifactPath(approval.path)) {
+		return `scope ${scope}: ${kind} path is not the approved artifact`;
+	}
+	if (current.sha256 !== approval.sha256) return pending ?? `scope ${scope}: ${kind} artifact changed after approval`;
 	return undefined;
 }
 
 const BLOCK_PLACEMENT = "the block may be in the task text or the shared context";
 
-function plannerGateError(root: string, manifest: GateManifest): string | undefined {
+function plannerGateError(root: string, manifest: GateManifest, isPresented: IsPresented): string | undefined {
 	if (!manifest.scope || !manifest.contract) {
 		return `flow-planner task must include Flow gate with Scope and Contract (${BLOCK_PLACEMENT})`;
 	}
-	return approvalError(root, manifest.scope, "contract", manifest.contract);
+	return approvalError(root, manifest.scope, "contract", manifest.contract, isPresented);
 }
 
-function writerGateError(root: string, manifest: GateManifest): string | undefined {
+function writerGateError(root: string, manifest: GateManifest, isPresented: IsPresented): string | undefined {
 	if (!manifest.scope || !manifest.contract || !manifest.plan) {
 		return `production writer task must include Flow gate with Scope, Contract, and Plan (${BLOCK_PLACEMENT})`;
 	}
-	const contractError = approvalError(root, manifest.scope, "contract", manifest.contract);
+	const contractError = approvalError(root, manifest.scope, "contract", manifest.contract, isPresented);
 	if (contractError) return contractError;
 	if (manifest.plan.toUpperCase() === "NONE") {
-		return approvalError(root, manifest.scope, "implementation", manifest.contract);
+		return approvalError(root, manifest.scope, "implementation", manifest.contract, isPresented);
 	}
-	return approvalError(root, manifest.scope, "plan", manifest.plan);
+	return approvalError(root, manifest.scope, "plan", manifest.plan, isPresented);
 }
 
 function verifierGateError(root: string, manifest: GateManifest): string | undefined {
@@ -343,36 +464,47 @@ function verifierGateError(root: string, manifest: GateManifest): string | undef
 	if (!acceptance) return `scope ${manifest.scope}: no acceptance/closure recorded for the current repository state; ${ACCEPT_ORDER_HINT}`;
 	const current = worktreeIdentity(root);
 	if (current.fingerprint !== acceptance.fingerprint) {
-		return `scope ${manifest.scope}: repository state changed after acceptance/closure (${acceptance.head} -> ${current.head}); ${ACCEPT_ORDER_HINT}`;
+		return `scope ${manifest.scope}: repository state changed after acceptance/closure (accepted at ${acceptance.head}, now at ${current.head}); ${ACCEPT_ORDER_HINT}`;
 	}
 	return undefined;
 }
 
-function isGatedAgent(agent: unknown): boolean {
+// `found` is the Flow gate block the agent reads, or undefined when it has none.
+function isWriter(name: string | undefined, found: GateManifest | undefined): boolean {
+	return (name !== undefined && WRITERS.has(name)) || (name === SONIC && found !== undefined);
+}
+
+// `shared` is the block in the call's context; a task's own block wins over it.
+function isGatedAgent(agent: unknown, task: unknown, shared: GateManifest | undefined): boolean {
 	const name = agentName(agent);
-	return name === PLANNER || name === VERIFIER || (name !== undefined && WRITERS.has(name));
+	return name === PLANNER || name === VERIFIER || isWriter(name, parseManifest(task) ?? shared);
 }
 
 function requestsGatedRole(input: ToolInput): boolean {
-	if (isGatedAgent(input.agent)) return true;
-	return Array.isArray(input.tasks) && input.tasks.some((item) => !!item && typeof item === "object" && isGatedAgent((item as ToolInput).agent));
+	const shared = parseManifest(input.context);
+	if (isGatedAgent(input.agent, input.task, shared)) return true;
+	return (
+		Array.isArray(input.tasks) &&
+		input.tasks.some((item) => !!item && typeof item === "object" && isGatedAgent((item as ToolInput).agent, (item as ToolInput).task, shared))
+	);
 }
 
-function taskGateErrors(root: string, input: ToolInput): string[] {
+function taskGateErrors(root: string, input: ToolInput, isPresented: IsPresented): string[] {
 	const errors: string[] = [];
 	// The call's shared context reaches every child, so its block serves any task without one of its own.
 	// The whole block comes from one place; fields are never merged.
 	const shared = parseManifest(input.context);
 	const check = (rawAgent: unknown, task: unknown, label: string) => {
 		const agent = agentName(rawAgent);
-		const manifest = parseManifest(task) ?? shared ?? {};
+		const found = parseManifest(task) ?? shared;
+		const manifest = found ?? {};
 		if (agent === PLANNER) {
-			const error = plannerGateError(root, manifest);
+			const error = plannerGateError(root, manifest, isPresented);
 			if (error) errors.push(`${label}: ${error}`);
 			return;
 		}
-		if (agent !== undefined && WRITERS.has(agent)) {
-			const error = writerGateError(root, manifest);
+		if (isWriter(agent, found)) {
+			const error = writerGateError(root, manifest, isPresented);
 			if (error) errors.push(`${label}: ${error}`);
 			return;
 		}
@@ -391,6 +523,110 @@ function taskGateErrors(root: string, input: ToolInput): string[] {
 		});
 	}
 	return errors;
+}
+
+// Transcript reads stay bounded: the exit marker is the last line, `session_init` sits near the top.
+const TRANSCRIPT_TAIL_BYTES = 64 * 1024;
+const TRANSCRIPT_HEAD_BYTES = 4 * 1024 * 1024;
+
+type SessionInit = { agent: string; task?: unknown; systemPrompt?: unknown };
+
+// The one agent a `write` path messages: `agent://<id>`, optionally with a `?query`. A broadcast or a sub-path is not one.
+function messagedAgent(path: unknown): string | undefined {
+	if (typeof path !== "string") return undefined;
+	const id = path.trim().match(/^agent:\/\/([^/?]+)(?:\?.*)?$/s)?.[1];
+	return id === "all" ? undefined : id;
+}
+
+// A child's transcript sits beside the session file, in a directory of the same name: `<children>/<id>.jsonl`, or for
+// a nested id `A.B.C`, `<children>/A/A.B/A.B.C.jsonl`.
+function transcriptPath(sessionFile: string, id: string): string | undefined {
+	if (!sessionFile.endsWith(".jsonl")) return undefined;
+	const children = sessionFile.slice(0, -".jsonl".length);
+	const flat = join(children, `${id}.jsonl`);
+	if (existsSync(flat)) return flat;
+	const parts = id.split(".");
+	if (parts.length < 2) return undefined;
+	const ancestors = parts.slice(0, -1).map((_, index) => parts.slice(0, index + 1).join("."));
+	const nested = join(children, ...ancestors, `${id}.jsonl`);
+	return existsSync(nested) ? nested : undefined;
+}
+
+// At most `limit` bytes from the start or the end of a file, and whether that is the whole file.
+function readBounded(path: string, from: "head" | "tail", limit: number): { text: string; whole: boolean } {
+	const fd = openSync(path, "r");
+	try {
+		const size = fstatSync(fd).size;
+		const buffer = Buffer.alloc(Math.min(size, limit));
+		const start = from === "tail" ? size - buffer.length : 0;
+		let filled = 0;
+		while (filled < buffer.length) {
+			const read = readSync(fd, buffer, filled, buffer.length - filled, start + filled);
+			if (read === 0) break;
+			filled += read;
+		}
+		return { text: buffer.subarray(0, filled).toString("utf8"), whole: filled === size };
+	} finally {
+		closeSync(fd);
+	}
+}
+
+function isParked(path: string): boolean {
+	const last = readBounded(path, "tail", TRANSCRIPT_TAIL_BYTES)
+		.text.split("\n")
+		.findLast((line) => line.trim() !== "");
+	if (last === undefined) return false;
+	try {
+		const entry = JSON.parse(last);
+		return entry?.type === "custom" && entry.customType === "session_exit";
+	} catch {
+		return false;
+	}
+}
+
+// The first `session_init` entry in the head of a transcript, or undefined when none can be read there.
+function sessionInit(path: string): SessionInit | undefined {
+	const { text, whole } = readBounded(path, "head", TRANSCRIPT_HEAD_BYTES);
+	const lines = text.split("\n");
+	// A head cut short ends in a partial line.
+	if (!whole) lines.pop();
+	for (const line of lines) {
+		if (!line.includes("session_init")) continue;
+		let entry: unknown;
+		try {
+			entry = JSON.parse(line);
+		} catch {
+			continue;
+		}
+		if (!entry || typeof entry !== "object" || (entry as ToolInput).type !== "session_init") continue;
+		return typeof (entry as ToolInput).agent === "string" ? (entry as SessionInit) : undefined;
+	}
+	return undefined;
+}
+
+// The reason a message to agent `id` must not be sent, or undefined. Only a parked writer is checked: a live agent
+// always gets the message, so a stop request reaches a running worker while its plan is being amended.
+function parkedWriterError(cwd: string, sessionFile: string | undefined, id: string, isPresented: IsPresented): string | undefined {
+	if (sessionFile === undefined) return undefined;
+	const path = transcriptPath(sessionFile, id);
+	if (path === undefined || !isParked(path)) return undefined;
+	const init = sessionInit(path);
+	if (!init) return `Flow governance preflight failed closed: cannot read the parked agent ${id}'s session_init. Start a fresh agent instead.`;
+	const prompt = Array.isArray(init.systemPrompt) ? init.systemPrompt.join("\n") : init.systemPrompt;
+	const found = parseManifest(init.task) ?? parseManifest(prompt);
+	if (!isWriter(agentName(init.agent), found)) return undefined;
+	let root: string;
+	try {
+		root = repoRoot(cwd);
+	} catch {
+		return "Flow governance gate requires task dispatch from a git repository.";
+	}
+	const error = writerGateError(root, found ?? {}, isPresented);
+	if (!error) return undefined;
+	return (
+		`Flow governance preflight failed: parked writer ${id}: ${error}. ` +
+		"A message to a parked writer is checked like a dispatch: approve the current artifact first, or start a fresh writer."
+	);
 }
 
 function writeTargets(input: ToolInput): string[] {
@@ -445,36 +681,6 @@ function hasRuntimeSegment(path: string): boolean {
 function isWithin(dir: string, path: string): boolean {
 	const rel = relative(dir, path);
 	return rel === "" || !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
-}
-
-// Mirrors OMP 18.4.5 `expandPath` (tools/path-utils.ts:72-130) for POSIX paths, so the guard reads a path as OMP does:
-// a stray leading `:` before `/`, `~`, `./` or `../` goes, `@` before `/` or `~` goes, a `file://` URL is decoded
-// (`localhost` and percent-escapes included), and `~` expands. OMP leaves an undecodable file URL as a literal path;
-// this throws instead, because a guard that cannot tell where a write lands must fail closed.
-// Deliberately omitted OMP steps, none of which can produce a `.flow` or `runtime` segment: Unicode-space
-// normalisation (it only swaps odd spaces for ASCII ones), the Windows extended-length prefix (`\\?\`, no POSIX
-// meaning) and the `InternalUrlRouter` `@` shorthand (it maps `@name` to OMP's own stores, not a checkout path).
-function expandToolPath(raw: string): string {
-	let value = /^:(?=[/\\~]|\.\.?[/\\]|[A-Za-z]:)/.test(raw) ? raw.slice(1) : raw;
-	const unprefixed = value.slice(1);
-	if (value.startsWith("@") && (unprefixed.startsWith("/") || unprefixed === "~" || unprefixed.startsWith("~/"))) value = unprefixed;
-	if (value.toLowerCase().startsWith("file://")) {
-		// Bun's `fileURLToPath` keeps a malformed escape as written where Node throws; the guard must not depend on that.
-		decodeURIComponent(new URL(value).pathname);
-		value = fileURLToPath(value);
-	}
-	if (value === "~") return homedir();
-	if (value.startsWith("~/") || value.startsWith("~\\")) return homedir() + value.slice(1);
-	if (value.startsWith("~")) return join(homedir(), value.slice(1));
-	return value;
-}
-
-// A URL with a scheme other than `file:` (`ssh://host/path`): the percent-decoded path after the authority, which is
-// what a host that maps it onto this checkout would see. Throws on an undecodable escape; the caller fails closed.
-function nonFileUrlPath(target: string): string | undefined {
-	const match = target.match(/^([a-z][a-z0-9+.-]*):\/\/[^/]*([\s\S]*)$/i);
-	if (!match || match[1].toLowerCase() === "file") return undefined;
-	return decodeURIComponent(match[2]);
 }
 
 // Every path a write target can land on: as written and with symlinks resolved. Throws when a path cannot be read.
@@ -792,17 +998,46 @@ export default function (pi: ExtensionAPI) {
 	const presentations = new Map<string, Presentation>();
 	const z = pi.zod;
 
+	// Each target's presentation, still unchanged, or the reason the whole approve must be refused.
+	const presentedTargets = (targets: GateTarget[]): { presented: Presentation[] } | { error: string } => {
+		const presented: Presentation[] = [];
+		const missing: string[] = [];
+		const changed: string[] = [];
+		const unreadable: string[] = [];
+		for (const target of targets) {
+			const pair = `${target.scope}/${target.kind}`;
+			const entry = presentations.get(presentationKey(target.scope, target.kind));
+			if (!entry) {
+				missing.push(pair);
+				continue;
+			}
+			try {
+				if (realpathSync(entry.path) !== entry.path || artifactDigest(entry.kind, readFileSync(entry.path)) !== entry.sha256) changed.push(pair);
+			} catch {
+				unreadable.push(pair);
+			}
+			presented.push(entry);
+		}
+		if (missing.length > 0) return { error: `No current Flow gate presentation for: ${missing.join(", ")}. Present each first.` };
+		if (changed.length > 0) {
+			return { error: `The presented Flow artifact changed before approval: ${changed.join(", ")}. Present the current revision again.` };
+		}
+		if (unreadable.length > 0) return { error: `The presented Flow artifact is no longer readable: ${unreadable.join(", ")}.` };
+		return { presented };
+	};
+	const targetList = (targets: GateTarget[]) => targets.map(({ scope, kind }) => `${kind} ${scope}`).join(", ");
+
 	pi.registerTool({
 		name: "flow_gate",
 		label: "Flow Gate",
 		description:
 			"Bind Flow contract/plan approvals and acceptance closure to exact repository artifacts/state. " +
-			"Use present -> approve for contract/plan/direct-implementation authorization, accept after independent acceptance/closure, status to inspect, and clear after integration.",
+			"Use present for each artifact, then one approve naming every scope and kind the user's yes covers; accept after independent acceptance/closure, status to inspect, and clear after integration.",
 		loadMode: "essential",
 		parameters: z.object({
 			action: z.string().describe("present | approve | accept | status | clear"),
-			scope: z.string().describe("Stable Flow scope/slug/unit id"),
-			kind: z.string().optional().describe("contract | plan | implementation for present/approve"),
+			scope: z.string().describe("Stable Flow scope/slug/unit id. approve and accept also take several, separated by commas"),
+			kind: z.string().optional().describe("contract | plan | implementation for present. approve also takes several, separated by commas"),
 			path: z.string().optional().describe("Artifact path for present: .flow/contracts/<slug>.md or contracts/<slug>.md (relative to .flow/)"),
 			summary: z.string().optional().describe(`One line, at most ${SUMMARY_MAX_CHARS} characters, naming what the user approves; shown in the approval prompt`),
 			source: z.string().optional().describe("Acceptance/closure receipt identifier or concise source"),
@@ -814,67 +1049,59 @@ export default function (pi: ExtensionAPI) {
 			if (action === "accept") {
 				// Acceptance is user-attested: the parent session must confirm an independent closure happened,
 				// not merely record one. Only the later staleness check is mechanical.
-				const scope = getString(input, "scope");
+				const scopes = listParam(input, "scope");
 				const source = getString(input, "source");
-				if (!scope || !source) return { tier: "write", policy: "deny", reason: "Flow acceptance requires scope and a source receipt." };
+				if (scopes.length === 0 || !source) return { tier: "write", policy: "deny", reason: "Flow acceptance requires scope and a source receipt." };
 				const summary = getString(input, "summary");
 				const invalidSummary = summary ? summaryError(summary) : undefined;
 				if (invalidSummary) return { tier: "write", policy: "deny", reason: invalidSummary };
-				return { tier: "write", policy: "prompt", reason: `Record acceptance for Flow scope ${scope}.` };
+				const reason = scopes.length === 1 ? `Record acceptance for Flow scope ${scopes[0]}.` : `Record acceptance for Flow scopes ${scopes.join(", ")}.`;
+				return { tier: "write", policy: "prompt", reason };
 			}
 			if (action !== "approve") return "write";
-			const scope = getString(input, "scope");
-			const kind = gateKind(input);
-			if (!scope || !kind) {
+			const targets = approvalTargets(input);
+			if (!targets) {
 				return { tier: "write", policy: "deny", reason: "Flow approval requires scope and kind." };
 			}
-			const presented = presentations.get(presentationKey(scope, kind));
-			if (!presented) {
-				return {
-					tier: "write",
-					policy: "deny",
-					reason: "No current Flow gate presentation exists for this scope/kind. Present it first.",
-				};
-			}
-			try {
-				const current = { path: realpathSync(presented.path), sha256: sha256(readFileSync(presented.path)) };
-				if (current.path !== presented.path || current.sha256 !== presented.sha256) {
-					return {
-						tier: "write",
-						policy: "deny",
-						reason: "The presented Flow artifact changed before approval. Present the current revision again.",
-					};
-				}
-			} catch {
-				return { tier: "write", policy: "deny", reason: "The presented Flow artifact is no longer readable." };
-			}
+			const checked = presentedTargets(targets);
+			if ("error" in checked) return { tier: "write", policy: "deny", reason: checked.error };
+			const [only] = targets;
 			return {
 				tier: "write",
 				policy: "prompt",
-				reason: `Approve ${kind} for Flow scope ${scope}.`,
+				reason:
+					targets.length === 1
+						? `Approve ${only.kind} for Flow scope ${only.scope}.`
+						: `Approve ${targets.length} Flow artifacts: ${targetList(targets)}.`,
 			};
 		},
 		formatApprovalDetails: (raw) => {
 			const input = raw as ToolInput;
 			const action = gateAction(input);
-			const scope = getString(input, "scope");
 			if (action === "accept") {
 				const summary = getString(input, "summary");
 				return [
 					...(summary ? [field("Summary", summary)] : []),
 					field("Source", getString(input, "source") ?? ""),
-					field("Effect", "goes stale after any later change"),
+					field("Effect", "stays current across commits of this tree; goes stale when the tree changes"),
 				];
 			}
 			if (action !== "approve") return undefined;
-			const kind = gateKind(input);
-			if (!scope || !kind) return undefined;
-			const presented = presentations.get(presentationKey(scope, kind));
-			if (!presented) return [field("Scope", scope), field("Kind", kind), field("Status", "not presented")];
+			const targets = approvalTargets(input);
+			if (!targets) return undefined;
+			if (targets.length === 1) {
+				const [{ scope, kind }] = targets;
+				const presented = presentations.get(presentationKey(scope, kind));
+				if (!presented) return [field("Scope", scope), field("Kind", kind), field("Status", "not presented")];
+				return [
+					field("Summary", presented.summary),
+					field("Artifact", presented.displayPath),
+					field("Effect", APPROVAL_EFFECT[kind]),
+				];
+			}
 			return [
-				field("Summary", presented.summary),
-				field("Artifact", presented.displayPath),
-				field("Effect", APPROVAL_EFFECT[kind]),
+				...targets.map(({ scope, kind }) => field(`${kind} ${scope}`, presentations.get(presentationKey(scope, kind))?.summary ?? "not presented")),
+				field("Effect", "each clears its scope's later records, as a single approval does"),
 			];
 		},
 		async execute(_id, raw, _signal, _onUpdate, ctx) {
@@ -883,6 +1110,9 @@ export default function (pi: ExtensionAPI) {
 			const scope = getString(input, "scope");
 			if (!action) throw new Error("Flow gate action must be present, approve, accept, status, or clear");
 			if (!scope) throw new Error("Flow gate scope is required");
+			if ((action === "present" || action === "status" || action === "clear") && scope.includes(",")) {
+				throw new Error(`Flow gate ${action} takes one scope.`);
+			}
 			const root = repoRoot(ctx.cwd);
 
 			if (action === "present") {
@@ -894,7 +1124,7 @@ export default function (pi: ExtensionAPI) {
 				if (!kind || !path || !summary) throw new Error("Flow gate present requires kind, path, and summary");
 				const invalidSummary = summaryError(summary);
 				if (invalidSummary) throw new Error(invalidSummary);
-				const identity = artifactIdentity(root, path);
+				const identity = artifactIdentity(root, path, kind);
 				const displayPath = relative(root, identity.path);
 				const presented: Presentation = { scope, kind, path: identity.path, displayPath, sha256: identity.sha256, summary, presentedAt: stamp() };
 				presentations.set(presentationKey(scope, kind), presented);
@@ -907,50 +1137,62 @@ export default function (pi: ExtensionAPI) {
 
 			if (action === "approve") {
 				if (!ctx.hasUI) throw new Error("Flow approval must be confirmed in an interactive parent session");
-				const kind = gateKind(input);
-				if (!kind) throw new Error("Flow gate approve requires kind");
-				const key = presentationKey(scope, kind);
-				const presented = presentations.get(key);
-				if (!presented) throw new Error("No current Flow gate presentation exists; present the artifact first");
-				const current = { path: realpathSync(presented.path), sha256: sha256(readFileSync(presented.path)) };
-				if (current.path !== presented.path || current.sha256 !== presented.sha256) {
-					throw new Error("Presented Flow artifact changed before approval; present the current revision again");
-				}
+				const targets = approvalTargets(input);
+				if (!targets) throw new Error("Flow gate approve requires kind");
+				const checked = presentedTargets(targets);
+				if ("error" in checked) throw new Error(checked.error);
+				// One state object, written once: a refused target above leaves nothing recorded.
 				const state = readState(root);
-				const scopeState = (state.scopes[scope] ??= {});
-				const approvals = (scopeState.approvals ??= {});
-				approvals[kind] = { path: presented.path, sha256: presented.sha256, approvedAt: new Date(stamp()).toISOString() };
-				if (kind === "contract") {
-					if (!recordedSince(approvals.plan?.approvedAt, presented.presentedAt)) delete approvals.plan;
-					if (!recordedSince(approvals.implementation?.approvedAt, presented.presentedAt)) delete approvals.implementation;
-					if (!recordedSince(scopeState.acceptance?.recordedAt, presented.presentedAt)) delete scopeState.acceptance;
+				const records: Record<string, unknown> = {};
+				for (const presented of checked.presented) {
+					const { scope: target, kind } = presented;
+					const scopeState = (state.scopes[target] ??= {});
+					const approvals = (scopeState.approvals ??= {});
+					approvals[kind] = {
+						path: rootRelativePath(root, presented.path),
+						sha256: presented.sha256,
+						approvedAt: new Date(stamp()).toISOString(),
+					};
+					if (kind === "contract") {
+						if (!recordedSince(approvals.plan?.approvedAt, presented.presentedAt)) delete approvals.plan;
+						if (!recordedSince(approvals.implementation?.approvedAt, presented.presentedAt)) delete approvals.implementation;
+						if (!recordedSince(scopeState.acceptance?.recordedAt, presented.presentedAt)) delete scopeState.acceptance;
+					}
+					if (kind === "plan" || kind === "implementation") delete scopeState.acceptance;
+					records[`${kind} ${target}`] = approvals[kind];
 				}
-				if (kind === "plan" || kind === "implementation") delete scopeState.acceptance;
 				writeState(root, state);
-				presentations.delete(key);
-				return resultText(`Approved Flow ${kind} revision for scope ${scope}.`, approvals[kind] as Record<string, unknown>);
+				for (const { scope: target, kind } of targets) presentations.delete(presentationKey(target, kind));
+				if (targets.length === 1) {
+					const [{ scope: target, kind }] = targets;
+					return resultText(`Approved Flow ${kind} revision for scope ${target}.`, records[`${kind} ${target}`] as Record<string, unknown>);
+				}
+				return resultText(`Approved ${targets.length} Flow artifact revisions: ${targetList(targets)}.`, records);
 			}
 
 			if (action === "accept") {
 				if (!ctx.hasUI) throw new Error("Flow acceptance state must be recorded by the interactive parent session");
 				const source = getString(input, "source");
 				if (!source) throw new Error("Flow gate accept requires a source receipt identifier");
-				// Exclude .flow/ before fingerprinting, or the first accept on a new checkout
-				// hashes Flow's own state and the next verifier dispatch sees a change.
+				const scopes = listParam(input, "scope");
+				if (scopes.length === 0) throw new Error("Flow gate scope is required");
+				// Exclude .flow/ before the first identity, or the first accept on a new checkout
+				// binds Flow's own state and the next verifier dispatch sees a change.
 				ensureFlowExcluded(root);
 				const identity = worktreeIdentity(root);
-				const state = readState(root);
-				const scopeState = (state.scopes[scope] ??= {});
-				scopeState.acceptance = {
+				const acceptance: AcceptanceRecord = {
 					head: identity.head,
+					tree: identity.tree,
 					fingerprint: identity.fingerprint,
 					recordedAt: new Date().toISOString(),
 					source,
 				};
+				const state = readState(root);
+				for (const target of scopes) (state.scopes[target] ??= {}).acceptance = { ...acceptance };
 				writeState(root, state);
 				return resultText(
-					`Recorded Flow acceptance/closure for scope ${scope} at ${identity.head} (${identity.fingerprint}).`,
-					scopeState.acceptance as unknown as Record<string, unknown>,
+					`Recorded Flow acceptance/closure for ${scopes.length === 1 ? "scope" : "scopes"} ${scopes.join(", ")}: tree ${identity.tree} at ${identity.head}.`,
+					acceptance as unknown as Record<string, unknown>,
 				);
 			}
 
@@ -974,14 +1216,17 @@ export default function (pi: ExtensionAPI) {
 					lines.push(`${kind}: missing`);
 					continue;
 				}
+				const recorded = recordedArtifactPath(approval.path);
 				let status = "stale";
+				let amendments = "";
 				try {
-					const current = artifactIdentity(root, approval.path);
-					status = current.path === approval.path && current.sha256 === approval.sha256 ? "current" : "stale";
+					const current = artifactIdentity(root, recorded, kind);
+					status = rootRelativePath(root, current.path) === recorded && current.sha256 === approval.sha256 ? "current" : "stale";
+					if (status === "current" && current.amendments > 0) amendments = `, in-scope amendments: ${current.amendments}`;
 				} catch {
 					status = "missing";
 				}
-				lines.push(`${kind}: ${status} (${approval.path})`);
+				lines.push(`${kind}: ${status} (${recorded}${amendments})`);
 			}
 			if (scopeState.acceptance) {
 				const current = worktreeIdentity(root);
@@ -1040,6 +1285,19 @@ export default function (pi: ExtensionAPI) {
 				const reason = astEditBlock(ctx.cwd, input);
 				if (reason) return { block: true, reason };
 			}
+			const id = event.toolName === "write" ? messagedAgent(input.path) : undefined;
+			if (id !== undefined) {
+				try {
+					const sessionFile = ctx.sessionManager?.getSessionFile?.();
+					const reason = parkedWriterError(ctx.cwd, sessionFile, id, (scope, kind) => presentations.has(presentationKey(scope, kind)));
+					if (reason) return { block: true, reason };
+				} catch (error) {
+					return {
+						block: true,
+						reason: `Flow governance preflight failed closed: ${error instanceof Error ? error.message : String(error)}`,
+					};
+				}
+			}
 			return;
 		}
 		if (event.toolName !== "task") return;
@@ -1054,7 +1312,7 @@ export default function (pi: ExtensionAPI) {
 			};
 		}
 		try {
-			const errors = taskGateErrors(root, event.input as ToolInput);
+			const errors = taskGateErrors(root, event.input as ToolInput, (scope, kind) => presentations.has(presentationKey(scope, kind)));
 			if (errors.length > 0) {
 				return {
 					block: true,

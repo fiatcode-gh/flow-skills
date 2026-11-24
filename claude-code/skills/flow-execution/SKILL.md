@@ -14,7 +14,7 @@ Claude Code owns agent spawning (the Agent tool), worktree isolation and agent c
 - Treat a start or resume command as no approval. A "go ahead" after you show the plan in chat lets you run `flow_approve <slug> plan <path>`. Dispatch only after that.
 - An external handoff approves nothing: validate it locally, then get the contract and plan approvals here.
 - `flow-planning` section 5 and "External handoffs" decide whether a plan is execution-grade. Do not re-plan a validated current plan that meets them.
-- Carry this block (the Flow gate block) in every `flow-plan-executor` and `flow-implementer` brief:
+- Carry this block (the Flow gate block) in the brief of every writer on contract work: `flow-plan-executor`, `flow-implementer`, and the mechanical lane:
 
 ```text
 Flow gate:
@@ -23,7 +23,7 @@ Flow gate:
 - Plan: <absolute path to the approved PLAN.md>
 ```
 
-- Write `Plan: NONE` when the approved contract's work needs no separate plan. Example: a debugged fix sent to `flow-implementer`. Show the `Plan: NONE` route in chat and end your turn. Once the user agrees, run `flow_approve <slug> implementation <contract path>` before dispatch.
+- Write `Plan: NONE` when the approved contract's work needs no separate plan. Example: a debugged fix sent to `flow-implementer`. Show the `Plan: NONE` route in chat, with the contract when you can, so one yes covers both. End your turn. Once the user agrees, run `flow_approve <slug> implementation <contract path>` before dispatch.
 - Run tiny work on the user's concrete request alone, in the Main-direct lane (section 2).
 
 ## 2. Route the work
@@ -46,7 +46,7 @@ Rules:
 - Run dependent units in order, starting each from the verified updated base.
 - Give one writer at a time to units that touch the same files.
 - Give each plan task one fresh `flow-plan-executor`, in order. Never reuse an executor across plan tasks.
-- Keep a `flow-implementer`'s agent id, so you can continue it with `SendMessage` for follow-ups.
+- Continue a finished agent with `SendMessage` only within 5 minutes of its last reply. After that its prompt cache is cold and it re-reads its whole context: start a fresh agent with the artifact paths and that receipt.
 
 ## 4. Write the brief
 
@@ -90,7 +90,7 @@ Each layer proves its own scope. Do not rerun full suites as ritual.
 - Send an exact diagnosed fix to the mechanical lane.
 - For a formatter-only failure, have the owner run the canonical formatter on its touched files. Never hand-imitate formatter output.
 - Send a fix inside a still-valid plan to a fresh `flow-plan-executor` with one correction brief and its focused proof.
-- Send a fix needing semantic context to the existing `flow-implementer` with `SendMessage`, or to a new bounded owner when that one is gone.
+- Send a fix needing semantic context to its `flow-implementer` with `SendMessage` while section 3 allows a follow-up. Otherwise send it to a fresh `flow-implementer`.
 - Stop that work for a plan defect or invalid contract. Return through `flow-planning`, `flow-design` or the user.
 - Rerun only the proof the correction affects, plus gates it made stale.
 - Run one scoped closure review by default. Run another only for a concrete unresolved acceptance risk.

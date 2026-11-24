@@ -13,8 +13,7 @@ description: Use when local implementation is authorized; prefer constrained exe
 - Require two recorded approvals before the first production-writing worker on substantial work: the contract, then the plan (`flow_approve <slug> contract <path>`, then `flow_approve <slug> plan <PLAN.md path>`).
 - Treat a start or resume command as no approval. A "go ahead" after you show the plan in chat lets you run `flow_approve <slug> plan <PLAN.md path>`. Dispatch only after the approval is recorded.
 - An external handoff approves nothing (Safety in `AGENTS.md`): validate it locally, then record the contract and plan approvals here.
-- `flow-planning` section 5 and "External handoffs" decide whether a plan is execution-grade. Do not re-plan a validated current plan that meets them.
-- Carry this block (the Flow gate block) in every `flow-plan-executor` and `flow-implementer` brief. Before each dispatch, run `flow_check <slug> contract <path>` and `flow_check <slug> plan <PLAN.md path>`; for `Plan: NONE` work, run `flow_check <slug> implementation <contract path>` instead of the plan check. `stale` or `missing` blocks the dispatch.
+- Carry this block (the Flow gate block) in the brief of every writer on contract work: `flow-plan-executor`, `flow-implementer`, and the mechanical lane. Before each dispatch, run `flow_check <slug> contract <path>` and `flow_check <slug> plan <PLAN.md path>`; for `Plan: NONE` work, run `flow_check <slug> implementation <contract path>` instead of the plan check. `stale` or `missing` blocks the dispatch.
 
 ```text
 Flow gate:
@@ -23,14 +22,14 @@ Flow gate:
 - Plan: <approved PLAN.md path>
 ```
 
-- Write `Plan: NONE` when the approved contract's work needs no separate plan. Example: a debugged fix sent to `flow-implementer`. After the contract approval, show the `Plan: NONE` route in chat and end your turn. Once the user agrees, run `flow_approve <slug> implementation <contract path>` before dispatch.
+- Write `Plan: NONE` when the approved contract's work needs no separate plan. Example: a debugged fix sent to `flow-implementer`. Show the `Plan: NONE` route in chat, with the contract when you can, so one yes covers both. End your turn. Once the user agrees, run `flow_approve <slug> implementation <contract path>` before dispatch.
 - Tiny work needs no contract. Work is tiny only when all hold:
-  - at most 30 hand-written changed lines (added plus removed) across at most 3 files;
+  - at most 30 hand-written changed production lines (added plus removed) across at most 3 production files;
   - no behavior beyond the user's exact request;
-  - no migration, schema change, data rewrite or release pipeline.
-- Lines a tool generated do not count: lockfiles, codegen output, snapshots a tool regenerated.
+  - no migration, schema change, data rewrite or release pipeline, whatever its size.
+- These do not count: the regression or unit tests for the change, its CHANGELOG entry, its docs, and lines a tool generated (lockfiles, codegen output, regenerated snapshots). Example: a 9-line fix with a 40-line regression test is tiny.
+- Skills, agents and rules that a harness loads as instructions are production, not docs.
 - Work that is not tiny needs a `flow-design` contract, even when the user chose the fix in chat.
-- Main writes tiny work in the Main-direct lane (section 2).
 - Run a throwaway spike the user asks for on a scratch branch, with no contract. Never merge any of it; merging spike code needs the normal flow.
 
 ## 2. Route the work
@@ -45,7 +44,6 @@ Work to owner:
 Rules:
 - Never send ambiguous or new behavior, architecture, migration, concurrency or error semantics, or root-cause diagnosis to the mechanical lane.
 - Send those to `flow-plan-executor` only when the plan has settled them. The executor follows locked decisions and escalates contradictions.
-- A `flow-plan-executor` spawns no children. A `flow-implementer` may use `explore` and `general`.
 
 ## 3. Order and ownership
 
@@ -54,14 +52,13 @@ Rules:
 - Run dependent units in order, starting each from the verified updated base.
 - Give one writer at a time to units that touch the same files.
 - Give each plan task one fresh `flow-plan-executor`, in order. Never reuse an executor across plan tasks.
-- Keep a `flow-implementer`'s `sessionID`, so you can continue it for follow-ups.
+- Continue a finished subagent with its `sessionID` only within 5 minutes of its last reply. After that its prompt cache is cold and it re-reads its whole context: start a fresh subagent with the artifact paths and that receipt.
 - You may write a short resume handoff at a clean boundary under context pressure. It is optional and never a gate, unlike the section 9 checkpoint. Keep working in the current session.
 
 ## 4. Write the brief
 
 - Make the brief self-contained: behavior, scope, constraints and interfaces, acceptance criteria, workspace and concurrency context, verification scope.
-- Pass artifact paths, not pasted plans: contract, `PLAN.md`, the one assigned `plan-tasks/*.md`, base head.
-- Do not paste the conversation. Do not name models.
+- Pass artifact paths, not pasted plans or conversation: contract, `PLAN.md`, the one assigned `plan-tasks/*.md`, base head.
 - End every writer brief with this footer (the Verification ownership block). Fill all four entries concretely before you spawn.
 
 ```text
@@ -72,8 +69,6 @@ Verification ownership:
 - Main-owned gates: <broader commands and why they stay with Main>
 ```
 
-- Make the writer run the canonical formatter on its touched files. Keep for Main only repo-wide formatting and gates that could touch sibling work.
-
 ## 5. Clarify and wait
 
 - Expect a worker to derive what it can, finish independent work, then return `BLOCKED` with the question, evidence and a recommendation when the answer would change approved behavior, scope, interfaces, data or architecture. A subagent cannot ask you mid-run.
@@ -81,9 +76,8 @@ Verification ownership:
 - For a new design, product or user choice, or a wrong plan: tell the worker to stop at a clean boundary and return BLOCKED, then route it through `flow-design`, `flow-planning` or the user.
 - Change a locked plan decision only by a plan edit, never by a message or a correction brief. Stop the worker first, as above. `flow-planning` sections 1 and 6 say who writes the edit and how it is approved. Example: an executor reports that locked decision D4 cannot work → stop it, edit the plan, get approval, dispatch.
 - Do independent work while children run.
-- Answer a `BLOCKED` return by calling `subagent` again with the child's `sessionID`. Background subagents notify you on completion.
+- Answer a `BLOCKED` return in the same session, by calling `subagent` again with the child's `sessionID`. Section 3 decides a follow-up after a finished receipt. Background subagents notify you on completion.
 - Do not poll.
-- Continue a returned owner with its `sessionID`. Never start a new session for its follow-up.
 
 ## 6. Accept work
 
@@ -100,7 +94,7 @@ Verification ownership:
 - Send an exact diagnosed fix to the mechanical lane.
 - For a formatter-only failure, have the owner run the canonical formatter on its touched files, or send the exact fix to the mechanical lane. Never hand-imitate formatter output.
 - Send a fix that keeps every locked decision to a fresh `flow-plan-executor` with one correction brief and its focused proof. A fix that changes one needs a plan edit (section 5).
-- Send a fix needing semantic context to the existing `flow-implementer` (continue it with its `sessionID`). Send it to a new bounded owner when that owner is gone.
+- Send a fix needing semantic context to its `flow-implementer` while section 3 allows a follow-up. Otherwise send it to a fresh `flow-implementer`.
 - Stop that work for a plan defect or invalid contract. Return through `flow-planning`, `flow-design` or the user.
 - Rerun only the proof the correction affects, plus gates it made stale.
 - Before acceptance, run one scoped closure review by default. Run another only for a concrete unresolved acceptance risk.
@@ -117,7 +111,7 @@ Verification ownership:
 
 ## 9. Close execution
 
-- When local commits are expected, commit coherent behavior units with Conventional Commits and the repository's pre-commit checks. Do not commit once per worker by rule.
+- Commit coherent behavior units (`AGENTS.md` Commits). Do not commit once per worker by rule.
 - Write `.flow/checkpoints/<head>.md` before the first device, emulator, manual or external acceptance action.
 - Treat each of these as that action:
   - the first ADB or device command, driving an emulator or app, a screenshot, a manual smoke step;
@@ -130,6 +124,7 @@ Verification ownership:
   3. one trivial observation by Main, or the user's own look;
   4. the user's verdict.
 - A change made from that verdict is a change after acceptance (section 8).
-- Never drive multi-step device or manual capture yourself, as Main.
+- On planned work, never drive multi-step device or manual capture yourself, as Main.
+- On tiny work, after the checkpoint above, you may run one short device or browser check yourself.
 - Follow the `MATCH` self-consistency rule in the Evidence section of `AGENTS.md` for restore receipts. Inspect consequential evidence and own acceptance as Main.
 - Use `flow-integrating` next.

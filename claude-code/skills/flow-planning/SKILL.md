@@ -16,6 +16,7 @@ Flow planning turns an approved contract or specification into an **execution-gr
 - For substantial work, `flow-design` forms the WHAT/WHY contract and gets it approved before this skill begins.
 - Planning carries no implementation authorization.
 - Write `.flow/plans/<slug>/PLAN.md` plus `plan-tasks/01-<task>.md`, `02-<task>.md` and so on.
+- Make `## In-scope amendments` the last line of `PLAN.md`, with nothing under it (section 6).
 - A compact one-file `PLAN.md` is fine when it stays readable and no worker needs a sliced brief.
 
 Who plans:
@@ -125,9 +126,10 @@ When any of these fails, keep the artifact as strategy/draft and route the unres
 - Main validates the planner's receipt. That does not authorize implementation.
 - For substantial planned work, Main presents the completed execution-grade plan in full in chat and gets **explicit user plan approval** before the first production-writing worker. End your turn after the presentation.
 - After the user agrees, run `flow_approve <slug> plan <PLAN.md path>`.
-- An edit to the plan makes `flow_check` print `stale`. That blocks production-writer dispatch until the amended plan is presented and approved again.
-- Then `flow-execution` routes each writer (section 2), orders the tasks (section 3) and writes the briefs (section 4). One task brief normally gets one fresh `flow-plan-executor`.
-- The planner's handoff is receipt-first: source/base revision and dirty-state assumption, plan/task paths, dependency shape, quality-gate disposition, residual risks and the exact next action.
+- Log every amendment in `PLAN.md` as one line: the task and the change.
+- An amendment is in-scope when it stays inside the approved contract and changes no locked decision, shared interface or acceptance criterion. Log it under `## In-scope amendments`. `flow_check` leaves the lines under that heading out of the plan digest, so the approval stays current with no new yes.
+- Log every other amendment above that heading. It makes `flow_check` print `stale`, which blocks writer dispatch until the amended plan is presented and approved again.
+- Then `flow-execution` routes each writer (section 2), orders the tasks (section 3) and writes the briefs (section 4).
 
 ## External handoffs
 

@@ -16,6 +16,7 @@ Flow planning turns an approved contract or specification into an **execution-gr
 - For substantial work, `flow-design` forms the WHAT/WHY contract and gets it approved before this skill begins.
 - Planning carries no implementation authorization.
 - Write `.flow/plans/<slug>/PLAN.md` plus `plan-tasks/01-<task>.md`, `02-<task>.md` and so on. The `flow-artifacts` rule owns the exclude guard and the lifecycle.
+- Make `## In-scope amendments` the last line of `PLAN.md`, with nothing under it (section 6).
 - A compact one-file `PLAN.md` is fine when it stays readable and no worker needs a sliced brief.
 
 Who plans:
@@ -131,18 +132,16 @@ When any of these fails, keep the artifact as strategy/draft and route the unres
 
 ## 6. Execution handoff
 
-- Main validates the plan receipt and obtains or retains the normal implementation authorization boundary.
-- Plan receipt validation does not itself authorize implementation.
+- Main validates the plan receipt. That does not authorize implementation.
 - For substantial planned work, Main presents the completed execution-grade plan in chat and gets **explicit user plan approval** before the first production-writing worker.
 - End your turn after the chat presentation. Call `flow_gate` only after the user agrees.
 - Then bind that approval with `flow_gate`: call `present` for `kind=plan` with the same Flow scope, the exact `PLAN.md` path and a one-line `summary` of what the user approves. Then call `approve`.
 - `flow-execution` section 1 says what does not count as plan approval.
-- A recorded prior approval stays valid while the approved plan artifact is materially unchanged.
-- Editing the plan changes its digest. That mechanically blocks production-writer dispatch until the amended plan is presented and approved again. Present and approve every amendment before any writer acts on it.
-- Add one line per amendment to `PLAN.md` (task and change), so a `plan-tasks/` edit changes the digest too.
+- A recorded prior approval stays valid while the approved plan is materially unchanged.
+- Log every amendment in `PLAN.md` as one line: the task and the change.
+- An amendment is in-scope when it stays inside the approved contract and changes no locked decision, shared interface or acceptance criterion. Log it under `## In-scope amendments`. The guard leaves the lines under that heading out of the plan digest, so the approval stays current with no new prompt.
+- Log every other amendment above that heading. It changes the digest, and the guard blocks writer dispatch. Show the amended plan in chat, end your turn, then present and approve it again. Example: a changed locked decision.
 - Then `flow-execution` routes each writer (section 2), orders and isolates the tasks (section 3) and writes the briefs (section 4).
-- One execution-grade task brief normally gets one fresh `flow-plan-executor` session.
-- The planner's handoff is receipt-first: source/base revision and dirty-state assumption, plan/task paths, dependency shape, quality-gate disposition, residual risks and the exact next action.
 
 ## External handoffs
 

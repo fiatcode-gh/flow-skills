@@ -11,6 +11,7 @@ Before mutating a repository, inspect its branch, worktree and working-tree stat
 - Treat pre-existing changes as user-owned. Never silently discard, reset, stash, overwrite, relocate, or "clean up" them.
 - Read-only roles never write in the user's checkout or change its git state, `git worktree add` included: acceptance, TTC, craft and audit reviewers, `reviewer`, `security-reviewer`, and `flow-evidence-verifier` (evidence goes to `.flow/evidence/`).
 - They run every build, test or mutation probe in a `mktemp -d` copy, never under a fixed `/tmp/<name>` path: `git archive HEAD | tar -x -C <copy>`, or `cp -a` for uncommitted changes.
+- The tool shell keeps no variables between calls. Repeat the copy's literal path in each command. Never save it in a fixed `/tmp` file.
 - Only a writer probes in place, on its own files. Before a probe touches a pre-existing dirty file, snapshot it outside the target path and restore from that snapshot (never from `HEAD`/checkout/reset).
 - Do not put feature work directly on `main`/`master` unless the user chose that explicitly.
 - A sole or sequential semantic owner normally works directly in a suitable feature checkout, so its session stays resumable. Planned tasks get fresh `flow-plan-executor` sessions.

@@ -17,7 +17,7 @@ These are the user's standing instructions, installed from `opencode/` of flow-s
 
 - Use OpenCode's own agents (`build`, `plan`), the `subagent` tool, the `skill` tool and its permission prompts. Flow skills add judgment and gates. Do not rebuild those mechanics.
 - Load a Flow skill when its description matches the task. There is no bootstrap skill.
-- OpenCode has no task-list tool. Keep the stage list in the forward pointer at each user-facing checkpoint, resumed sessions too: Contract, Plan, Execution, Acceptance, Integration. After plan approval, list the plan tasks left in place of Execution.
+- OpenCode has no task-list tool. Keep the stage list in the forward pointer at each user-facing checkpoint, resumed sessions too: Contract, Plan, Execution, Acceptance, Integration. After plan approval, list the plan tasks left in place of Execution. A PR review has the stages Review and Publication. Author feedback has Feedback, Fixes and Publication.
 - Use `flow-design` before substantial work enters planning: write the governing WHAT/WHY contract, present it, and get explicit user approval. This holds for every start: a new or existing project, an internal brainstorm, an external handoff.
 - Skip the contract only for tiny work as defined in `flow-execution` section 1. A throwaway spike follows the spike rule there.
 - `flow-design` says how to keep settled decisions and which questions to ask.
@@ -27,10 +27,10 @@ These are the user's standing instructions, installed from `opencode/` of flow-s
 - For substantial planned work, do not dispatch the first production-writing worker until the user approves the completed execution-grade plan. Work with no plan uses `Plan: NONE` (`flow-execution` section 1).
 - Treat a start or resume request as no approval.
 - Treat answers to clarification questions as no approval of the contract. Only explicit approval of the completed contract counts.
-- Show each artifact in chat before you record its approval: the contract, the plan, or the acceptance or closure receipt. Give its path and what the user is agreeing to. Then end your turn.
-- Run `flow_approve` only after the user agrees in chat; for a receipt, kind `accept`. Example: the user says "go ahead" after you show the plan. Run `flow_approve <scope> plan <PLAN.md path>` now; dispatch only after the approval is recorded.
-- Before every planner, executor or implementer dispatch, run `flow_check` for the contract (and the plan). For `Plan: NONE` work, run `flow_check <scope> implementation <contract path>` instead of the plan check. The brief carries the `Flow gate:` block (`flow-planning` section 1, `flow-execution` section 1).
-- A recorded approval survives resume while its artifact is unchanged. A material edit to the contract or plan makes `flow_check` print `stale`, and it needs a new approval.
+- Show in chat every artifact one yes will cover, before you record any approval: the contract, the plan, a `Plan: NONE` route, or the acceptance or closure receipt. Give each path and what the user is agreeing to. Then end your turn.
+- Run `flow_approve` only after the user agrees in chat, once for each artifact the yes covers; for a receipt, kind `accept`. Example: the user says "go ahead" after you show the plan. Run `flow_approve <scope> plan <PLAN.md path>` now; dispatch only after the approval is recorded.
+- Before every planner, executor or implementer dispatch, and before a mechanical-lane dispatch that writes on contract work, run `flow_check` for the contract (and the plan). For `Plan: NONE` work, run `flow_check <scope> implementation <contract path>` instead of the plan check. The brief carries the `Flow gate:` block (`flow-planning` section 1, `flow-execution` section 1).
+- A recorded approval survives resume while its artifact is unchanged. A material edit to the contract or plan makes `flow_check` print `stale`, and it needs a new approval. An in-scope plan amendment does not (`flow-planning` section 6).
 - Route subagents by agent name. Never put a concrete model id in a workflow prompt.
 - Route each writer by what is left to decide:
   - a task from an execution-grade plan → `flow-plan-executor`;
@@ -48,15 +48,19 @@ These are the user's standing instructions, installed from `opencode/` of flow-s
 Flow has no gate tool here. Bind each approval to the artifact bytes, so a later edit is visible:
 
 ```sh
+flow_digest() { # flow_digest <kind> <path>   plan: hashed up to its last amendments heading
+  n=$(sed -n '/^## In-scope amendments$/=' "$2" | tail -n 1)
+  if [ "$1" = plan ] && [ "$n" ]; then head -n "$n" "$2"; else cat "$2"; fi | sha256sum | cut -d' ' -f1
+}
 flow_approve() { # flow_approve <scope> <kind> <path>   kind: contract | plan | implementation | accept
   [ -f "$3" ] || { echo "flow_approve: no file $3" >&2; return 1; }
-  mkdir -p .flow/runtime && printf '%s %s %s %s\n' "$1" "$2" "$(sha256sum "$3" | cut -d' ' -f1)" "$3" >>.flow/runtime/approvals.log
+  mkdir -p .flow/runtime && printf '%s %s %s %s\n' "$1" "$2" "$(flow_digest "$2" "$3")" "$3" >>.flow/runtime/approvals.log
 }
 flow_check() { # flow_check <scope> <kind> <path>   prints ok, stale or missing
   [ -f "$3" ] || { echo missing; return 1; }
   line=$(awk -v s="$1" -v k="$2" '$1==s && $2==k' .flow/runtime/approvals.log 2>/dev/null | tail -n 1)
   [ -z "$line" ] && { echo missing; return 1; }
-  [ "$(echo "$line" | cut -d' ' -f3)" = "$(sha256sum "$3" | cut -d' ' -f1)" ] && echo ok || { echo stale; return 1; }
+  [ "$(echo "$line" | cut -d' ' -f3)" = "$(flow_digest "$2" "$3")" ] && echo ok || { echo stale; return 1; }
 }
 ```
 
@@ -142,11 +146,12 @@ Before mutating a repository, inspect its branch, worktree and working-tree stat
 - Treat pre-existing changes as user-owned. Never silently discard, reset, stash, overwrite, relocate, or "clean up" them.
 - Read-only roles never write in the user's checkout or change its git state, `git worktree add` included: the acceptance, COR, TTC, craft, audit and SEC reviewers (including a `general` subagent briefed for SEC).
 - They run every build, test or mutation probe in a `mktemp -d` copy, never under a fixed `/tmp/<name>` path: `git archive HEAD | tar -x -C <copy>`, or `cp -a` for uncommitted changes.
+- The tool shell keeps no variables between calls. Repeat the copy's literal path in each command. Never save it in a fixed `/tmp` file.
 - Only a writer probes in place, on its own files. Before a probe touches a pre-existing dirty file, snapshot it outside the target path and restore from that snapshot (never from `HEAD`/checkout/reset).
 - Do not put feature work directly on `main`/`master` unless the user chose that explicitly.
 - A sole or sequential semantic owner normally works directly in a suitable feature checkout, so its session stays resumable. Planned tasks get fresh `flow-plan-executor` sessions.
 - Writers that touch the same files run one at a time. Independent writers on disjoint files may run as background subagents. This port has no isolation backend: run a disposable experiment in a `mktemp -d` copy.
-- Prefer the same owner for follow-up corrections: continue its session with its `sessionID`.
+- Send a follow-up correction to the same owner only while `flow-execution` section 3 allows it.
 - Never assume another session's workspace is safe to mutate or discard.
 - Never create, remove, force-switch or repurpose a user-owned external worktree without explicit instruction.
 - Every stakeholder-visible write (pushes, force-pushes, PR create/update, review publication, reviewer requests, merges, releases, remote comments or messages, ClickUp uploads and status changes) needs explicit user approval for that action and round.

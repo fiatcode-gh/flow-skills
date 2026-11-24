@@ -4,11 +4,29 @@ Versions follow SemVer as described in the Versioning section of the README.
 
 ## Unreleased
 
+### Added
+- `omp/extensions/flow-credentials-guard.ts`: a guard that refuses, without asking, any tool call that would print a credentials file (`.env` files, `mcp.json` and `.mcp.json`, the OpenCode `service.json`, credentials files, private keys). It covers `read`, `grep`, and `bash` or `eval` text that reads one. Loading a file into a program stays allowed (`--env-file`, or sourcing in a quiet subshell). It is a backstop, not a sandbox; `docs/OMP-COMPATIBILITY.md` lists what it misses.
+- OpenCode: `opencode/opencode.json` denies `read` on the same secret files through `permission.read` rules. It denies every `.pem` file, public certificates included.
+- `flow_gate approve` takes several scopes and several kinds separated by commas, and `accept` takes several scopes, all behind one approval prompt. One chat yes for a contract and its `Plan: NONE` route is now one prompt.
+- In-scope plan amendments: lines under the last line of a plan that is exactly `## In-scope amendments` stay out of the plan digest, so a fix inside the approved contract needs no new approval. The OpenCode and Claude Code ports hash plans the same way through a shared `flow_digest`.
+- The governance guard checks a `sonic` that carries a `Flow gate:` block like an executor, and checks a message to a parked writer like a new dispatch. A message to a live agent always goes through.
+
 ### Changed
 - Anthropic lineup, in OMP, Claude Code and OpenCode `claude-agent`: the acceptance reviewer (`slow`) runs on Fable 5.2 at `medium` (was `high`) to save Fable allowance. The planner and `critical` stay at `high`.
+- `flow_gate accept` binds the working tree's content, not the commit, so committing the accepted tree or moving the folder keeps it current. An acceptance recorded before this change reads stale once; record it again.
+- Approval records hold the artifact path relative to the repository, so a moved or renamed checkout keeps its approvals. Older records are still read.
+- The tiny limit in `flow-execution` counts only hand-written production lines: the change's tests, CHANGELOG entry, docs and generated lines do not count. Skills, agents and rules are production.
+- A finished subagent gets a follow-up only within 5 minutes of its last reply; after that, Flow starts a fresh agent. OMP parks an idle subagent after 7 minutes, and the first message after a park re-reads its whole context.
+- On tiny work, Main may run one short device or browser check itself after the recovery checkpoint.
+- Review work keeps an OMP `todo` list: Review and Publication for a PR review; Feedback, Fixes and Publication for author feedback.
+- A reply that stops for an approval ends with the approval question, so OMP sends no duplicate todo reminder.
+- `flow-evidence-verifier` lists `eval`, so it can drive a browser criterion with the `browser` helper.
 
 ### Removed
 - The `blog-post` skill. It writes into one checkout, so it now lives in the `site` repository as an OMP project skill (`.omp/skills/blog-post`) and loads only in sessions started there.
+
+### Fixed
+- A dispatch sent in the same tool batch as its `flow_gate approve` now fails with a message that says the approval is presented but not recorded yet, instead of "artifact changed after approval".
 
 ## 1.4.0 — 2026-11-11
 

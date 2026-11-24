@@ -559,7 +559,7 @@ principles=ledger.lower()
 # The invariant ledger keeps its numbering: deleting an invariant is a deliberate renumbering.
 invariants=ledger.split('## Non-negotiable invariants',1)[-1]
 numbers=[int(n) for n in re.findall(r'^(\d+)\. ', invariants, re.M)]
-if numbers!=list(range(1,43)): err(f'docs/PRINCIPLES.md: non-negotiable invariants must be numbered 1-42, got {numbers}')
+if numbers!=list(range(1,44)): err(f'docs/PRINCIPLES.md: non-negotiable invariants must be numbered 1-43, got {numbers}')
 for required in ['## Skill design principles', '## Skill sweep ledger', '## Non-negotiable invariants', '`docs/FIELD-TRIAL-AUDIT.md` section 6', '`tests/doctrine-budget.json`']:
     if required not in ledger: err(f'docs/PRINCIPLES.md missing marker: {required!r}')
 if 'unresolved semantic/debugging/integration judgment → main/`@task`' in principles:
@@ -694,13 +694,13 @@ oport_agents_md=oport/'AGENTS.md'
 if not oport_agents_md.exists(): err('opencode/AGENTS.md: missing')
 else:
     oport_ctx=oport_agents_md.read_text()
-    for marker in ['# Flow (flow-skills, OpenCode port)','## Approval record','flow_approve() {','flow_check() {','.flow/runtime/approvals.log','`subagent`','`skill`','`general`','`explore`','`flow-plan-executor`','`flow-implementer`','`flow-acceptance-reviewer`','## Harness: [[OpenCode]]','<!-- flow-exclude-guard -->',"printf '/.flow/\\n'",'## Safety','## Evidence','## Flow artifacts','`execute`']:
+    for marker in ['# Flow (flow-skills, OpenCode port)','## Approval record','flow_digest() {','flow_approve() {','flow_check() {','.flow/runtime/approvals.log','`subagent`','`skill`','`general`','`explore`','`flow-plan-executor`','`flow-implementer`','`flow-acceptance-reviewer`','## Harness: [[OpenCode]]','<!-- flow-exclude-guard -->',"printf '/.flow/\\n'",'## Safety','## Evidence','## Flow artifacts','`execute`']:
         if marker not in oport_ctx: err(f'opencode/AGENTS.md missing marker: {marker!r}')
     def approval_functions(text):
-        start=text.find('flow_approve() {'); end=text.find('\n}\n',text.find('flow_check() {'))
+        start=text.find('flow_digest() {'); end=text.find('\n}\n',text.find('flow_check() {'))
         return text[start:end+3] if start>=0 and end>=0 else None
     if approval_functions(oport_ctx)!=approval_functions((ROOT/'claude-code/hooks/flow-context.md').read_text()) or approval_functions(oport_ctx) is None:
-        err('opencode/AGENTS.md: flow_approve/flow_check bodies must equal claude-code/hooks/flow-context.md')
+        err('opencode/AGENTS.md: flow_digest/flow_approve/flow_check bodies must equal claude-code/hooks/flow-context.md')
 for p in oport_agents:
     fm,_=frontmatter(p)
     if not fm or fm.get('name')!=p.stem or not fm.get('description'): err(f'{rel(p)}: frontmatter needs name {p.stem} and a description')
@@ -728,6 +728,47 @@ for p in oport_docs+oport_cfgs:
     for foreign in OPORT_FOREIGN_PATHS:
         if foreign in text: err(f'{rel(p)}: other-harness path in the OpenCode port: {foreign}')
 required_asks=[m for m,a in pattern_lists['anthropic'] if a=='prompt']
+# The secret-file list of omp/extensions/flow-credentials-guard.ts in OpenCode's glob form.
+# The last matching rule wins in OpenCode, so the allow lines come last. OpenCode's `*` also matches `/`,
+# so every allow is `*` plus a literal ending: only the last path segment can satisfy it.
+OPORT_READ_RULES=[
+    ('.env*','deny'),('*/.env*','deny'),
+    ('mcp.json','deny'),('*/mcp.json','deny'),
+    ('.mcp.json','deny'),('*/.mcp.json','deny'),
+    ('*opencode/service.json','deny'),
+    ('*credentials','deny'),
+    ('*credentials*.json','deny'),('*credentials*.yml','deny'),('*credentials*.yaml','deny'),('*credentials*.toml','deny'),
+    ('*credentials*.ini','deny'),('*credentials*.cfg','deny'),('*credentials*.conf','deny'),('*credentials*.properties','deny'),
+    ('*credentials*.txt','deny'),('*credentials*.md','deny'),('*credentials*.csv','deny'),('*credentials*.xml','deny'),
+    ('*credentials*.env','deny'),
+    ('*id_rsa','deny'),('*id_dsa','deny'),('*id_ecdsa','deny'),('*id_ed25519','deny'),('*id_ecdsa_sk','deny'),('*id_ed25519_sk','deny'),
+    ('*.pem','deny'),('*.key','deny'),('*.p12','deny'),('*.pfx','deny'),('*.ppk','deny'),
+    ('*.pub','allow'),('*.example','allow'),('*.sample','allow'),
+    ('*.example.json','allow'),('*.example.yml','allow'),('*.example.yaml','allow'),('*.example.toml','allow'),
+    ('*.sample.json','allow'),('*.sample.yml','allow'),('*.sample.yaml','allow'),('*.sample.toml','allow'),
+]
+# OpenCode 2.2.5: a rule matches the whole resource, `*` is any run of characters (`/` included), `?` is one
+# character, and the last matching rule wins.
+def oport_read_effect(path):
+    effect='allow'
+    for pattern,action in OPORT_READ_RULES:
+        if re.fullmatch(re.escape(pattern).replace(r'\*','.*').replace(r'\?','.'),path,re.S): effect=action
+    return effect
+for pattern,action in OPORT_READ_RULES:
+    if action=='allow' and not (pattern.startswith('*') and '*' not in pattern[1:] and '?' not in pattern and '/' not in pattern):
+        err(f'tests/validate.py: OPORT_READ_RULES allow {pattern!r} must be * plus a literal ending without /')
+OPORT_READ_CASES=[(path,'deny') for path in (
+    '.env','app/.env.local','mcp.json','app/mcp.json','.mcp.json','app/.mcp.json',
+    '/home/u/.config/opencode/service.json','sandbox-credentials.md','/home/u/.aws/credentials','keys/id_rsa',
+    'certs/server.key','certs/server.pem','certs/privkey.pem','certs/fullchain.pem',
+    'sites/app.example.com/.env','conf.sample.d/id_rsa',
+)]+[(path,'allow') for path in (
+    '.env.example','app/.env.sample','config/credentials.example.json','secrets/credentials.sample.yml',
+    'keys/id_rsa.pub','omp/mcp.example.json','README.md','src/auth/credentials.ts',
+)]
+for path,wanted in OPORT_READ_CASES:
+    effect=oport_read_effect(path)
+    if effect!=wanted: err(f'tests/validate.py: OPORT_READ_RULES give {path!r} {effect}, wanted {wanted}')
 if not (oport/'opencode.json').exists(): err('opencode/opencode.json: missing')
 else:
     try: base=json.loads((oport/'opencode.json').read_text())
@@ -736,11 +777,12 @@ else:
         if not isinstance(base,dict) or set(base)!={'$schema','permission'}: err('opencode/opencode.json: top-level keys must be exactly $schema and permission')
         else:
             perm=base['permission']
-            if not isinstance(perm,dict) or set(perm)!={'bash'} or not isinstance(perm['bash'],dict): err('opencode/opencode.json: permission must be exactly a bash map')
+            if not isinstance(perm,dict) or set(perm)!={'bash','read'} or not isinstance(perm['bash'],dict) or not isinstance(perm['read'],dict): err('opencode/opencode.json: permission must be exactly a bash map and a read map')
             else:
                 if set(perm['bash'])!=set(required_asks): err(f'opencode/opencode.json: permission.bash must list exactly the profile prompt patterns; difference {sorted(set(perm["bash"])^set(required_asks))}')
                 for match,action in perm['bash'].items():
                     if action!='ask': err(f'opencode/opencode.json: permission.bash {match!r} must be ask, not {action!r}')
+                if list(perm['read'].items())!=OPORT_READ_RULES: err('opencode/opencode.json: permission.read must equal the credentials guard list, in order, allow lines last')
 oport_profiles=sorted((oport/'profiles').glob('*.json'))
 if {p.stem for p in oport_profiles}!={'claude-agent','commandcode','opencode'}: err(f'opencode/profiles: profile set mismatch: {sorted(p.stem for p in oport_profiles)}')
 # A profile names the OMP profile whose routing it follows; `opencode` has none (free models, no effort).

@@ -26,6 +26,8 @@ The chat reads through GitHub's read-only MCP server and writes nothing: no file
 
 `tests/validate.py` fails when `flow-handoff.md` no longer names every required manifest field, constant and enum value in the schema.
 
+The port carries none of the rules the 2026-11 Flow batch changed (approval prompts, in-scope amendments, the tiny limit, the follow-up window, the credentials guard): it records no approvals, dispatches no workers and has no shell.
+
 ## Claude Code port
 
 `claude-code/` is a Claude Code plugin named `flow`; `.claude-plugin/marketplace.json` lists it. Unlike the Open WebUI chat, Claude Code has a shell, a checkout and subagents, so the port carries execution as well as design, planning and review.
@@ -45,7 +47,7 @@ Mechanics map:
 
 | OMP | Claude Code port |
 |---|---|
-| `flow_gate` and the two guard extensions | `flow_approve` / `flow_check` in `flow-context.md`: a sha256 per approved artifact in `.flow/runtime/approvals.log`, checked by Main before dispatch. No hook enforces it. |
+| `flow_gate` and the guard extensions | `flow_digest`, `flow_approve` / `flow_check` in `flow-context.md`: a sha256 per approved artifact in `.flow/runtime/approvals.log`, checked by Main before dispatch. `flow_digest` hashes a plan only through its last `## In-scope amendments` line, so lines under it stay out of the digest. No hook enforces it. |
 | roles `@plan`, `@slow`; `@execute`, `@task`, `@review_aux` | agent `model: claude-fable-5-2`; `model: opus`, each with the profile's `effort` |
 | `sonic` (`@smol`), `scout` | a `general-purpose` agent with `model: sonnet`; the `Explore` agent |
 | `hub` clarification and `hub wait` | the agent returns BLOCKED; Main continues it with `SendMessage`; background agents notify on completion |
@@ -58,6 +60,32 @@ Mechanics map:
 On Windows the hook and the Bash tool run in Git Bash; see `docs/WINDOWS.md`.
 
 Not ported: `flow-evidence-verifier` and the checkpoint step serve device and manual acceptance, which a cloud container has no use for; frozen LDD ledgers; codebase-memory and shell-awareness doctrine.
+
+A plugin cannot ship `permissions.deny`: Claude Code reads deny rules only from user, project or managed settings, so the port has no counterpart to the credentials guard. The user may add this to `~/.claude/settings.json`. Deny rules have no exceptions, so the list names exact files instead of `.env*`, which would also deny `.env.example`:
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.local)",
+      "Read(**/.env.*.local)",
+      "Read(**/.env.production)",
+      "Read(**/.env.development)",
+      "Read(**/.envrc)",
+      "Read(**/mcp.json)",
+      "Read(**/.mcp.json)",
+      "Read(~/.config/opencode/service.json)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)",
+      "Read(**/*.key)",
+      "Read(**/*.p12)"
+    ]
+  }
+}
+```
+
+These rules cover Claude Code's file tools, not a `Bash` command that prints the file; there only the port's secrets rule in `flow-context.md` applies.
 
 A cloud session starts from a fresh container, so the cloud environment installs the plugin on every start. In the environment's settings:
 
@@ -76,7 +104,7 @@ Keep `WEFT_GRAPH` on its own clone. A session that has `fiat-codex` attached che
 | `skills/flow-tdd`, `skills/ui-design` | verbatim; `tests/validate.py` fails on drift |
 | the other `skills/` | the OMP skills with OMP mechanics reworded |
 | `agents/` | the OMP agents except `flow-evidence-verifier`, plus `flow-cor-reviewer` |
-| `opencode.json` | `bash.patterns` of `omp/profiles/*/config.yml`, as `permission.bash` asks |
+| `opencode.json` | `bash.patterns` of `omp/profiles/*/config.yml`, as `permission.bash` asks; the credentials guard's secret-file list, as `permission.read` deny rules with the `.pub`, example and sample endings allowed last (the last matching rule wins; `*` also matches `/`, so each allow is a plain ending and every `.pem` is denied) |
 | `profiles/` | `modelRoles`, as `model` and `agent.<name>.model` |
 | `bin/flow-opencode` | `omp/bin/flow-omp` |
 
@@ -84,7 +112,7 @@ Mechanics map:
 
 | OMP | OpenCode port |
 |---|---|
-| `flow_gate` and the two guard extensions | `flow_approve` / `flow_check` in `AGENTS.md`, logging to `.flow/runtime/approvals.log`; Main checks before dispatch |
+| `flow_gate` and the guard extensions | `flow_digest`, `flow_approve` / `flow_check` in `AGENTS.md`, logging to `.flow/runtime/approvals.log`; Main checks before dispatch. `flow_digest` hashes a plan only through its last `## In-scope amendments` line, so lines under it stay out of the digest |
 | roles `@plan`, `@slow`, `@execute`, `@task`, `@review_aux` | the profile file maps each agent name to a model |
 | `sonic` (`@smol`), `scout` | the built-in `general` and `explore` subagents |
 | spawning through the OMP task tool | the `subagent` tool |

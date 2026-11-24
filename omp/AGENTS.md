@@ -16,6 +16,7 @@
 - Use OMP's own Plan mode, task-agent lifecycle, isolation, Agent Hub, Vibe, built-in review and security scanning. Flow skills add judgment and gates. Do not rebuild those mechanics.
 - Load a Flow skill when its description matches the task. There is no bootstrap skill.
 - Track substantial Flow work in OMP `todo`, resumed sessions too. `init` one phase per stage left: Contract, Plan, Execution, Acceptance, Integration. Execution holds `Execute plan` until plan approval, then the plan tasks left: `append` them with `phase: "Execution"` and `rm` `Execute plan`.
+- Track review work in `todo` too. A PR review gets the phases Review and Publication. Author feedback gets Feedback, Fixes and Publication.
 - Use `flow-design` before substantial work enters planning: write the governing WHAT/WHY contract, present it, and get explicit user approval. This holds for every start: a new or existing project, an internal brainstorm, an external handoff.
 - Skip the contract only for tiny work as defined in `flow-execution` section 1. A throwaway spike follows the spike rule there.
 - `flow-design` says how to keep settled decisions and which questions to ask.
@@ -25,10 +26,12 @@
 - For substantial planned work, do not dispatch the first production-writing worker until the user approves the completed execution-grade plan. Work with no plan uses `Plan: NONE` (`flow-execution` section 1).
 - Treat a start or resume request as no approval.
 - Treat answers to clarification questions as no approval of the contract. Only explicit approval of the completed contract counts.
-- Show each artifact in chat before its `flow_gate` prompt: the contract, the plan, or the acceptance or closure receipt. Give its path and what the user is agreeing to. Then end your turn.
-- Call `flow_gate` only after the user agrees in chat: `present`, then `approve`, or `accept` for a receipt. Example: the user says "go ahead" after you show the plan. Call `flow_gate` now; dispatch only after the approval is recorded.
-- Every planner, executor, implementer or verifier dispatch needs a current gate record and the `Flow gate:` block in its brief (`flow-planning` section 1, `flow-execution` section 1).
-- A recorded approval survives resume while its artifact is unchanged. A material edit to the contract or plan needs a new approval.
+- Show in chat every artifact one yes will cover, before any `flow_gate` prompt: the contract, the plan, a `Plan: NONE` route, or the acceptance or closure receipt. Give each path and what the user is agreeing to. Then end your turn.
+- Make the approval question the last sentence of that reply. Example: `Do you approve this contract?` OMP sends no todo reminder after a reply that ends with a question to the user.
+- Call `flow_gate` only after the user agrees in chat. One yes gets one prompt: `present` each artifact, then call `approve` once with every scope and kind the yes covers. Example: `kind=contract,implementation`. For a receipt, call `accept` once.
+- Dispatch in a later tool batch, after the approval is recorded.
+- Every planner, executor, implementer or verifier dispatch, and every `sonic` that writes on contract work, needs a current gate record and the `Flow gate:` block in its brief (`flow-planning` section 1, `flow-execution` section 1).
+- A recorded approval survives resume, a commit and a folder move while its artifact is unchanged. A material edit to the contract or plan needs a new approval. An in-scope plan amendment does not (`flow-planning` section 6).
 - Route task agents by agent name or role. Never put a concrete model id in a workflow prompt.
 - Route each writer by what is left to decide:
   - a task from an execution-grade plan → `flow-plan-executor` (`@execute`);

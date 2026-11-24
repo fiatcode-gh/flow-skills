@@ -48,7 +48,7 @@ omp/                          OMP: the canonical doctrine and its setup
   AGENTS.md                   always-on user instructions
   rules/                      always-apply invariants (flow-safety, flow-evidence, flow-artifacts)
   agents/  skills/            task agents and skills
-  extensions/  lib/           OMP extensions (flow_gate, evidence guard, AI memory) and support code
+  extensions/  lib/           OMP extensions (flow_gate, evidence guard, credentials guard, AI memory) and support code
   profiles/<name>/config.yml  per-provider model roles and bash approval prompts
   keybindings.yml  TITLE_SYSTEM.md  mcp.example.json
   bin/flow-omp                install / verify / doctor

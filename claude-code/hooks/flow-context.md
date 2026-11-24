@@ -17,14 +17,14 @@ These are the user's standing instructions from the `fiatcode` plugin. Session s
 
 - Claude Code owns the mechanics: the Agent tool, worktree isolation, the task list, plan mode. Flow skills add judgment and gates. Do not rebuild those mechanics.
 - Load a Flow skill when its description matches the task. There is no bootstrap skill.
-- Track substantial Flow work in the task list (`TaskCreate`/`TaskUpdate`, or `TodoWrite`). Make one item per stage left: Contract, Plan, Execution, Acceptance, Integration. After plan approval, replace Execution with the plan tasks.
+- Track substantial Flow work in the task list (`TaskCreate`/`TaskUpdate`, or `TodoWrite`). Make one item per stage left: Contract, Plan, Execution, Acceptance, Integration. After plan approval, replace Execution with the plan tasks. A PR review gets the items Review and Publication. Author feedback gets Feedback, Fixes and Publication.
 - Use `flow-design` before substantial work enters planning: write the governing WHAT/WHY contract, present it, and get explicit user approval. Skip the contract only for tiny or mechanical work whose scope is already explicit.
 - Use `flow-planning` when the consequential implementation HOW must be decision-complete before coding. `flow-planner` writes that plan, not Main.
 - For substantial work, do not start planning until the user approves the completed contract. Do not dispatch the first production-writing worker until the user approves the completed execution-grade plan. Work with no plan uses `Plan: NONE` (`flow-execution` section 1).
 - Treat a start or resume request as no approval. Treat answers to clarification questions as no approval.
-- Show each artifact in chat before asking for approval: the contract, the plan, or the acceptance receipt. Give its path and what the user is agreeing to. Then end your turn.
-- Record an approval only after the user agrees in chat. Use the approval record below.
-- Every planner, executor or implementer dispatch carries the `Flow gate:` block in its brief (`flow-planning` section 1, `flow-execution` section 1).
+- Show in chat every artifact one yes will cover, before asking for approval: the contract, the plan, a `Plan: NONE` route, or the acceptance receipt. Give each path and what the user is agreeing to. Then end your turn.
+- Record an approval only after the user agrees in chat, once for each artifact the yes covers. Use the approval record below.
+- Every planner, executor or implementer dispatch, and every mechanical-lane dispatch that writes on contract work, carries the `Flow gate:` block in its brief (`flow-planning` section 1, `flow-execution` section 1).
 - Never put a concrete model id in a brief. The agent definitions pick models.
 - Route each writer by what is left to decide:
   - a task from an execution-grade plan → `flow-plan-executor`;
@@ -39,15 +39,19 @@ These are the user's standing instructions from the `fiatcode` plugin. Session s
 Flow has no gate tool here. Bind each approval to the artifact bytes, so a later edit is visible:
 
 ```sh
+flow_digest() { # flow_digest <kind> <path>   plan: hashed up to its last amendments heading
+  n=$(sed -n '/^## In-scope amendments$/=' "$2" | tail -n 1)
+  if [ "$1" = plan ] && [ "$n" ]; then head -n "$n" "$2"; else cat "$2"; fi | sha256sum | cut -d' ' -f1
+}
 flow_approve() { # flow_approve <scope> <kind> <path>   kind: contract | plan | implementation | accept
   [ -f "$3" ] || { echo "flow_approve: no file $3" >&2; return 1; }
-  mkdir -p .flow/runtime && printf '%s %s %s %s\n' "$1" "$2" "$(sha256sum "$3" | cut -d' ' -f1)" "$3" >>.flow/runtime/approvals.log
+  mkdir -p .flow/runtime && printf '%s %s %s %s\n' "$1" "$2" "$(flow_digest "$2" "$3")" "$3" >>.flow/runtime/approvals.log
 }
 flow_check() { # flow_check <scope> <kind> <path>   prints ok, stale or missing
   [ -f "$3" ] || { echo missing; return 1; }
   line=$(awk -v s="$1" -v k="$2" '$1==s && $2==k' .flow/runtime/approvals.log 2>/dev/null | tail -n 1)
   [ -z "$line" ] && { echo missing; return 1; }
-  [ "$(echo "$line" | cut -d' ' -f3)" = "$(sha256sum "$3" | cut -d' ' -f1)" ] && echo ok || { echo stale; return 1; }
+  [ "$(echo "$line" | cut -d' ' -f3)" = "$(flow_digest "$2" "$3")" ] && echo ok || { echo stale; return 1; }
 }
 ```
 

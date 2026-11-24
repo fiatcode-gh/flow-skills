@@ -1,9 +1,10 @@
 // Behavioral tests for Flow approval-revision and acceptance-state runtime gates.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import guardExtension from "../omp/extensions/flow-governance-guard.ts";
 
 const schema = {
@@ -302,6 +303,7 @@ try {
 		run("init", "-q");
 		run("config", "user.email", "flow-test@example.invalid");
 		run("config", "user.name", "Flow Test");
+		run("config", "maintenance.auto", "false");
 		if (commit) {
 			writeFileSync(join(dir, "app.txt"), "v1\n");
 			run("add", "app.txt");
@@ -422,6 +424,131 @@ try {
 		assert.equal(result, undefined, "the writer must dispatch after a same-batch contract and plan approval");
 	}
 
+	// One approve covers every scope × kind pair the user's yes names, behind one prompt.
+	{
+		const { dir } = governedRepo();
+		const present = (scope, kind, path, summary) => gateIn(dir, { action: "present", scope, kind, path, summary });
+		await present("multi-kind", "contract", ".flow/contracts/c.md", "Contract for the multi-kind unit.");
+		await present("multi-kind", "implementation", ".flow/contracts/c.md", "Direct implementation route.");
+		const input = { action: "approve", scope: "multi-kind", kind: "contract,implementation" };
+		const decision = flowGate.approval(input);
+		assert.equal(decision.policy, "prompt", "two kinds for one scope must ask once");
+		assert.match(decision.reason, /contract multi-kind/);
+		assert.match(decision.reason, /implementation multi-kind/);
+		const details = flowGate.formatApprovalDetails(input).join("\n");
+		assert.match(details, /Contract for the multi-kind unit\./);
+		assert.match(details, /Direct implementation route\./);
+		assert.match(details, /each clears its scope's later records, as a single approval does/);
+		const text = (await gateIn(dir, input)).content[0].text;
+		assert.match(text, /contract multi-kind/);
+		assert.match(text, /implementation multi-kind/);
+		assert.deepEqual(Object.keys(stateIn(dir).scopes["multi-kind"].approvals).sort(), ["contract", "implementation"]);
+		result = await dispatchIn(dir, { agent: "flow-implementer", task: writerIn("multi-kind", "NONE") });
+		assert.equal(result, undefined, "the direct implementation route must dispatch after one approve of both kinds");
+		assert.equal(flowGate.approval({ action: "approve", scope: "multi-kind", kind: "contract,bogus" }).policy, "deny", "an unknown kind in the list must deny");
+		assert.match(flowGate.approval({ action: "approve", scope: "multi-kind", kind: "contract,bogus" }).reason, /requires scope and kind/);
+	}
+
+	// Two scopes in one approve.
+	{
+		const { dir } = governedRepo();
+		await gateIn(dir, { action: "present", scope: "u1", kind: "contract", path: ".flow/contracts/c.md", summary: "u1 contract" });
+		await gateIn(dir, { action: "present", scope: "u2", kind: "contract", path: ".flow/contracts/c.md", summary: "u2 contract" });
+		const input = { action: "approve", scope: "u1, u2,u1", kind: "contract" };
+		const decision = flowGate.approval(input);
+		assert.equal(decision.policy, "prompt");
+		assert.match(decision.reason, /^Approve 2 Flow artifacts: contract u1, contract u2\.$/);
+		await gateIn(dir, input);
+		assert.ok(stateIn(dir).scopes.u1.approvals.contract, "u1 contract must be recorded");
+		assert.ok(stateIn(dir).scopes.u2.approvals.contract, "u2 contract must be recorded");
+	}
+
+	// A pair without a presentation denies the whole call and records nothing.
+	{
+		const { dir } = governedRepo();
+		await gateIn(dir, { action: "present", scope: "multi-missing", kind: "contract", path: ".flow/contracts/c.md", summary: "c" });
+		const input = { action: "approve", scope: "multi-missing", kind: "contract,plan" };
+		const decision = flowGate.approval(input);
+		assert.equal(decision.policy, "deny");
+		assert.match(decision.reason, /multi-missing\/plan/);
+		assert.doesNotMatch(decision.reason, /multi-missing\/contract/);
+		await assert.rejects(gateIn(dir, input), /multi-missing\/plan/);
+		assert.equal(existsSync(join(dir, ".flow/runtime/gates.json")), false, "a refused approve must record nothing");
+	}
+
+	// A pair whose artifact changed after presentation denies the whole call and records nothing.
+	{
+		const { dir } = governedRepo();
+		await gateIn(dir, { action: "present", scope: "multi-changed", kind: "contract", path: ".flow/contracts/c.md", summary: "c" });
+		await gateIn(dir, { action: "present", scope: "multi-changed", kind: "plan", path: ".flow/plans/c/PLAN.md", summary: "p" });
+		writeFileSync(join(dir, ".flow/plans/c/PLAN.md"), "# Plan\n\nEdited.\n");
+		const input = { action: "approve", scope: "multi-changed", kind: "contract,plan" };
+		const decision = flowGate.approval(input);
+		assert.equal(decision.policy, "deny");
+		assert.match(decision.reason, /changed before approval/i);
+		assert.match(decision.reason, /multi-changed\/plan/);
+		await assert.rejects(gateIn(dir, input), /changed before approval/i);
+		assert.equal(existsSync(join(dir, ".flow/runtime/gates.json")), false, "a refused approve must record nothing");
+	}
+
+	// A contract and its plan in one approve, in either order: both records stay.
+	{
+		const { dir } = governedRepo();
+		await gateIn(dir, { action: "present", scope: "multi-both", kind: "contract", path: ".flow/contracts/c.md", summary: "c" });
+		await gateIn(dir, { action: "present", scope: "multi-both", kind: "plan", path: ".flow/plans/c/PLAN.md", summary: "p" });
+		const text = (await gateIn(dir, { action: "approve", scope: "multi-both", kind: "plan,contract" })).content[0].text;
+		assert.ok(text.indexOf("contract multi-both") < text.indexOf("plan multi-both"), "pairs follow the contract, plan, implementation order");
+		assert.deepEqual(Object.keys(stateIn(dir).scopes["multi-both"].approvals).sort(), ["contract", "plan"], "the contract approval must not drop the plan approved in the same call");
+		result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("multi-both", ".flow/plans/c/PLAN.md") });
+		assert.equal(result, undefined);
+	}
+
+	// accept takes several scopes behind one prompt.
+	{
+		const { dir } = caseRepo();
+		const input = { action: "accept", scope: "acc1,acc2", source: "closure" };
+		const decision = flowGate.approval(input);
+		assert.equal(decision.policy, "prompt");
+		assert.match(decision.reason, /acc1/);
+		assert.match(decision.reason, /acc2/);
+		await gateIn(dir, input);
+		assert.equal(await verifyIn(dir, "acc1"), undefined, "acc1 must be accepted");
+		assert.equal(await verifyIn(dir, "acc2"), undefined, "acc2 must be accepted");
+	}
+
+	// present, status and clear take one scope.
+	{
+		const { dir } = governedRepo();
+		for (const input of [
+			{ action: "status", scope: "a,b" },
+			{ action: "clear", scope: "a,b" },
+			{ action: "present", scope: "a,b", kind: "contract", path: ".flow/contracts/c.md", summary: "s" },
+		]) {
+			await assert.rejects(gateIn(dir, input), new RegExp(`Flow gate ${input.action} takes one scope\\.`));
+		}
+	}
+
+	// A dispatch that meets a presented but unrecorded approval says so, instead of blaming the artifact.
+	{
+		const { dir } = governedRepo();
+		await approveIn(dir, "same-batch", "contract", ".flow/contracts/c.md");
+		await approveIn(dir, "same-batch", "plan", ".flow/plans/c/PLAN.md");
+		writeFileSync(join(dir, ".flow/plans/c/PLAN.md"), "# Plan\n\nRevised.\n");
+		await gateIn(dir, { action: "present", scope: "same-batch", kind: "plan", path: ".flow/plans/c/PLAN.md", summary: "p" });
+		result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("same-batch", ".flow/plans/c/PLAN.md") });
+		assert.equal(result?.block, true);
+		assert.match(result.reason, /presented but not recorded yet/);
+		assert.match(result.reason, /same tool batch/);
+		assert.doesNotMatch(result.reason, /changed after approval/);
+
+		await approveIn(dir, "same-batch-new", "contract", ".flow/contracts/c.md");
+		await gateIn(dir, { action: "present", scope: "same-batch-new", kind: "plan", path: ".flow/plans/c/PLAN.md", summary: "p" });
+		result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("same-batch-new", ".flow/plans/c/PLAN.md") });
+		assert.equal(result?.block, true);
+		assert.match(result.reason, /scope same-batch-new: plan approval is presented but not recorded yet/);
+		assert.doesNotMatch(result.reason, /no recorded plan approval/);
+	}
+
 	// The gate block ends at the first non-bullet line; a later `- Contract:` bullet in the brief is not a manifest value (01a13341#32).
 	{
 		const { dir } = governedRepo();
@@ -445,6 +572,176 @@ try {
 		result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("path", ".flow/plans/other/PLAN.md") });
 		assert.equal(result?.block, true, "a writer naming an unapproved plan path must be blocked");
 		assert.match(result.reason, /plan path is not the approved artifact/i);
+	}
+
+	// Approval records store the artifact path relative to the repository root, so they survive a folder move.
+	{
+		const { dir } = governedRepo();
+		await approveIn(dir, "moved", "contract", ".flow/contracts/c.md");
+		await approveIn(dir, "moved", "plan", ".flow/plans/c/PLAN.md");
+		const approvals = stateIn(dir).scopes.moved.approvals;
+		assert.equal(approvals.contract.path, ".flow/contracts/c.md", "a contract approval must record its path relative to the repository root");
+		assert.equal(approvals.plan.path, ".flow/plans/c/PLAN.md", "a plan approval must record its path relative to the repository root");
+		const moved = `${dir}-moved`;
+		renameSync(dir, moved);
+		caseRepos.push(moved);
+		result = await dispatchIn(moved, { agent: "flow-plan-executor", task: writerIn("moved", ".flow/plans/c/PLAN.md") });
+		assert.equal(result, undefined, "a writer must dispatch after the checkout folder moved");
+		const status = (await gateIn(moved, { action: "status", scope: "moved" })).content[0].text;
+		assert.match(status, /contract: current \(\.flow\/contracts\/c\.md\)/, "status must see the contract approval as current after a folder move");
+		assert.match(status, /plan: current \(\.flow\/plans\/c\/PLAN\.md\)/, "status must see the plan approval as current after a folder move");
+	}
+
+	// An older record holding an absolute path is read from its last /.flow/ segment on.
+	{
+		const { dir } = governedRepo();
+		const digest = (rel) => createHash("sha256").update(readFileSync(join(dir, rel))).digest("hex");
+		const record = (path, rel) => ({ path, sha256: digest(rel), approvedAt: new Date().toISOString() });
+		const writeOld = (contractPath, planPath) => {
+			mkdirSync(join(dir, ".flow/runtime"), { recursive: true });
+			const approvals = {
+				contract: record(contractPath, ".flow/contracts/c.md"),
+				plan: record(planPath, ".flow/plans/c/PLAN.md"),
+			};
+			writeFileSync(join(dir, ".flow/runtime/gates.json"), JSON.stringify({ version: 1, scopes: { old: { approvals } } }));
+		};
+		writeOld("/gone/elsewhere/.flow/contracts/c.md", "/gone/elsewhere/.flow/plans/c/PLAN.md");
+		result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("old", ".flow/plans/c/PLAN.md") });
+		assert.equal(result, undefined, "an older absolute record under a moved checkout must still bind");
+
+		writeOld("/gone/elsewhere/contracts/c.md", "/gone/elsewhere/.flow/plans/c/PLAN.md");
+		result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("old", ".flow/plans/c/PLAN.md") });
+		assert.equal(result?.block, true, "an older absolute record without a /.flow/ segment must not bind");
+		assert.match(result.reason, /contract path is not the approved artifact/i);
+	}
+
+	// Lines under a plan's `## In-scope amendments` heading stay outside its digest; everything through the heading line is material.
+	{
+		const heading = "## In-scope amendments\n";
+		const planPath = ".flow/plans/c/PLAN.md";
+		const amendedRepo = (plan = `# Plan\n\nTask A.\n\n${heading}`) => {
+			const repo = governedRepo();
+			writeFileSync(join(repo.dir, planPath), plan);
+			return repo;
+		};
+		const approvePlan = async (dir, scope) => {
+			await approveIn(dir, scope, "contract", ".flow/contracts/c.md");
+			await approveIn(dir, scope, "plan", planPath);
+		};
+		const append = (dir, rel, text) => writeFileSync(join(dir, rel), readFileSync(join(dir, rel), "utf8") + text);
+		const statusText = async (dir, scope) => (await gateIn(dir, { action: "status", scope })).content[0].text;
+
+		{
+			const { dir } = amendedRepo();
+			await approvePlan(dir, "amend");
+			assert.match(await statusText(dir, "amend"), /^plan: current \(\.flow\/plans\/c\/PLAN\.md\)$/m, "a plan with nothing under the heading shows no amendment count");
+			append(dir, planPath, "- task 03: fix the test command\n");
+			result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("amend", planPath) });
+			assert.equal(result, undefined, "a line under the heading must leave the plan approval current");
+			assert.match(await statusText(dir, "amend"), /^plan: current \(\.flow\/plans\/c\/PLAN\.md, in-scope amendments: 1\)$/m);
+			append(dir, planPath, "\n- task 04: rename a helper\n");
+			assert.match(await statusText(dir, "amend"), /in-scope amendments: 2\)$/m, "blank lines under the heading are not counted");
+		}
+
+		{
+			const { dir } = amendedRepo();
+			await approvePlan(dir, "above");
+			writeFileSync(join(dir, planPath), `# Plan\n\nTask B.\n\n${heading}`);
+			result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("above", planPath) });
+			assert.equal(result?.block, true, "a byte above the heading is material");
+			assert.match(result.reason, /plan artifact changed after approval/);
+		}
+
+		{
+			const { dir } = amendedRepo();
+			await approvePlan(dir, "heading");
+			writeFileSync(join(dir, planPath), "# Plan\n\nTask A.\n\n## In-scope amendments (2)\n- task 03: fix\n");
+			result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("heading", planPath) });
+			assert.equal(result?.block, true, "editing the heading line is material");
+			assert.match(result.reason, /plan artifact changed after approval/);
+		}
+
+		{
+			const { dir } = amendedRepo();
+			writeFileSync(join(dir, ".flow/contracts/c.md"), `# Contract\n\n${heading}`);
+			await approveIn(dir, "whole", "contract", ".flow/contracts/c.md");
+			append(dir, ".flow/contracts/c.md", "- outcome 2: widened\n");
+			result = await dispatchIn(dir, { agent: "flow-planner", task: "Flow gate:\n- Scope: whole\n- Contract: .flow/contracts/c.md" });
+			assert.equal(result?.block, true, "a contract is hashed whole, heading or not");
+			assert.match(result.reason, /contract artifact changed after approval/);
+		}
+
+		{
+			const { dir } = amendedRepo("# Plan\n\nTask A.\n");
+			await approvePlan(dir, "none");
+			append(dir, planPath, `\n${heading}- task 03: fix\n`);
+			result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("none", planPath) });
+			assert.equal(result?.block, true, "a plan approved without the heading gets no exemption");
+			assert.match(result.reason, /plan artifact changed after approval/);
+		}
+
+		{
+			const fenced = (decision) => `# Plan\n\n\`\`\`text\n${heading}\`\`\`\n\n- L1: ${decision}\n\n${heading}`;
+			const { dir } = amendedRepo(fenced("polling"));
+			await approvePlan(dir, "fenced");
+			const amendment = "- task 03: fix the test command\n";
+			append(dir, planPath, amendment);
+			result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("fenced", planPath) });
+			assert.equal(result, undefined, "a line under the last heading leaves the plan approval current");
+			assert.match(await statusText(dir, "fenced"), /in-scope amendments: 1\)$/m, "only lines under the last heading are counted");
+			writeFileSync(join(dir, planPath), fenced("push") + amendment);
+			result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("fenced", planPath) });
+			assert.equal(result?.block, true, "a decision after an earlier heading line is material");
+			assert.match(result.reason, /plan artifact changed after approval/);
+		}
+
+		{
+			const { dir } = amendedRepo();
+			await approvePlan(dir, "second");
+			append(dir, planPath, `${heading}- L1: push\n`);
+			result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("second", planPath) });
+			assert.equal(result?.block, true, "a second heading line under the first moves the boundary");
+			assert.match(result.reason, /plan artifact changed after approval/);
+		}
+
+		for (const near of ["### In-scope amendments\n", "## In-scope amendments (draft)\n", "## In-scope amendments  \n", "## In-scope amendments\r\n", "x## In-scope amendments\n"]) {
+			const { dir } = amendedRepo(`# Plan\n\n${near}`);
+			await approvePlan(dir, "near");
+			append(dir, planPath, "- task 03: fix\n");
+			result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("near", planPath) });
+			assert.equal(result?.block, true, `${JSON.stringify(near)} is not the heading: the plan is hashed whole`);
+			assert.match(result.reason, /plan artifact changed after approval/);
+		}
+
+		{
+			const { dir } = amendedRepo();
+			const whole = (rel) => createHash("sha256").update(readFileSync(join(dir, rel))).digest("hex");
+			const record = (path) => ({ path, sha256: whole(path), approvedAt: new Date().toISOString() });
+			mkdirSync(join(dir, ".flow/runtime"), { recursive: true });
+			const approvals = { contract: record(".flow/contracts/c.md"), plan: record(planPath) };
+			writeFileSync(join(dir, ".flow/runtime/gates.json"), JSON.stringify({ version: 1, scopes: { legacy: { approvals } } }));
+			result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("legacy", planPath) });
+			assert.equal(result, undefined, "an old whole-file record of a plan ending with the bare heading stays current");
+			append(dir, planPath, "- task 03: fix\n");
+			result = await dispatchIn(dir, { agent: "flow-plan-executor", task: writerIn("legacy", planPath) });
+			assert.equal(result, undefined, "and stays current after a line under the heading");
+		}
+
+		{
+			const { dir } = amendedRepo();
+			await gateIn(dir, { action: "present", scope: "pres", kind: "plan", path: planPath, summary: "p" });
+			append(dir, planPath, "- task 03: fix\n");
+			assert.equal(flowGate.approval({ action: "approve", scope: "pres", kind: "plan" }).policy, "prompt", "a line under the heading keeps the presentation current");
+			await gateIn(dir, { action: "approve", scope: "pres", kind: "plan" });
+			assert.match(await statusText(dir, "pres"), /plan: current \(\.flow\/plans\/c\/PLAN\.md, in-scope amendments: 1\)/);
+
+			await gateIn(dir, { action: "present", scope: "pres-above", kind: "plan", path: planPath, summary: "p" });
+			writeFileSync(join(dir, planPath), readFileSync(join(dir, planPath), "utf8").replace("Task A.", "Task B."));
+			const decision = flowGate.approval({ action: "approve", scope: "pres-above", kind: "plan" });
+			assert.equal(decision.policy, "deny");
+			assert.match(decision.reason, /changed before approval/);
+			await assert.rejects(gateIn(dir, { action: "approve", scope: "pres-above", kind: "plan" }), /changed before approval/);
+		}
 	}
 
 	// Corrupt or unsupported gate state fails closed.
@@ -490,12 +787,12 @@ try {
 
 		await gateIn(dir, { action: "approve", scope: "short", kind: "contract" });
 		assert.match((await gateIn(dir, { action: "status", scope: "short" })).content[0].text, /contract: current/, "status must see the short-form approval as current");
-		assert.equal(stateIn(dir).scopes.short.approvals.contract.path, full, "approval must bind to the same artifact");
+		assert.equal(stateIn(dir).scopes.short.approvals.contract.path, ".flow/contracts/c.md", "approval must bind to the same artifact");
 		const shortPlanner = "Flow gate:\n- Scope: short\n- Contract: contracts/c.md";
 		assert.equal(await dispatchIn(dir, { agent: "flow-planner", task: shortPlanner }), undefined, "a planner manifest using the short Contract form must bind to the approval");
 
 		await approveIn(dir, "short", "plan", "plans/c/PLAN.md");
-		assert.equal(stateIn(dir).scopes.short.approvals.plan.path, realpathSync(join(dir, ".flow/plans/c/PLAN.md")), "a short-form plan must bind too");
+		assert.equal(stateIn(dir).scopes.short.approvals.plan.path, ".flow/plans/c/PLAN.md", "a short-form plan must bind too");
 		assert.equal(
 			await dispatchIn(dir, { agent: "flow-plan-executor", task: "Flow gate:\n- Scope: short\n- Contract: contracts/c.md\n- Plan: plans/c/PLAN.md" }),
 			undefined,
@@ -646,6 +943,98 @@ try {
 		assert.match(result?.reason ?? "", /scope stale: no recorded contract approval/, "a single double-encoded task must be read too");
 	}
 
+	// A `sonic` that carries a Flow gate block, in its task or the shared context, is a writer on gated work.
+	{
+		const { dir } = governedRepo();
+		await approveIn(dir, "sonic", "contract", ".flow/contracts/c.md");
+		await approveIn(dir, "sonic", "plan", ".flow/plans/c/PLAN.md");
+		const block = (scope) => `Flow gate:\n- Scope: ${scope}\n- Contract: .flow/contracts/c.md\n- Plan: .flow/plans/c/PLAN.md`;
+
+		result = await dispatchIn(dir, { agent: "sonic", task: `# Do it\n\n${block("unapproved")}` });
+		assert.equal(result?.block, true, "a sonic with a block for an unapproved scope must be blocked");
+		assert.match(result.reason, /scope unapproved: no recorded contract approval/);
+
+		result = await dispatchIn(dir, { context: `Shared.\n\n${block("unapproved")}`, tasks: [{ agent: "scout", task: "Look." }, { agent: "sonic", task: "Do it." }] });
+		assert.equal(result?.block, true, "a sonic must read the block from the shared context");
+		assert.match(result.reason, /tasks\[1\]: scope unapproved: no recorded contract approval/);
+		assert.doesNotMatch(result.reason, /tasks\[0\]/, "a scout in the same batch stays unchecked");
+
+		assert.equal(await dispatchIn(dir, { agent: "sonic", task: block("sonic") }), undefined, "a sonic with a current block must pass");
+		assert.equal(await dispatchIn(dir, { agent: "sonic", task: "Quiz this file." }), undefined, "a sonic with no block must pass");
+		assert.equal(await dispatchIn(dir, { context: "Background only.", tasks: [{ agent: "sonic", task: "Do it." }] }), undefined);
+
+		result = await dispatchIn(dir, { agent: " sonic ", task: block("unapproved") });
+		assert.equal(result?.block, true, "a padded sonic name must be checked");
+		assert.match(result.reason, /scope unapproved: no recorded contract approval/);
+
+		result = await dispatchIn(dir, { agent: "sonic", task: "Flow gate:\n- Scope: sonic" });
+		assert.equal(result?.block, true, "a sonic with a partial block must be blocked");
+		assert.match(result.reason, /production writer task must include Flow gate with Scope, Contract, and Plan/);
+	}
+
+	// A message to a parked writer is checked like a dispatch; a live agent is never blocked.
+	{
+		const { dir } = governedRepo();
+		const planPath = ".flow/plans/c/PLAN.md";
+		await approveIn(dir, "parked", "contract", ".flow/contracts/c.md");
+		await approveIn(dir, "parked", "plan", planPath);
+		const block = "Flow gate:\n- Scope: parked\n- Contract: .flow/contracts/c.md\n- Plan: .flow/plans/c/PLAN.md";
+		const sessions = mkdtempSync(join(tmpdir(), "flow-governance-sessions-"));
+		caseRepos.push(sessions);
+		const sessionFile = join(sessions, "s.jsonl");
+		writeFileSync(sessionFile, `${JSON.stringify({ type: "session", id: "main" })}\n`);
+		const sessionCtx = { cwd: dir, hasUI: true, sessionManager: { getSessionFile: () => sessionFile } };
+		const child = (rel, { agent, task = "Do the work.", systemPrompt = ["You are a worker."], init = true, parked = true }) => {
+			const entries = [{ type: "session", id: rel }, { type: "model_change", model: "m" }];
+			if (init) entries.push({ type: "session_init", agent, task, systemPrompt });
+			entries.push({ type: "message", message: { role: "assistant", content: "Done." } });
+			if (parked) entries.push({ type: "custom", customType: "session_exit", data: {} });
+			const path = join(sessions, "s", rel);
+			mkdirSync(dirname(path), { recursive: true });
+			writeFileSync(path, `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`);
+		};
+		const message = (path, context = sessionCtx) => toolCall({ toolName: "write", input: { path, content: "Continue." } }, context);
+
+		child("Exec.jsonl", { agent: "flow-plan-executor", task: `# Task\n\n${block}` });
+		assert.equal(await message("agent://Exec"), undefined, "a parked writer with current approvals must accept a message");
+
+		writeFileSync(join(dir, planPath), "# Plan\n\nTask B.\n");
+		result = await message("agent://Exec");
+		assert.equal(result?.block, true, "a message to a parked writer with a stale plan must be blocked");
+		assert.match(result.reason, /parked writer Exec/);
+		assert.match(result.reason, /plan artifact changed after approval/);
+		assert.match((await message("agent://Exec?progress"))?.reason ?? "", /parked writer Exec/, "a query on the agent path is checked like the plain path");
+
+		child("Live.jsonl", { agent: "flow-plan-executor", task: block, parked: false });
+		assert.equal(await message("agent://Live"), undefined, "a live writer must never be blocked");
+
+		child("Prompted.jsonl", { agent: "flow-implementer", systemPrompt: ["You are a worker.", `# Goal\n\n${block}`] });
+		assert.match((await message("agent://Prompted"))?.reason ?? "", /parked writer Prompted: scope parked: plan artifact changed/, "a block in the system prompt must be read");
+
+		child("Reviewer.jsonl", { agent: "flow-acceptance-reviewer", task: block });
+		assert.equal(await message("agent://Reviewer"), undefined, "a parked non-writer must not be checked");
+		child("Quiz.jsonl", { agent: "sonic", task: "Quiz this file." });
+		assert.equal(await message("agent://Quiz"), undefined, "a parked sonic without a block must not be checked");
+		child("Fast.jsonl", { agent: "sonic", task: block });
+		assert.match((await message("agent://Fast"))?.reason ?? "", /parked writer Fast/, "a parked sonic with a block is a writer");
+
+		child("Blank.jsonl", { agent: "flow-plan-executor", task: block, init: false });
+		result = await message("agent://Blank");
+		assert.equal(result?.block, true, "a parked transcript without session_init must fail closed");
+		assert.match(result.reason, /cannot read the parked agent Blank/);
+
+		child("all.jsonl", { agent: "flow-plan-executor", task: block });
+		assert.equal(await message("agent://all"), undefined, "a broadcast is not a message to one agent");
+		assert.equal(await message("agent://Ghost"), undefined, "an agent without a transcript is not checked");
+		assert.equal(await message("agent://Exec", { cwd: dir, hasUI: true }), undefined, "a caller without a session file is not checked");
+		assert.equal(await message("agent://Exec/sub"), undefined, "an id with a slash is not an agent message");
+
+		child("A/A.B.jsonl", { agent: "flow-plan-executor", task: block });
+		assert.match((await message("agent://A.B"))?.reason ?? "", /parked writer A\.B/, "a nested id must find its transcript");
+		child("A/A.B/A.B.C.jsonl", { agent: "flow-plan-executor", task: block });
+		assert.match((await message("agent://A.B.C"))?.reason ?? "", /parked writer A\.B\.C/, "a doubly nested id must find its transcript");
+	}
+
 	// A new untracked file stales acceptance.
 	{
 		const { dir } = caseRepo();
@@ -698,6 +1087,89 @@ try {
 		assert.equal(result?.block, true, "a staged change reverted in the working tree must stale acceptance");
 		assert.match(result.reason, /repository state changed after acceptance\/closure/i);
 	}
+
+	// Acceptance binds the tree, not HEAD: committing the accepted tree keeps it current.
+	{
+		const { dir, run } = caseRepo();
+		writeFileSync(join(dir, "app.txt"), "v2\n");
+		writeFileSync(join(dir, "new.txt"), "new\n");
+		const head = run("rev-parse", "HEAD");
+		const accepted = (await gateIn(dir, { action: "accept", scope: "commit", source: "test" })).content[0].text;
+		const tree = stateIn(dir).scopes.commit.acceptance.tree;
+		assert.match(tree, /^[0-9a-f]{40,64}$/, "accept must record the tree id");
+		assert.equal(stateIn(dir).scopes.commit.acceptance.head, head, "accept must record the head");
+		assert.ok(accepted.includes(tree) && accepted.includes(head), "the accept result must name the tree id and the head");
+		run("add", "-A");
+		run("commit", "-qm", "accepted tree");
+		assert.equal(run("rev-parse", "HEAD^{tree}"), tree, "the recorded tree must be the tree git add -A writes");
+		assert.equal(await verifyIn(dir, "commit"), undefined, "a commit of the accepted tree must keep its acceptance");
+		assert.match((await gateIn(dir, { action: "status", scope: "commit" })).content[0].text, /acceptance: current/);
+
+		// A change after that commit stales it, and the error names both heads.
+		writeFileSync(join(dir, "app.txt"), "v3\n");
+		result = await verifyIn(dir, "commit");
+		assert.equal(result?.block, true, "a change after committing the accepted tree must stale acceptance");
+		assert.match(result.reason, /repository state changed after acceptance\/closure/i);
+		assert.ok(result.reason.includes(`(accepted at ${head}, now at ${run("rev-parse", "HEAD")})`), "the stale error must name both heads");
+	}
+
+	// A racy index entry (file rewritten at the index's own mtime, same size) still counts as changed.
+	{
+		const { dir, run } = caseRepo();
+		// Seconds-only stat comparison must hinge on mtime alone, not on when the test's writes landed.
+		run("config", "core.trustctime", "false");
+		const stamp = new Date("2026-01-01T00:00:00Z");
+		utimesSync(join(dir, "app.txt"), stamp, stamp);
+		run("add", "app.txt");
+		writeFileSync(join(dir, "app.txt"), "v2\n");
+		utimesSync(join(dir, "app.txt"), stamp, stamp);
+		utimesSync(join(dir, ".git/index"), stamp, stamp);
+		await gateIn(dir, { action: "accept", scope: "racy", source: "test" });
+		const tree = stateIn(dir).scopes.racy.acceptance.tree;
+		run("add", "-A");
+		assert.notEqual(tree, run("rev-parse", "HEAD^{tree}"), "a racy rewrite must not record the committed tree");
+		assert.equal(tree, run("write-tree"), "the recorded tree must be the tree git add -A writes for a racy entry");
+	}
+
+	// Committing only the tracked change of the accepted tree keeps it current.
+	{
+		const { dir, run } = caseRepo();
+		writeFileSync(join(dir, "app.txt"), "v2\n");
+		writeFileSync(join(dir, "new.txt"), "new\n");
+		await gateIn(dir, { action: "accept", scope: "partial", source: "test" });
+		run("commit", "-qam", "tracked only");
+		assert.equal(await verifyIn(dir, "partial"), undefined, "a partial commit of the accepted tree must keep its acceptance");
+	}
+
+	// Acceptance survives a folder move.
+	{
+		const { dir } = caseRepo();
+		writeFileSync(join(dir, "app.txt"), "v2\n");
+		await gateIn(dir, { action: "accept", scope: "moved-accept", source: "test" });
+		const moved = `${dir}-moved`;
+		renameSync(dir, moved);
+		caseRepos.push(moved);
+		assert.equal(await verifyIn(moved, "moved-accept"), undefined, "acceptance must stay current after the checkout folder moved");
+	}
+
+	// Computing the identity writes nothing into the repository's object database.
+	{
+		const { dir } = caseRepo();
+		const countFiles = (path) =>
+			readdirSync(path, { withFileTypes: true }).reduce((n, entry) => n + (entry.isDirectory() ? countFiles(join(path, entry.name)) : 1), 0);
+		writeFileSync(join(dir, "app.txt"), "dirty tracked\n");
+		writeFileSync(join(dir, "new.txt"), "dirty untracked\n");
+		const before = countFiles(join(dir, ".git/objects"));
+		await gateIn(dir, { action: "accept", scope: "no-write", source: "test" });
+		await gateIn(dir, { action: "status", scope: "no-write" });
+		assert.equal(countFiles(join(dir, ".git/objects")), before, "accept and status must not write into .git/objects");
+	}
+
+	// The accept prompt says what keeps the acceptance current.
+	assert.match(
+		flowGate.formatApprovalDetails({ action: "accept", scope: "demo", source: "closure-1" }).join("\n"),
+		/stays current across commits of this tree; goes stale when the tree changes/,
+	);
 
 	// approve refuses a headless session and records nothing.
 	{

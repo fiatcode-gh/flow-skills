@@ -14,7 +14,7 @@ Inputs should identify the governing contract/spec, execution-grade plan/task br
 Perform one integrated acceptance review:
 
 1. **Contract** — does the result satisfy the actual requirement/invariants?
-2. **Plan conformance** — did implementation drift from locked interfaces/ownership/behavior or omit a planned proof?
+2. **Plan conformance** — did implementation drift from locked interfaces/ownership/behavior or omit a planned proof? Read the lines under `## In-scope amendments` in `PLAN.md`: one that changes a locked decision, shared interface or acceptance criterion is `plan-drift`.
 3. **Correctness** — independently inspect edge/error/state/integration behavior; a faithfully implemented bad plan is still a defect.
 4. **Tests/contracts** — map changed behavior to meaningful regression coverage; check negative/boundary/compatibility paths when relevant.
 5. **Craft** — rate every defect in the CRF defect list in `references/review-lenses.md` of the `flow-review` skill (load it with the `skill` tool) Important. Also flag duplication and lifetime/allocation problems.

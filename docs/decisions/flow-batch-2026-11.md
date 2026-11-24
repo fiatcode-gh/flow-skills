@@ -1,0 +1,56 @@
+# Flow batch (2026-11)
+
+Work: branch `feat/flow-batch-2026-11`, contract `flow-batch-2026-11`, 2026-11. Evidence: the 2026-11-23 audit in `docs/FIELD-TRIALS.md`.
+
+## Decisions
+
+- **One chat yes gets one native prompt.** `flow_gate approve` takes one scope or several separated by commas, and one kind or several. It records every scope and kind pair behind one prompt, or none: a pair with no current presentation denies the whole call and names it. `accept` takes several scopes the same way. The prompt itself stays; no approval is recorded without it. The audit counted 325 approve or accept prompts in 36 sessions, 39% of them repeats, and the gate's cost drove Main-direct work beside it.
+- **In-scope amendments sit outside the plan digest.** A plan's digest covers `PLAN.md` through the last line that is exactly `## In-scope amendments`; lines under it do not count. The heading must already be in the approved plan, so an approval cannot be widened by adding it later. An earlier line with the same text, quoted in a code fence for example, stays inside the digest with everything between it and the last one, and a second heading line written under the first moves the boundary and makes the approval stale. Binding the first such line left the rest of a plan that quotes the heading outside its own approval. The guard does not judge the lines: Main does, `flow_gate status` counts them, and the acceptance reviewer reads them and flags one that changes a locked decision, shared interface or acceptance criterion as `plan-drift`. Every other plan edit still needs a new yes and prompt. Before this, every one-line fix to a task brief cost a prompt, and Main changed locked decisions by message to keep the digest unchanged.
+- **Approval records hold a path relative to the repository.** An older record with an absolute path is read from its last `/.flow/` segment on. A folder move or rename kept the artifacts unchanged but made every record read `missing`.
+- **`accept` binds the working tree's git tree, not `HEAD`.** The identity is the tree `git add -A` would write (tracked and untracked files, ignore rules applied), plus the index entries of any path staged differently from `HEAD` and edited again, so a staged-then-reverted change still shows. It is computed with a scratch index and a scratch object directory that reads the real one as an alternate; nothing is written into the repository. `HEAD` is kept for messages only. A commit of the accepted tree keeps the record current; before this, committing made it stale and a deploy went out on a stale gate.
+- **The same-batch error says the approval is not recorded yet.** When a dispatch fails on a pair that has a current presentation waiting, the message says `approve` must finish first and must not share the tool batch. The old "artifact changed after approval" text read as a real change.
+- **A `sonic` with a gate block and a message to a parked writer are checked like a dispatch.** A `sonic` whose task or shared context carries a `Flow gate:` block is a writer on contract work. A `write` to `agent://<id>` is checked when that agent is a writer and its transcript ends in `session_exit`. A live agent is never blocked, so a stop message always reaches a running worker. A parked agent whose `session_init` cannot be read is refused.
+- **A finished subagent gets a follow-up only within 5 minutes of its last reply.** After that the work goes to a fresh agent with the artifact paths and the earlier receipt. OMP parks an idle subagent after 7 minutes (`task.agentIdleTtlMs`). In the measured sessions, 21 of 21 first messages after a park started cold even inside the cache lifetime, 10 of 10 later messages to the same agent were warm, and 16 of 16 messages to a still-live agent were warm; one more first message after a park was cold on OMP 19.1.0. The cost is the park, not cache expiry, so the window is a number below the park timer and not the cache lifetime the contract expected.
+- **The tiny limit counts production lines.** 30 hand-written changed production lines over 3 production files. The change's regression or unit tests, its CHANGELOG entry, its docs and tool-generated lines do not count. Skills, agents and rules that a harness loads as instructions are production. Migrations, schema changes, data rewrites and release pipelines are never tiny. Three recorded breaks were 9, 9 and 15 production lines pushed over 30 by the test `flow-tdd` demands.
+- **One short device or browser check by Main on tiny work.** Tiny work has no gate scope and so no verifier. After the recovery checkpoint Main may run one short check itself. Planned work keeps the verifier and the order.
+- **The credentials guard refuses and never asks.** `omp/extensions/flow-credentials-guard.ts` refuses a `read` or `grep` call that names a credentials file, and a `bash` or `eval` call whose text would print one. `.mcp.json` is a credentials file like `mcp.json`. `grep` is covered because it prints file lines as `read` does. In shell and `eval` text a hit is refused when a reader word (`cat`, `head`, `sed`, `jq`, `diff`, `git show` and the like) or a read call (`open(`, `.read_text(`, `Bun.file(`) precedes it, when it is an input redirect, or when it is sourced outside a quiet subshell. A reader given by its path (`/bin/cat`) counts. In shell text a statement starts after a newline or after a `;`, `|` or `&` outside quotes, so a separator inside a quoted argument (`grep -E 'PASSWORD|TOKEN' .env`) does not hide the reader. Loading stays allowed: `--env-file`, `( set -a; . ./.env >/dev/null 2>&1; set +a; exec … )`, and `cp`, `ls`, `test`, `chmod`, `ssh -i` and writes. No prompt, because a headless subagent cannot answer one and a planner printed a password twice.
+- **Ports.** The Claude Code and OpenCode approval functions share a `flow_digest` that hashes a plan up to its last amendments heading. OpenCode gets the secret-file list as `permission.read` deny rules in `opencode/opencode.json`. OpenCode's `*` also matches `/`, so each allow rule is a plain ending (`*.pub`, `*.example`, `*.example.json` and the like) that only the last path segment can satisfy; OpenCode therefore denies every `.pem`, public certificates included, where the OMP guard allows them. A Claude Code plugin cannot ship `permissions.deny`, so `docs/EXTERNAL-INTEROP.md` shows a settings snippet the user may add. Open WebUI carries none of the changed rules.
+- **A gate-stop reply ends with the approval question.** OMP sends no todo stop reminder after a reply whose last sentence asks the user, so the duplicate "waiting" replies stop without turning reminders off. Review work gets its own `todo` phases: Review and Publication for a PR review; Feedback, Fixes and Publication for author feedback.
+- **The verifier gets `eval`.** `browser` is an `eval` helper, not a tool name, so `flow-evidence-verifier` lists `eval` and drives a browser criterion with it.
+
+## Rejected alternatives
+
+- Approvals recorded from the chat yes with no native prompt: the user rejected it.
+- `approve` with no kind meaning "everything presented": it would sweep in a presentation the user had turned down earlier.
+- Hashing `plan-tasks/` into the plan digest: every in-scope fix would need a prompt again.
+- Trimming trailing whitespace so the heading could be added after approval: it makes two digest forms. A fixed last line needs none.
+- Writing the tree's objects into the repository's object database: `accept` would write into a repository it only reads.
+- A dispatch registry for the parked-writer check: it is lost on restart, and the transcript already holds the facts.
+- Checking live writers too: it would block the stop message a plan amendment needs.
+- A bash matcher that refuses every command naming a secret file: it blocks `cp .env.example .env`, `ssh -i` and `--env-file`.
+- Raising `task.agentIdleTtlMs` to the cache lifetime: a profile change, outside this batch, and unmeasured.
+- `todo.reminders: false`: it silences the reminder for real unfinished work too.
+- A Claude Code `PreToolUse` hook for secret files: a new mechanism the port does not have.
+- Raising a byte cap: every changed file fits after cuts.
+- Ending a plan's digest at the first heading line: a plan that quotes the heading as a whole line would leave everything after it unapproved.
+- A shell parser for the bash matcher: a quote-aware statement start covers the shapes that were missed; command substitution, heredocs and quotes that span lines stay documented misses.
+- An OpenCode allow for public `.pem` names: a plain ending cannot ask for the separator the OMP rule uses, so `*chain.pem` would also allow `keychain.pem`.
+
+## Traps
+
+- The checkout is the live install. A running session keeps the guard it loaded at start until OMP restarts.
+- A plan approved by the old guard stays current only while nothing is written under its heading before the restart: the old guard hashes the whole file.
+- An acceptance recorded before this change reads stale once; record it again.
+- The scratch index must keep the real index's access and modification times. Git's racy-entry check compares entry times with the index's own; a fresh copy time let a same-size rewrite in the same second look clean, so the stale blob was kept. A deterministic test covers it.
+- The parked-writer check reads OMP's transcript layout and its `session_init` and `session_exit` entries. An OMP change there shows up as a failing test or a refused message.
+- The credentials guard refuses a path whose last segment contains `credentials` with no extension or a data extension, so a test fixture, a temporary directory, a document or a plan brief named that way is refused by design; two briefs of this batch could not be read once the guard was live and were renamed. Name fixtures, notes and briefs otherwise.
+- The credentials guard is a backstop. Its known misses and false refusals are listed in `docs/OMP-COMPATIBILITY.md`.
+- `opencode/AGENTS.md` sits 3 bytes under its 22528 cap, and `flow-execution`, `flow-planning` and `flow-design` sit within 50 bytes of theirs. The next addition there needs a cut first.
+- A test that counts files under `.git/objects` right after a commit must turn off `maintenance.auto` in its fixture. Git starts a detached `git maintenance run --auto` after a commit, and its lock file sits in that directory for a moment.
+
+## Open questions
+
+- Whether OMP 19.1.1 or later keeps the cache across a park. One measurement would allow a wider window.
+- Whether the TUI shows every detail line of a prompt that covers several artifacts. The `Reason` line names every pair in case it does not.
+- How often the credentials guard refuses a harmless command in real sessions.
+- Whether "docs" in the tiny rule needs a tighter definition than "not an instruction file".
