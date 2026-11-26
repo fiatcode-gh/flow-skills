@@ -22,10 +22,10 @@ The Flow skills/agents are symlinked into all managed profiles, so workflow sema
 | execution-grade plan follower | `flow-plan-executor` / `@execute` | GPT-6 Luna xhigh | Opus 5.5 medium | DeepSeek V4.1 Flash high |
 | residual semantic judgment / broken-plan fallback | `flow-implementer` / `@task` | GPT-6.1 Sol medium | Opus 5.5 high | DeepSeek V4.1 Flash high |
 | deliberate execution planning | `flow-planner` / `@plan` | GPT-6.1 Sol high | Opus 5.5 high | DeepSeek V4.1 Flash high |
-| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | Opus 5.5 high | GLM-5.3 high |
+| final planned acceptance / hard reasoning | `flow-acceptance-reviewer` / `@slow` | GPT-6.1 Sol high | Opus 5.5 high | DeepSeek V4.1 Flash high |
 | TTC/CRF/audit auxiliary lenses (exceptional/planned escalation + standalone review) | `@review_aux` | GPT-6.1 Sol high | Opus 5.5 high | DeepSeek V4.1 Flash high |
 | vision / multimodal inspection | `@vision` | GPT-6 Luna medium | Sonnet 5.5 medium | DeepSeek V4.1 Flash high |
-| exceptional security/concurrency/data-integrity escalation | `@critical` | GPT-6.1 Sol xhigh | Opus 5.5 high | GLM-5.3 high |
+| exceptional security/concurrency/data-integrity escalation | `@critical` | GPT-6.1 Sol xhigh | Opus 5.5 high | DeepSeek V4.1 Flash high |
 
 In the OpenAI Codex profile `slow` stops below `critical`; in the Anthropic and Command Code profiles they share model and effort. `critical` is the escape hatch; no automatic Flow agent binds `@critical` on purpose. Escalation should be a conscious model/session choice, not accidental fan-out.
 
@@ -57,17 +57,17 @@ Authenticate the profile through OMP's Anthropic/Claude OAuth flow so Team entit
 
 The profile runs open models on the Command Code [GOAT plan](https://commandcode.ai/docs/plans/goat) ($10 a month, with usage limits of up to $20 per 5 hours, $50 per week and $100 per month). Flow sessions resend a large, mostly cached prompt (`AGENTS.md`, rules, skill text, tool output) on every turn, so for long tool loops the cache-read price decides the cost, not the output price. At about 100k cached tokens a turn, DeepSeek V4.1 Flash costs well under a tenth of a cent and GLM-5.3 about $0.03.
 
-The rule is that DeepSeek produces and GLM-5.3 judges. Acceptance runs in a different family from everything it reviews.
+The whole profile runs one model line. DeepSeek V4.1 Flash produces and checks; the acceptance reviewer and `critical` pay for independence by re-deriving from the contract, the plan and the code rather than by using a different model family.
 
-- **DeepSeek V4.1 Flash** owns `default`, `task`, `execute`, `plan`, `vision` and `review_aux` at `high`, and `smol`, `tiny` and `commit` at `low`. In Bito's runs of real coding sessions it scored 80% against 74% for GLM-5.3 and 72% for Kimi K3, at $0.14 a long session against $2.86 for GLM-5.3 and $2.46 for Kimi K3, and it led on failure analysis, planning and self-audit ([Bito](https://bito.ai/blog/best-open-weight-model-for-coding-kimi-k3-1-pro-glm-5-3-deepseek/)). It is also the cheapest image-capable model.
-- **GLM-5.3 high** owns `slow` and `critical`. Its audit score in Bito's runs (59%) ties Kimi K3's, so it is chosen for family separation (it is not DeepSeek, so acceptance does not grade work from its own family) and for its better overall (74% against 72%) and short-question (83% against 80%) scores. `critical` stays explicit-only and uses the same model and effort as `slow`.
+- **DeepSeek V4.1 Flash** owns `default`, `task`, `execute`, `plan`, `vision`, `review_aux`, `slow` and `critical` at `high`, and `smol`, `tiny` and `commit` at `low`. In Bito's current runs of real coding sessions it scores 73.2% overall against 66.2% for GLM-5.3, and 64.9% against 51.2% on hard five-turn sessions that end in an audit, at $3.28 against $34.82 per twenty-turn session ([Bito](https://bito.ai/blog/best-open-weight-model-for-coding-kimi-k3-1-pro-glm-5-3-deepseek/)). It is also the cheapest image-capable model.
+- **GLM-5.3 is retired.** It is not the stronger model: Vals AI puts DeepSeek at 59.66% against 58.40% on its index at a thirteenth of the cost per test, and ahead on Code Migration (67.5 against 55.1) and Vibe Code Bench (74.6 against 66.3) ([Vals AI](https://www.vals.ai/models/deepseek_deepseek-v4.1-flash-1017)); Bito's session runs agree. GLM-5.3 keeps two edges: Terminal-Bench (42 against 34 on SiliconReport's runs, though DeepSeek's own card claims the reverse) and Omniscience non-hallucination (61 against 36), which was the only reason left to run a second family for review. It also never ran in OMP at all: the catalog routes it to Command Code's Responses endpoint, whose GLM route rejects OMP's message items for missing `type`, so every request returned 400. Retiring it drops the cross-family check and that defect together.
 - **GLM-5.3 Flash is not used.** Users report recurring tool-call failures and broken sessions with it across more than ten sessions ([Kilo Code issue 14475](https://github.com/Kilo-Org/kilocode/issues/14475)).
-- **Kimi K3 is not used.** A hands-on review found it close to Opus on simple tasks but failing 36% of trap tasks against 8% for Opus, though the tester built those traps to target Kimi's known weaknesses, so the everyday gap is likely smaller ([MindStudio](https://www.mindstudio.ai/blog/kimi-k3-real-world-coding-review)). Bito's audit score for it was 59% against 70% for DeepSeek, so it is not the better checker either; the acceptance reviewer's job is checking a change.
+- **Kimi K3 is not used.** A hands-on review found it close to Opus on simple tasks but failing 36% of trap tasks against 8% for Opus, though the tester built those traps to target Kimi's known weaknesses, so the everyday gap is likely smaller ([MindStudio](https://www.mindstudio.ai/blog/kimi-k3-real-world-coding-review)). Bito's session runs put it at 59.3% overall against DeepSeek's 73.2%, so it is not the better checker either; the acceptance reviewer's job is checking a change.
 - **MiMo V2.6 Pro is not used.** It proved weaker in field use.
 
 DeepSeek V4.1 Flash costs about double at peak hours: 01:00 to 04:00 and 06:00 to 10:00 UTC, Monday to Friday. Schedule long runs outside them when that matters. In long OpenCode sessions DeepSeek can fall into repetition loops ([OpenCode issue 57377](https://github.com/anomalyco/opencode/issues/57377)); `/compact` or a new session usually clears it.
 
-Authenticate with `COMMAND_CODE_API_KEY` or OMP's login inside `omp --profile commandcode`; never commit the key. Catalog IDs are case-sensitive (`zai-org/GLM-5.3`); keep them under review when Command Code changes its catalog.
+Authenticate with `COMMAND_CODE_API_KEY` or OMP's login inside `omp --profile commandcode`; never commit the key. Catalog IDs are case-sensitive (`deepseek/deepseek-v4.1-flash`); keep them under review when Command Code changes its catalog.
 
 ## Ports
 
@@ -77,7 +77,7 @@ The Claude Code and OpenCode ports route each Flow agent the way OMP routes its 
 |---|---|---|---|---|
 | `default` (Main) | OpenCode `build`, `ask` and `model` | session model | `opus` medium | `deepseek/deepseek-v4.1-flash` high |
 | `plan` | `flow-planner` | `opus` high | `opus` high | `deepseek/deepseek-v4.1-flash` high |
-| `slow` | `flow-acceptance-reviewer` | `opus` high | `opus` high | `zai-org/GLM-5.3` high |
+| `slow` | `flow-acceptance-reviewer` | `opus` high | `opus` high | `deepseek/deepseek-v4.1-flash` high |
 | `execute` | `flow-plan-executor` | `opus` medium | `opus` medium | `deepseek/deepseek-v4.1-flash` high |
 | `task` | `flow-implementer` | `opus` high | `opus` high | `deepseek/deepseek-v4.1-flash` high |
 | `review_aux` | `flow-cor-reviewer`, `flow-ttc-reviewer`, `flow-craft-reviewer`, the three audit agents | `opus` high | `opus` high | `deepseek/deepseek-v4.1-flash` high |

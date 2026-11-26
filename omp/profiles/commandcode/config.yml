@@ -13,8 +13,8 @@ modelRoles:
   plan: commandcode/deepseek/deepseek-v4.1-flash:high
   vision: commandcode/deepseek/deepseek-v4.1-flash:high
   review_aux: commandcode/deepseek/deepseek-v4.1-flash:high
-  slow: commandcode/zai-org/GLM-5.3:high
-  critical: commandcode/zai-org/GLM-5.3:high
+  slow: commandcode/deepseek/deepseek-v4.1-flash:high
+  critical: commandcode/deepseek/deepseek-v4.1-flash:high
 bash:
   patterns:
     - match: git push*

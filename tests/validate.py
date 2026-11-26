@@ -490,9 +490,9 @@ expected_commandcode={
     'execute':'commandcode/deepseek/deepseek-v4.1-flash:high',
     'task':'commandcode/deepseek/deepseek-v4.1-flash:high',
     'plan':'commandcode/deepseek/deepseek-v4.1-flash:high',
-    'slow':'commandcode/zai-org/GLM-5.3:high',
+    'slow':'commandcode/deepseek/deepseek-v4.1-flash:high',
     'review_aux':'commandcode/deepseek/deepseek-v4.1-flash:high',
-    'critical':'commandcode/zai-org/GLM-5.3:high',
+    'critical':'commandcode/deepseek/deepseek-v4.1-flash:high',
     'commit':'commandcode/deepseek/deepseek-v4.1-flash:low',
 }
 commandcode=yaml.safe_load(profile_cfgs['commandcode'].read_text()).get('modelRoles',{})

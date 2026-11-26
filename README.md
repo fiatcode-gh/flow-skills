@@ -171,7 +171,7 @@ OMP profiles map Flow roles (`default`, `smol`, `execute`, `task`, `plan`, `slow
 
 - **anthropic:** Opus 5.5 for Main, planning, execution, implementation, review, acceptance and critical escalation; Sonnet 5.5 for leaves, commits, titles and vision.
 - **openai-codex:** GPT-6 Luna for Main, leaves and execution; GPT-6.1 Sol for implementation, planning and review.
-- **commandcode:** DeepSeek V4.1 Flash for Main, planning, implementation, execution and leaves; GLM-5.3 for acceptance.
+- **commandcode:** DeepSeek V4.1 Flash for every role: `low` for leaves, commits and titles, `high` for Main, planning, implementation, execution, review, acceptance and critical escalation.
 
 The Claude Code port sets `model` and `effort` in agent frontmatter (`opus` for every Flow agent); OpenCode sets `model` and `variant` in its profile files, with the same role-to-model map as OMP's `anthropic` and `commandcode` profiles. Reasons, effort levels and the per-port table: `docs/MODEL-ROUTING.md`. Assumptions about OMP itself: `docs/OMP-COMPATIBILITY.md`.
 

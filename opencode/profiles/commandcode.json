@@ -11,7 +11,7 @@
       "variant": "high"
     },
     "flow-acceptance-reviewer": {
-      "model": "commandcode/zai-org/GLM-5.3",
+      "model": "commandcode/deepseek/deepseek-v4.1-flash",
       "variant": "high"
     },
     "flow-audit-code-health": {
