@@ -44,7 +44,9 @@ if ($IsWindows) {
 Step 'validator' { uv run --with pyyaml python tests/validate.py }
 Step 'flow-omp.test.ps1' { & $PWSH -NoProfile -File tests/flow-omp.test.ps1 }
 Step 'flow-opencode.test.ps1' { & $PWSH -NoProfile -File tests/flow-opencode.test.ps1 }
-Step 'approval-record.test.sh' { & $bash tests/approval-record.test.sh }
+Step 'claude-code-record.test.mjs' { & node --no-warnings --experimental-strip-types tests/claude-code-record.test.mjs }
+Step 'claude-code-flow-guard.test.mjs' { & node --no-warnings --experimental-strip-types tests/claude-code-flow-guard.test.mjs }
+Step 'claude-code-publication.test.mjs' { & node --no-warnings --experimental-strip-types tests/claude-code-publication.test.mjs }
 Step 'flow-exclude.test.sh' { & $bash tests/flow-exclude.test.sh }
 Step 'session-start.test.sh' { & $bash tests/session-start.test.sh }
 

@@ -54,7 +54,7 @@ omp/                          OMP: the canonical doctrine and its setup
   bin/flow-omp                install / verify / doctor
   bin/flow-omp.ps1            the same for Windows (PowerShell 7)
   bin/flow-sessions           list and render OMP sessions for field-trial audits
-claude-code/                  Claude Code plugin: skills, agents, session-start hook
+claude-code/                  Claude Code plugin: skills, agents, session-start hook, hooks module
 opencode/                     OpenCode port: AGENTS.md, skills, agents, base config,
                               plugins/flow-guard, profiles/<provider>.json,
                               bin/flow-opencode, bin/flow-opencode.ps1
@@ -104,7 +104,7 @@ claude plugin marketplace add fiatcode-gh/flow-skills
 claude plugin install fiatcode@flow-skills
 ```
 
-The plugin namespaces its parts: skills are `fiatcode:<skill>`, agents `fiatcode:<agent>`. A session-start hook prints a short core and points at the full instructions. Approvals are recorded by two shell functions, `flow_approve` and `flow_check`. Cloud sessions install the plugin from the environment's setup script; see `docs/EXTERNAL-INTEROP.md`.
+The plugin namespaces its parts: skills are `fiatcode:<skill>`, agents `fiatcode:<agent>`. A session-start hook prints a short core and points at the full instructions. The plugin ships a hooks module that enforces the Flow gates: approvals go through the plugin's own dialog, and a dispatch without a current approval is refused. It needs Claude Code 2.1.299 or later, and cloud sessions install the plugin from the environment's setup script; see `docs/EXTERNAL-INTEROP.md`.
 
 ### OpenCode
 

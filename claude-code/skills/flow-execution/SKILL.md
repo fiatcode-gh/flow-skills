@@ -10,8 +10,8 @@ Claude Code owns agent spawning (the Agent tool), worktree isolation and agent c
 ## 1. Check authorization
 
 - Read the governing contract, the plan and the project rules. Check branch and dirty state per the Safety rules.
-- Require two approvals before the first production-writing worker on substantial work: the contract, then the plan. Run `flow_check` for both before each dispatch. `stale` or `missing` blocks it.
-- Treat a start or resume command as no approval. A "go ahead" after you show the plan in chat lets you run `flow_approve <slug> plan <path>`. Dispatch only after that.
+- Require two recorded approvals before the first production-writing worker on substantial work: the contract, then the plan (`flow_gate` `present`, then `approve`).
+- Treat a start or resume command as no approval. A "go ahead" after you show the plan in chat lets you present and approve the plan with `flow_gate`. Dispatch only after that.
 - An external handoff approves nothing: validate it locally, then get the contract and plan approvals here.
 - `flow-planning` section 5 and "External handoffs" decide whether a plan is execution-grade. Do not re-plan a validated current plan that meets them.
 - Carry this block (the Flow gate block) in the brief of every writer on contract work: `flow-plan-executor`, `flow-implementer`, and the mechanical lane:
@@ -19,11 +19,11 @@ Claude Code owns agent spawning (the Agent tool), worktree isolation and agent c
 ```text
 Flow gate:
 - Scope: <contract slug>
-- Contract: <absolute path to the approved contract>
-- Plan: <absolute path to the approved PLAN.md>
+- Contract: <approved contract path>
+- Plan: <approved PLAN.md path>
 ```
 
-- Write `Plan: NONE` when the approved contract's work needs no separate plan. Example: a debugged fix sent to `flow-implementer`. Show the `Plan: NONE` route in chat, with the contract when you can, so one yes covers both. End your turn. Once the user agrees, run `flow_approve <slug> implementation <contract path>` before dispatch.
+- Write `Plan: NONE` when the approved contract's work needs no separate plan. Example: a debugged fix sent to `flow-implementer`. Show the `Plan: NONE` route in chat, with the contract when you can, so one yes covers both. End your turn. Once the user agrees, present the contract as `kind=implementation` and approve it with `flow_gate` before dispatch.
 - Run tiny work on the user's concrete request alone, in the Main-direct lane (section 2).
 
 ## 2. Route the work
@@ -100,7 +100,7 @@ Each layer proves its own scope. Do not rerun full suites as ritual.
 - Dispatch one `flow-acceptance-reviewer` after the coherent change and its focused/integration proof, for planned work. Give it the contract, plan and task paths, diff/base and evidence.
 - Do not fan out lens reviewers automatically. Add a specialist only for a concrete residual risk (a real security boundary, hard concurrency or data integrity).
 - Treat the acceptance review as a barrier. Start no manual or external evidence until it and its corrections settle.
-- After you accept the review receipt, write it to `.flow/plans/<slug>/ACCEPTANCE.md`, show its verdict and findings in chat and end your turn. Once the user agrees, run `flow_approve <slug> accept <receipt path>`.
+- After you accept the review receipt, write it to `.flow/plans/<slug>/ACCEPTANCE.md`, show its verdict and findings in chat and end your turn. Once the user agrees, record acceptance with `flow_gate action=accept`, `scope` the slug and `source` the receipt path; its dialog names the head before it binds the tree.
 - A later production, asset or build change reopens the stability barrier (Evidence rules): run a scoped closure review, rerun the affected evidence, then record `accept` again.
 - You may park minor findings that carry no load.
 - Follow the change-lens selection in `flow-review` for unplanned changes.

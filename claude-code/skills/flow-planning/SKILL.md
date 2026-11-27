@@ -23,13 +23,13 @@ Who plans:
 
 - For substantial planning, Main must dispatch the `flow-planner` agent to own the consequential HOW recon and writing.
 - Skip that dispatch only when a current, validated external plan already meets this skill's execution-grade bar (section 5 and "External handoffs").
-- Dispatch the planner only after the user explicitly approves the completed governing contract and `flow_check <slug> contract <path>` prints `ok`.
+- Dispatch the planner only after the user explicitly approves the completed governing contract and `flow_gate action=status` prints `contract: current`.
 - Put this block (the Flow gate block) in every planner brief.
 
 ```text
 Flow gate:
 - Scope: <contract slug>
-- Contract: <absolute path to the approved contract>
+- Contract: <path to the approved contract>
 ```
 
 - Main owns the governing contract, validates the planner's receipt and owns plan acceptance.
@@ -125,10 +125,10 @@ When any of these fails, keep the artifact as strategy/draft and route the unres
 
 - Main validates the planner's receipt. That does not authorize implementation.
 - For substantial planned work, Main presents the completed execution-grade plan in full in chat and gets **explicit user plan approval** before the first production-writing worker. End your turn after the presentation.
-- After the user agrees, run `flow_approve <slug> plan <PLAN.md path>`.
+- After the user agrees, present the plan (`kind=plan`) and approve it with one `flow_gate` call; the dialog is the record.
 - Log every amendment in `PLAN.md` as one line: the task and the change.
-- An amendment is in-scope when it stays inside the approved contract and changes no locked decision, shared interface or acceptance criterion. Log it under `## In-scope amendments`. `flow_check` leaves the lines under that heading out of the plan digest, so the approval stays current with no new yes.
-- Log every other amendment above that heading. It makes `flow_check` print `stale`, which blocks writer dispatch until the amended plan is presented and approved again.
+- An amendment is in-scope when it stays inside the approved contract and changes no locked decision, shared interface or acceptance criterion. Log it under `## In-scope amendments`. `flow_gate action=status` leaves the lines under that heading out of the plan digest, so the approval stays current with no new yes.
+- Log every other amendment above that heading. It makes `flow_gate action=status` print `stale`, which blocks writer dispatch until the amended plan is presented and approved again.
 - Then `flow-execution` routes each writer (section 2), orders the tasks (section 3) and writes the briefs (section 4).
 
 ## External handoffs

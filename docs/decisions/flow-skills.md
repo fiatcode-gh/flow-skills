@@ -8,7 +8,7 @@ Work: the OpenCode port (`feat: add the OpenCode Flow port`) and the rename to `
 - **OMP stays the canonical doctrine.** Ports translate its mechanics and keep its rules. A rule that exists only in a port is a bug. No harness reads another harness's files, and no symlink crosses harness directories, so this is not the retired `ai-stack` `shared/` layout.
 - **Each harness gets Flow from exactly one place.** OpenCode also scans other tools' global skill folders; its installer reports a same-named copy there.
 - **Skills and agents name roles, never models.** Models live in harness setup: OMP profiles, OpenCode profile files, Claude Code agent frontmatter.
-- **The same gates everywhere**: contract and plan approval bound to artifact bytes, a check before each writer dispatch, acceptance before integration, and approval of every stakeholder-visible write. OMP enforces them with `flow_gate`; the Claude Code and OpenCode ports use `flow_approve` and `flow_check`.
+- **The same gates everywhere**: contract and plan approval bound to artifact bytes, a check before each writer dispatch, acceptance before integration, and approval of every stakeholder-visible write. All three harnesses enforce them: OMP's guard extensions, OpenCode's `flow-guard` plugin and the Claude Code hooks module, agreeing on the artifact digest and the working-tree fingerprint; OMP keeps its record in `.flow/runtime/gates.json`, while the OpenCode and Claude Code ports share `.flow/runtime/approvals.log`.
 - **The validator grows with the ports**: frontmatter, no other harness's mechanics or model ids, verbatim-copy drift, byte caps.
 
 ## Rejected alternatives

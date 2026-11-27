@@ -1,14 +1,18 @@
 // Behavioral tests for the OpenCode flow-guard plugin, driven through `setup` on the host model.
 // Dependency-free: Node native TypeScript stripping and Bun both load the plugin modules directly.
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { hostOf } from "../claude-code/hooks/guard/host.ts";
+import { artifactDigest, latestRecord, readRecord, writeRecord } from "../claude-code/hooks/guard/record.ts";
+import { worktreeIdentity } from "../claude-code/hooks/guard/tree.ts";
 import { credentialsRefusal } from "../opencode/plugins/flow-guard/credentials.ts";
 import { setup } from "../opencode/plugins/flow-guard/setup.ts";
+import { writeRecord as writeOpencodeRecord } from "../opencode/plugins/flow-guard/record.ts";
+import { createModHost } from "./claude-code-mod-host.mjs";
 import { createHost } from "./opencode-plugin-host.mjs";
 
 const CWD = "/work/app";
@@ -811,25 +815,23 @@ await withGateRepository(async (root, host) => {
 	}
 }
 
-// R1: the Claude Code port's flow_check reads the plugin's lines, and the plugin reads flow_approve's.
+// R1: the two ports read each other's record. The Claude Code port has no shell functions: its guard reads the same
+// lines and computes the same digest and fingerprint, so a record either port wrote is current in the other.
 await withGateRepository(async (root, host) => {
-	const repository = fileURLToPath(new URL("..", import.meta.url));
-	const functions = join(root, "functions.sh");
-	writeFileSync(
-		functions,
-		execFileSync("sed", ["-n", "/^flow_digest() {/,/^}/p;/^flow_approve() {/,/^}/p;/^flow_check() {/,/^}/p", join(repository, "claude-code/hooks/flow-context.md")]),
-	);
-	const shell = (script) => spawnSync("sh", ["-c", `. "$1" && ${script}`, "sh", functions], { cwd: root, encoding: "utf8" }).stdout.trim();
 	await presentAndApprove(host, "demo", ["contract", CONTRACT], ["plan", PLAN]);
-	assert.equal(shell(`flow_check demo contract ${CONTRACT}`), "ok");
-	appendFileSync(join(root, PLAN), "- task 1: amended\n");
-	assert.equal(shell(`flow_check demo plan ${PLAN}`), "ok");
-	appendFileSync(join(root, CONTRACT), "edit\n");
-	assert.equal(shell(`flow_check demo contract ${CONTRACT}`), "stale");
-	shell(`flow_approve other contract ${OTHER}`);
-	assert.match(await gateText(host, { action: "status", scope: "other" }), /\ncontract: current \(\.flow\/contracts\/other\.md\)\n/);
 	await accepted(host, "demo");
-	assert.equal(shell("flow_check demo accept app.txt"), "stale");
+	const claude = hostOf(createModHost({ cwd: root, env: { PATH: process.env.PATH ?? "", TMPDIR: process.env.TMPDIR ?? "" } }).$);
+	const lines = await readRecord(claude, root);
+	const contract = latestRecord(lines, "demo", "contract");
+	assert.equal(contract?.path, CONTRACT);
+	assert.equal(contract?.digest, await artifactDigest(claude, "contract", readFileSync(join(root, CONTRACT), "utf8")));
+	const acceptance = latestRecord(lines, "demo", "accept");
+	assert.equal(acceptance?.digest, (await worktreeIdentity(claude, root)).fingerprint);
+	appendFileSync(join(root, CONTRACT), "edit\n");
+	assert.notEqual(await artifactDigest(claude, "contract", readFileSync(join(root, CONTRACT), "utf8")), contract?.digest);
+	const otherDigest = await artifactDigest(claude, "contract", readFileSync(join(root, OTHER), "utf8"));
+	await writeRecord(claude, root, [...lines, { scope: "other", kind: "contract", digest: otherDigest, path: OTHER }]);
+	assert.match(await gateText(host, { action: "status", scope: "other" }), /\ncontract: current \(\.flow\/contracts\/other\.md\)\n/);
 });
 
 // --- subagent: dispatch and follow-up gate ---------------------------------------------------------------------
@@ -942,6 +944,40 @@ await withGateRepository(async (root, host) => {
 	} finally {
 		execFileSync("mv", [moved, root]);
 	}
+});
+
+const CONTROL_REFUSAL = "Flow approval record line holds a control character; nothing was written.";
+
+// A18: a path with a line break cannot forge a second record line. The decoy directory's name ends one line and
+// starts another for scope `b`; the approve fails, the record keeps its bytes, and scope `b` stays unapproved.
+// Windows forbids a line break in a file name; A19 is the proof there.
+if (process.platform !== "win32") {
+	await withGateRepository(async (root, host) => {
+		const target = ".flow/contracts/b.md";
+		writeFileSync(join(root, target), "# Contract\n\nB.\n");
+		const decoyDir = `.flow/contracts/a\nb contract ${sha256(join(root, target))} .flow/contracts`;
+		mkdirSync(join(root, decoyDir), { recursive: true });
+		writeFileSync(join(root, decoyDir, "b.md"), "decoy\n");
+		await present(host, "contract", `${decoyDir}/b.md`, "x");
+		const before = logOf(root);
+		const { outcome } = await prompted(host, { action: "approve", scope: "x", kind: "contract" });
+		assert.equal(errorText(outcome), CONTROL_REFUSAL);
+		assert.equal(logOf(root), before);
+		assert.match(await dispatchRefused(host, "flow-planner", brief("b", { contract: target })), /scope b: no recorded contract approval/);
+	});
+}
+
+// A19: the writer refuses a control character in any field before it writes the record, its `.tmp` or the exclude.
+await withGateRepository(async (root) => {
+	const exclude = join(root, ".git/info/exclude");
+	const excludeBefore = readFileSync(exclude);
+	assert.throws(
+		() => writeOpencodeRecord(root, [{ scope: "s", kind: "contract", digest: "0".repeat(64), path: ".flow/contracts/a\rb.md" }]),
+		{ message: CONTROL_REFUSAL },
+	);
+	assert.equal(logOf(root), undefined);
+	assert.equal(existsSync(join(root, `${LOG}.tmp`)), false);
+	assert.deepEqual(readFileSync(exclude), excludeBefore);
 });
 
 // A repository with the demo contract and plan approved.

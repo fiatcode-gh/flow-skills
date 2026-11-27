@@ -649,11 +649,122 @@ for p in port_agents:
     elif p.stem in ROLE_OF and fm['effort']!=omp_effort('anthropic',ROLE_OF[p.stem]): err(f'{rel(p)}: effort {fm["effort"]} differs from the OMP anthropic profile ({omp_effort("anthropic",ROLE_OF[p.stem])}) for role {ROLE_OF[p.stem]}')
     if p.stem in ROLE_OF and fm.get('model')!=port_model('anthropic','claude-code',ROLE_OF[p.stem]): err(f'{rel(p)}: model {fm.get("model")} differs from the OMP anthropic profile ({port_model("anthropic","claude-code",ROLE_OF[p.stem])}) for role {ROLE_OF[p.stem]}')
 check_roles('claude-code/agents',claude_routes)
+
+# The port's agent set mirrors OMP's, plus the COR reviewer that exists only in the ports.
+PORT_AGENTS={p.stem for p in agents}|{'flow-cor-reviewer'}
+if {p.stem for p in port_agents}!=PORT_AGENTS: err(f'claude-code/agents: agent set mismatch: {sorted({p.stem for p in port_agents}^PORT_AGENTS)}')
+# One hooks module per plugin, loaded inside Claude Code's own process.
+_hooks=port/'hooks'
+_hooks_json=json.loads((_hooks/'hooks.json').read_text())
+if _hooks_json.get('modules')!=['./guard.ts']: err(f'claude-code/hooks/hooks.json: modules must be exactly ["./guard.ts"], got {_hooks_json.get("modules")!r}')
+if not any(_h.get('type')=='command' and 'session-start.sh' in str(_h.get('command')) for _group in _hooks_json.get('hooks',{}).get('SessionStart',[]) for _h in _group.get('hooks',[])):
+    err('claude-code/hooks/hooks.json: the SessionStart command hook is missing')
+def ts_code(text):
+    """Code with comments removed, so a comment naming a forbidden call is not mistaken for one."""
+    text=re.sub(r'/\*.*?\*/','',text,flags=re.S)
+    return re.sub(r'//[^\n]*','',text)
+_guard=_hooks / "guard.ts"
+if not _guard.exists(): err('claude-code/hooks/guard.ts: missing')
+else:
+    _guard_text=_guard.read_text()
+    for _required in ['export function register(on','on("session.start"','on("tool.call"','on("agent.spawn"','on("tool.check"','"mcp__fiatcode__flow_gate"']:
+        if _required not in _guard_text: err(f'claude-code/hooks/guard.ts: missing {_required!r}')
+    if 'tool.run' in ts_code(_guard_text): err('claude-code/hooks/guard.ts: the flow_gate service belongs in tool.call, not tool.run')
+for _p in sorted(_hooks.rglob('*.ts')):
+    try: _text=_p.read_text(encoding='utf-8')
+    except UnicodeDecodeError: err(f'{rel(_p)}: hooks module file is not UTF-8 text'); continue
+    _code=ts_code(_text)
+    if re.search(r'(?m)^\s*(?:import|export)\b[^;\n]*\bfrom\s+["\']node:|^\s*import\s+["\']node:',_code): err(f'{rel(_p)}: hooks module may not import node:*')
+    if 'import(' in _code: err(f'{rel(_p)}: hooks module may not use a dynamic import()')
+    if 'from "claude-code"' in _code: err(f'{rel(_p)}: hooks module may not import the claude-code type module')
+    if _p!=_hooks/'guard'/'host.ts' and '$.' in _text: err(f'{rel(_p)}: `$.` is read only in claude-code/hooks/guard/host.ts')
+# The mods realm has no Buffer, createHash or mkdir/rename, so the guard carries a TypeScript copy of OMP's
+# rules. Pinned here: two values of record.ts and tree.ts, credentials.ts's Rule 1 byte for byte and its Rule 3
+# after the listed host substitutions, and the capsule markers. tests/claude-code-record.test.mjs,
+# tests/claude-code-flow-guard.test.mjs and the shared case table prove the behavior equal to OMP's.
+for _path,_pinned in {
+    'hooks/guard/record.ts': ['AMENDMENTS_HEADING = "## In-scope amendments"','amendmentsStart('],
+    'hooks/guard/tree.ts': ['export async function ensureFlowExcluded(','/.flow/'],
+}.items():
+    _text=(port/_path).read_text() if (port/_path).exists() else ''
+    for _required in _pinned:
+        if _required not in _text: err(f'claude-code/{_path}: missing pinned value {_required!r}')
+# The Claude Code realm has no homedir(), so Rule 3 takes the home directory as a parameter; these are the only
+# differences allowed, and each must still match OMP's text.
+CREDENTIALS_RULE3_SUBSTITUTIONS=[
+    ('function expandWord(word: string): string {','function expandWord(word: string, home: string): string {'),
+    ('return homedir();','return home;'),
+    ('return homedir() + word.slice(prefix.length - 1);','return home + word.slice(prefix.length - 1);'),
+    ('function printedCredentialsFile(text: string, cwd: string, shell: boolean): string | undefined {','function printedCredentialsFile(text: string, cwd: string, shell: boolean, home: string): string | undefined {'),
+    ('resolve(cwd, expandWord(word))','resolve(cwd, expandWord(word, home))'),
+]
+_omp_credentials=(ROOT/'omp/extensions/flow-credentials-guard.ts').read_text()
+_port_credentials=(_hooks/'guard'/'credentials.ts').read_text() if (_hooks/'guard'/'credentials.ts').exists() else ''
+for _start,_end,_substitutions in [('// Rule 1: what a credentials file is','// Rule 2:',[]),('// Rule 3: `bash` and `eval` text.','function refusal(',CREDENTIALS_RULE3_SUBSTITUTIONS)]:
+    _ostart=_omp_credentials.find(_start)
+    _oend=_omp_credentials.find(_end,_ostart+len(_start)) if _ostart>=0 else -1
+    if _ostart<0 or _oend<0: err(f'tests/validate.py: credentials pin anchor lost in omp/extensions/flow-credentials-guard.ts ({_start})'); continue
+    _region=_omp_credentials[_ostart:_oend].rstrip()
+    for _source,_target in _substitutions:
+        if _source not in _region: err(f'tests/validate.py: credentials pin substitution source missing from OMP ({_start}): {_source!r}')
+        _region=_region.replace(_source,_target)
+    if _region not in _port_credentials: err(f'claude-code/hooks/guard/credentials.ts: credentials pin drifted from omp/extensions/flow-credentials-guard.ts ({_start})')
+# Shipped code cites no Flow working file (.flow/ is git-excluded and removed after integration), no plan or
+# preflight id and no local generated type file; a lasting reason is stated in place or in
+# docs/decisions/claude-code-port.md.
+HOOK_CITATION_ID=re.compile(r'(?<![A-Za-z0-9_])(?:D(?:[1-9]|1[0-9])|F[1-9])(?![A-Za-z0-9_])')
+CITATIONS=['PLAN.md','PREFLIGHT.md','REVIEW-','.claude-plugin/types','index.d.ts','§']
+for _p in sorted(_hooks.rglob('*.ts')):
+    _text=_p.read_text(encoding='utf-8',errors='replace')
+    for _citation in CITATIONS:
+        if _citation in _text: err(f'{rel(_p)}: cites a Flow working file or local type file: {_citation!r}')
+    for _m in HOOK_CITATION_ID.finditer(_text): err(f'{rel(_p)}: cites a plan or preflight id: {_m.group(0)!r}')
+# The port's test comments follow the same rule, for the same reason (.flow/ is git-excluded and removed after
+# integration, so a citation of it dangles). A comment is a line starting with `//`, `/*` or `*`, or the text after
+# the first ` // ` on a code line; fixture strings such as `.flow/plans/demo/PLAN.md` in code are not comments.
+for _p in sorted((ROOT/'tests').glob('claude-code-*.mjs')):
+    for _number,_line in enumerate(_p.read_text(encoding='utf-8',errors='replace').splitlines(),1):
+        _stripped=_line.strip()
+        if _stripped.startswith(('//','/*','*')): _comment=_line
+        elif ' // ' in _line: _comment=_line.split(' // ',1)[1]
+        else: continue
+        for _citation in CITATIONS:
+            if _citation in _comment: err(f'{rel(_p)}:{_number}: cites a Flow working file or local type file: {_citation!r}')
+        for _m in HOOK_CITATION_ID.finditer(_comment): err(f'{rel(_p)}:{_number}: cites a plan or preflight id: {_m.group(0)!r}')
+def capsule_markers(source):
+    block=re.search(r'const CAPSULE_MARKERS = \[(.*?)\] as const;',source,re.S)
+    return re.findall(r'"([^"]*)"',block.group(1)) if block else None
+_omp_capsule=capsule_markers((ROOT/'omp/extensions/flow-evidence-guard.ts').read_text())
+_port_capsule=capsule_markers((_hooks/'guard'/'dispatch.ts').read_text()) if (_hooks/'guard'/'dispatch.ts').exists() else None
+if _omp_capsule is None: err('tests/validate.py: CAPSULE_MARKERS anchor lost in omp/extensions/flow-evidence-guard.ts')
+elif _port_capsule!=_omp_capsule: err(f'claude-code/hooks/guard/dispatch.ts: capsule markers differ from omp/extensions/flow-evidence-guard.ts: {_port_capsule!r} != {_omp_capsule!r}')
+# The publication list has one source: the profiles' `approval: prompt` matches, identical in all three.
+_prompt_lists={_profile:[_match for _match,_approval in _pairs if _approval=='prompt'] for _profile,_pairs in pattern_lists.items()}
+if len({tuple(_matches) for _matches in _prompt_lists.values()})!=1:
+    err(f'omp/profiles: approval: prompt match lists differ between profiles: {sorted(_prompt_lists)}')
+else:
+    _agreed=next(iter(_prompt_lists.values()))
+    _patterns=(_hooks/'guard'/'patterns.ts').read_text() if (_hooks/'guard'/'patterns.ts').exists() else ''
+    _literals=[_literal.replace('\\"','"').replace('\\\\','\\') for _literal in re.findall(r'(?m)^\s*"((?:[^"\\]|\\.)*)",?$',_patterns)]
+    if _literals!=_agreed: err(f'claude-code/hooks/guard/patterns.ts: publication literals differ from the profiles\' approval: prompt list ({len(_literals)} vs {len(_agreed)} entries)')
+CLAUDE_DOCTRINE_MARKERS={
+    'hooks/flow-context.md': ['## Approval record','`flow_gate`','.flow/runtime/approvals.log','`present`','`approve`','`accept`','`status`','`clear`','disableAllHooks','2.1.299'],
+    'skills/flow-planning/SKILL.md': ['Flow gate:\n- Scope: <contract slug>\n- Contract: <path to the approved contract>\n','`flow_gate`','`kind=plan`'],
+    'skills/flow-execution/SKILL.md': ['Flow gate:\n- Scope: <contract slug>\n- Contract: <approved contract path>\n- Plan: <approved PLAN.md path>\n','Plan: NONE','`kind=implementation`','flow_gate action=accept'],
+    'skills/flow-integrating/SKILL.md': ['flow_gate action=status','flow_gate action=clear'],
+    'agents/flow-evidence-verifier.md': VERIFIER_MARKERS,
+}
+for _path,_markers in CLAUDE_DOCTRINE_MARKERS.items():
+    _text=(port/_path).read_text() if (port/_path).exists() else ''
+    for _required in _markers:
+        if _required not in _text: err(f'claude-code/{_path}: missing machine-read marker: {_required!r}')
 port_docs=port_skills+port_agents+list((port/'skills').glob('*/references/*.md'))+list((port/'hooks').glob('*.md'))
 for p in port_docs:
     text=p.read_text()
-    for omp_only in ['flow_gate','skill://','`hub`','hub wait','@task','@execute','@slow','@smol','@plan','@vision','@review_aux','`sonic`','`scout`']:
+    for omp_only in ['skill://','`hub`','hub wait','@task','@execute','@slow','@smol','@plan','@vision','@review_aux','`sonic`','`scout`','No hook enforces','hook enforces it']:
         if omp_only in text: err(f'{rel(p)}: OMP-only mechanic in the Claude Code port: {omp_only}')
+    for retired in ['flow_approve','flow_check','flow_digest']:
+        if retired in text: err(f'{rel(p)}: retired approval mechanic in the Claude Code port: {retired}')
 for path in ['skills/flow-tdd/SKILL.md','skills/ui-design/SKILL.md']:
     if (port/path).read_bytes()!=(ROOT/'omp'/path).read_bytes(): err(f'claude-code/{path}: verbatim mirror drifted from omp/{path}')
 for path in ['skills/weft-worklog/references/voice.md','skills/weft-worklog/references/page-archetypes.md']:
@@ -917,6 +1028,29 @@ else:
     for marker in ['Developer Mode','Git Bash','OPENCODE_CONFIG_CONTENT','not yet field-tested']:
         if marker not in _wtext: err(f'docs/WINDOWS.md: missing marker: {marker}')
 if not (ROOT/'docs/decisions/windows-support.md').exists(): err('docs/decisions/windows-support.md: missing')
+
+# Claude Code enforcement is documented where readers look: the interop map says enforced, the two
+# records that rejected a hook are corrected, and the retired shell functions are gone from the docs
+# that describe the port's current mechanics.
+_cinterop=(ROOT/'docs/EXTERNAL-INTEROP.md').read_text().lower()
+for marker in ['## claude code port','`hooks/guard.ts`','`flow_gate`','mods','known misses','2.1.299']:
+    if marker not in _cinterop: err(f'docs/EXTERNAL-INTEROP.md: missing Claude Code mod marker: {marker!r}')
+_cport_record=(ROOT/'docs/decisions/claude-code-port.md').read_text()
+if 'hooks module' not in _cport_record: err("docs/decisions/claude-code-port.md: missing marker: 'hooks module'")
+for stale in ['`ports/claude-code/`','`ports/open-webui/`']:
+    if stale in _cport_record: err(f'docs/decisions/claude-code-port.md: stale path {stale!r}')
+if 'hooks module' not in (ROOT/'docs/decisions/flow-batch-2026-11.md').read_text(): err("docs/decisions/flow-batch-2026-11.md: missing marker: 'hooks module'")
+_cwindows=(ROOT/'docs/WINDOWS.md').read_text()
+if 'hooks module' not in _cwindows: err("docs/WINDOWS.md: missing marker: 'hooks module'")
+for retired in ['flow_approve','flow_check']:
+    if retired in _cwindows: err(f'docs/WINDOWS.md: retired approval mechanic: {retired}')
+if 'hooks module' not in _readme: err("README.md: missing marker: 'hooks module'")
+for retired in ['flow_approve','flow_check']:
+    if retired in _readme: err(f'README.md: retired approval mechanic: {retired}')
+for _p in [ROOT/'WINDOWS-CHECKS.md',*sorted((ROOT/'opencode/plugins/flow-guard').glob('*.ts'))]:
+    _text=_p.read_text()
+    for retired in ['flow_approve','flow_check','flow_digest']:
+        if retired in _text: err(f'{rel(_p)}: retired approval mechanic: {retired}')
 
 # Every file that loads into a session (skills, their references, agents, rules, AGENTS.md)
 # has a byte cap; growth needs a deliberate cap change.

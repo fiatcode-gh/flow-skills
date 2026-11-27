@@ -33,7 +33,7 @@ Resolve and record the **what/why** before implementation.
 7. Present the completed contract in full in chat and get explicit user approval of its WHAT/WHY boundary before substantial planning begins.
    - Answers to clarification questions do not themselves approve the resulting completed or materially amended contract.
    - End your turn after the chat presentation.
-   - After the user agrees, run `flow_approve <slug> contract <path>` (Approval record in the Flow instructions).
+   - After the user agrees, run `flow_gate` with `action=present`, `kind=contract`, the contract's `path` and a one-line `summary`, then `action=approve` with `kind=contract`; the dialog is the record. (Approval record in the Flow instructions)
 8. After the approval is recorded, keep the forward pointer to `flow-planning`.
    - A material WHAT/boundary/acceptance change later reopens contract approval. Present and approve the amended revision before planning resumes.
 

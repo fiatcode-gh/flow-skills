@@ -13,7 +13,7 @@ Ensure the appropriate final test/build/lint/format/static gates cover the **cur
 
 Do not rerun an expensive final command merely because control moved into this skill. Reuse fresh proof by the Evidence rules.
 
-Reconcile the result against the governing request/spec/approved plan. Name omissions/deviations rather than silently redefining done. When the work has a Flow scope, run `flow_check` for each kind it used. Any `stale` line is a blocker. A `missing` line for a kind the work never used is expected: `plan` for `Plan: NONE` work, `implementation` for planned work.
+Reconcile the result against the governing request/spec/approved plan. Name omissions/deviations rather than silently redefining done. When the work has a Flow scope, run `flow_gate action=status`. Any `stale` line is a blocker. A `missing` line for a kind the work never used is expected: `plan` for `Plan: NONE` work, `implementation` for planned work.
 
 ## 2. Record the decisions
 
@@ -44,4 +44,4 @@ Never end a locally complete integration checkpoint with only a status summary: 
 
 ## 5. After integration
 
-After confirmed integration, remove the scope's `.flow/contracts`, `.flow/plans` and `.flow/handoffs` entries and its `approvals.log` lines. Report what was removed. After the last unit, do the same for the parent.
+After confirmed integration, clear the scope with `flow_gate action=clear`, then remove its `.flow/contracts`, `.flow/plans` and `.flow/handoffs` entries. Report what was removed. After the last unit, do the same for the parent.

@@ -5,6 +5,7 @@
   "claude-code/agents/flow-audit-tests.md": 1024,
   "claude-code/agents/flow-cor-reviewer.md": 1024,
   "claude-code/agents/flow-craft-reviewer.md": 1024,
+  "claude-code/agents/flow-evidence-verifier.md": 5120,
   "claude-code/agents/flow-implementer.md": 3072,
   "claude-code/agents/flow-plan-executor.md": 3072,
   "claude-code/agents/flow-planner.md": 2048,

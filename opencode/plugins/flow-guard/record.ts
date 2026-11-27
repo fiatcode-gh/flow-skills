@@ -2,10 +2,10 @@
  * flow-skills — OpenCode flow-guard: the approval record `.flow/runtime/approvals.log`.
  *
  * Invariant: one line per record, `<scope> <kind> <digest> <path>`, single spaces; the last line for a scope and kind
- * wins. The Claude Code port's `flow_check` reads the same lines. Only `flow_gate` writes the file, whole, through a
- * `.tmp` file and a rename; a line it cannot read makes the record unreadable rather than skipped. The digest and the
- * artifact path rules below are byte-for-byte copies of omp/extensions/flow-governance-guard.ts, the digest region
- * pinned by tests/validate.py.
+ * wins. The Claude Code port's hooks module (`claude-code/hooks/guard/record.ts`) reads and writes the same lines.
+ * Only `flow_gate` writes the file, whole, through a `.tmp` file and a rename; a line it cannot read makes the record
+ * unreadable rather than skipped. The digest and the artifact path rules below are byte-for-byte copies of
+ * omp/extensions/flow-governance-guard.ts, the digest region pinned by tests/validate.py.
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs";
@@ -116,7 +116,14 @@ export function latestRecord(lines: RecordLine[], scope: string, kind: string): 
 	return lines.findLast((line) => line.scope === scope && line.kind === kind);
 }
 
+// A control character in any field (a line break above all) would let one line forge another, so the whole write is
+// refused before anything, the exclude included, changes.
+const CONTROL = /[\u0000-\u001f]/;
+
 export function writeRecord(root: string, lines: RecordLine[]): void {
+	if (lines.some(({ scope, kind, digest, path }) => [scope, kind, digest, path].some((field) => CONTROL.test(field)))) {
+		throw new Error("Flow approval record line holds a control character; nothing was written.");
+	}
 	ensureFlowExcluded(root);
 	const path = resolve(root, RECORD_RELATIVE_PATH);
 	mkdirSync(dirname(path), { recursive: true });

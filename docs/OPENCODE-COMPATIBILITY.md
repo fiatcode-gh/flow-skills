@@ -28,7 +28,7 @@ The plugin loading on Windows and macOS is not yet proven: it was checked on Lin
 - An `Always allow` answer to an edit, shell or subagent prompt in `ask` saves a rule, and saved rules come after the agent's own (`packages/core/src/permission.ts:179`), so later matching calls in `ask` go ahead without asking.
 - A subagent that `ask` dispatches after the user approves runs under its own agent's permissions: a `general` subagent edits files and runs shell commands, and an `explore` one runs shell commands, without asking.
 - A project `opencode.json` can switch the plugin off with `"plugins": ["-flow-guard"]`.
-- A Claude Code session reads an OpenCode `accept` line as `stale`, because its `flow_check` hashes a receipt file, and the plugin reads a Claude Code `accept` line as stale. Both ask again; neither passes a wrong record. `contract`, `plan` and `implementation` lines read the same in both ports.
+- A Claude Code session reads the OpenCode record through its hooks module, with the same digest and the same working-tree fingerprint, so an `accept` line written by either port is current in the other; `tests/guard-cases.test.mjs` asserts the agreement on all three ports. Neither port passes a record it could not reproduce.
 - `!` shell commands typed by the user do not pass the tool hook.
 - Shell commands are matched by text, so the plugin has the residuals OMP lists for the `*.flow/runtime*` rule and for the credentials guard's `bash` text: see those two lists in `docs/OMP-COMPATIBILITY.md`.
 - Tools from MCP servers or from other plugins that write files are not checked for `.flow/runtime`.

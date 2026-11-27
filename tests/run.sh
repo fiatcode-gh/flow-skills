@@ -12,7 +12,11 @@ node --no-warnings --experimental-strip-types tests/flow-governance-guard.test.m
 node --no-warnings --experimental-strip-types tests/flow-credentials-guard.test.mjs
 node --no-warnings --experimental-strip-types tests/guard-cases.test.mjs
 node --no-warnings --experimental-strip-types tests/opencode-flow-guard.test.mjs
-# OMP and OpenCode load the extensions and the plugin under Bun, so run them there too when it is available.
+node --no-warnings --experimental-strip-types tests/claude-code-record.test.mjs
+node --no-warnings --experimental-strip-types tests/claude-code-flow-guard.test.mjs
+node --no-warnings --experimental-strip-types tests/claude-code-publication.test.mjs
+# OMP and OpenCode load the extensions and the plugin under Bun and the guard modules load there too, so run them
+# there when it is available.
 if command -v bun >/dev/null 2>&1; then
   bun tests/ai-memory.test.mjs
   bun tests/flow-evidence-guard.test.mjs
@@ -20,8 +24,11 @@ if command -v bun >/dev/null 2>&1; then
   bun tests/flow-credentials-guard.test.mjs
   bun tests/opencode-flow-guard.test.mjs
   bun tests/guard-cases.test.mjs
+  bun tests/claude-code-record.test.mjs
+  bun tests/claude-code-flow-guard.test.mjs
+  bun tests/claude-code-publication.test.mjs
 else
-  printf '%s\n' 'skip: bun not on PATH; extension and plugin tests ran under Node only'
+  printf '%s\n' 'skip: bun not on PATH; the extension, plugin and guard tests ran under Node only'
 fi
 node --no-warnings tests/bash-patterns.test.mjs
 sh -n omp/bin/flow-omp
@@ -29,7 +36,6 @@ sh -n opencode/bin/flow-opencode
 ./tests/install.test.sh
 ./tests/opencode-install.test.sh
 ./tests/flow-exclude.test.sh
-./tests/approval-record.test.sh
 ./tests/session-start.test.sh
 # The PowerShell launchers and their tests run under pwsh on any OS; CI's Ubuntu has it.
 if command -v pwsh >/dev/null 2>&1; then

@@ -7,11 +7,15 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { register as registerClaudeCode } from "../claude-code/hooks/guard.ts";
+import { hostOf } from "../claude-code/hooks/guard/host.ts";
+import { latestRecord as latestClaudeRecord, readRecord as readClaudeRecord } from "../claude-code/hooks/guard/record.ts";
 import credentialsExtension from "../omp/extensions/flow-credentials-guard.ts";
 import evidenceExtension from "../omp/extensions/flow-evidence-guard.ts";
 import governanceExtension from "../omp/extensions/flow-governance-guard.ts";
 import { latestRecord, readRecord } from "../opencode/plugins/flow-guard/record.ts";
 import { setup as setupOpenCode } from "../opencode/plugins/flow-guard/setup.ts";
+import { createModHost } from "./claude-code-mod-host.mjs";
 import { createHost } from "./opencode-plugin-host.mjs";
 
 const table = JSON.parse(readFileSync(new URL("./fixtures/guard-cases.json", import.meta.url), "utf8"));
@@ -182,7 +186,90 @@ const openCodeAdapter = {
 	open: openOpenCode,
 };
 
-const adapters = [ompAdapter, openCodeAdapter];
+// --- Claude Code adapter -----------------------------------------------------
+
+// The port's hooks module, driven through its real `register` on the mods host model: a refusal is the hook's
+// `{ deny }`, and the registered `flow_gate` tool answers `{ result }` with the text the model reads. One host per
+// scenario, one fresh host per secret call, as the OpenCode adapter builds one plugin per call.
+const CLAUDE_ROLES = {
+	planner: "flow-planner",
+	executor: "flow-plan-executor",
+	implementer: "flow-implementer",
+	mechanical: "general-purpose",
+	verifier: "flow-evidence-verifier",
+	reader: "Explore",
+};
+
+const CLAUDE_GATE_TOOL = "mcp__fiatcode__flow_gate";
+
+// The engine answers `$.env.get` from the process environment, and the host model answers from an injected map; the
+// tree recipe needs `PATH` to reach git and a temp base for its scratch directory (PLAN.md D5).
+const CLAUDE_ENV = { PATH: process.env.PATH ?? "", TMPDIR: process.env.TMPDIR, TEMP: process.env.TEMP, TMP: process.env.TMP };
+
+// A hook's answer as the case table reads it: the `{ deny }` is the refusal, and its absence is the pass.
+function refusalOf(outcome) {
+	return outcome.refused === undefined ? { refused: false } : { refused: true, reason: outcome.refused };
+}
+
+async function claudeCall(cwd, event) {
+	const host = createModHost({ cwd, env: CLAUDE_ENV });
+	registerClaudeCode(host.on);
+	return refusalOf(await host.call("tool.call", event));
+}
+
+function openClaudeCode(root) {
+	let host = createModHost({ cwd: root, env: CLAUDE_ENV });
+	let directory = root;
+	registerClaudeCode(host.on);
+	const gate = async (input) => {
+		const outcome = await host.call("tool.call", { ...input, tool: CLAUDE_GATE_TOOL });
+		if (outcome.refused !== undefined) throw new Error(outcome.refused);
+		assert.ok(Array.isArray(outcome.result), `flow_gate ${JSON.stringify(input)} answered no result`);
+		return outcome.result.map(({ text }) => text).join("\n");
+	};
+	return {
+		setRoot(next) {
+			directory = next;
+			host = createModHost({ cwd: next, env: CLAUDE_ENV });
+			registerClaudeCode(host.on);
+		},
+		async approve(scope, items) {
+			for (const { kind, path } of items) await gate({ action: "present", scope, kind, path, summary: `${kind} for ${scope}` });
+			host.answer("Approve");
+			await gate({ action: "approve", scope, kind: items.map(({ kind }) => kind).join(",") });
+		},
+		async accept(scopes) {
+			host.answer("Record");
+			await gate({ action: "accept", scope: scopes.join(","), source: "case" });
+		},
+		dispatch: async (role, brief) =>
+			refusalOf(
+				await host.call("tool.call", {
+					tool: "Agent",
+					subagent_type: CLAUDE_ROLES[role],
+					description: "case",
+					prompt: brief,
+				}),
+			),
+		async status(scope) {
+			return parseStatus(await gate({ action: "status", scope }));
+		},
+		async recorded(scope, kind) {
+			return latestClaudeRecord(await readClaudeRecord(hostOf(host.$), directory), scope, kind)?.digest;
+		},
+	};
+}
+
+const claudeCodeAdapter = {
+	name: "claude-code",
+	read: (cwd, path) => claudeCall(cwd, { tool: "Read", file_path: path }),
+	grep: (cwd, dir, glob) =>
+		claudeCall(cwd, glob === null ? { tool: "Grep", pattern: "TOKEN", path: dir } : { tool: "Grep", pattern: "TOKEN", path: dir, glob }),
+	shell: (cwd, command) => claudeCall(cwd, { tool: "Bash", command }),
+	open: openClaudeCode,
+};
+
+const adapters = [ompAdapter, openCodeAdapter, claudeCodeAdapter];
 
 // --- Runner ------------------------------------------------------------------
 
@@ -214,26 +301,73 @@ function expectRefusal(result, refuse, name, label) {
 	}
 }
 
-const counts = { secretRead: 0, secretGrep: 0, secretShell: 0, scenarios: 0, agreed: 0 };
+const counts = { secretRead: 0, secretGrep: 0, secretShell: 0, runtimeShell: 0, scenarios: 0, agreed: 0, sameReason: 0 };
+
+// Each secret answer by section, case and adapter, so the ports' refusal sentences can be compared with OMP's own.
+const secretResults = new Map();
+function recordSecret(section, index, label, adapter, result) {
+	const key = `${section} ${index}`;
+	if (!secretResults.has(key)) secretResults.set(key, { label, byAdapter: {} });
+	secretResults.get(key).byAdapter[adapter.name] = result;
+}
 
 for (const adapter of adapters) {
-	for (const { path, refuse, name } of table.secretRead) {
-		expectRefusal(await adapter.read(SECRET_CWD, path), refuse, name, `${adapter.name} secretRead ${JSON.stringify(path)}`);
+	for (const [index, { path, refuse, name }] of table.secretRead.entries()) {
+		const result = await adapter.read(SECRET_CWD, path);
+		expectRefusal(result, refuse, name, `${adapter.name} secretRead ${JSON.stringify(path)}`);
+		recordSecret("secretRead", index, JSON.stringify(path), adapter, result);
 		counts.secretRead += 1;
 	}
 }
 
 for (const adapter of adapters) {
-	for (const { dir, glob, refuse, name } of table.secretGrep) {
-		expectRefusal(await adapter.grep(SECRET_CWD, dir, glob), refuse, name, `${adapter.name} secretGrep ${JSON.stringify([dir, glob])}`);
+	for (const [index, { dir, glob, refuse, name }] of table.secretGrep.entries()) {
+		const result = await adapter.grep(SECRET_CWD, dir, glob);
+		expectRefusal(result, refuse, name, `${adapter.name} secretGrep ${JSON.stringify([dir, glob])}`);
+		recordSecret("secretGrep", index, JSON.stringify([dir, glob]), adapter, result);
 		counts.secretGrep += 1;
 	}
 }
 
 for (const adapter of adapters) {
-	for (const { command, refuse, name } of table.secretShell) {
-		expectRefusal(await adapter.shell(SECRET_CWD, command), refuse, name, `${adapter.name} secretShell ${JSON.stringify(command)}`);
+	for (const [index, { command, refuse, name }] of table.secretShell.entries()) {
+		const result = await adapter.shell(SECRET_CWD, command);
+		expectRefusal(result, refuse, name, `${adapter.name} secretShell ${JSON.stringify(command)}`);
+		recordSecret("secretShell", index, JSON.stringify(command), adapter, result);
 		counts.secretShell += 1;
+	}
+}
+
+// Where both refuse, the Claude Code sentence is OMP's own, not a copy that could drift word by word.
+for (const [key, { label, byAdapter }] of secretResults) {
+	const omp = byAdapter[ompAdapter.name];
+	const claude = byAdapter[claudeCodeAdapter.name];
+	if (!omp?.refused || !claude?.refused) continue;
+	assert.equal(claude.reason, omp.reason, `${key.split(" ")[0]} ${label}: the claude-code refusal must be OMP's sentence`);
+	counts.sameReason += 1;
+}
+assert.ok(counts.sameReason > 0, "the refusal sentences must be compared on at least one case");
+
+// Shell text that reaches `.flow/runtime`, answered per adapter. OMP's answer is its `tool_call` hooks', which read no
+// shell text for this; its profiles' `*.flow/runtime*` prompt rule is not modelled here. OpenCode refuses on the
+// literal substring, so a split or quoted spelling passes it; Claude Code also reads the quote-removed text and the
+// command's pieces. Where OpenCode and Claude Code both refuse, they give one sentence.
+const RUNTIME_SENTENCE = "Only flow_gate writes .flow/runtime/";
+for (const { command, refuse } of table.runtimeShell) {
+	const reasons = {};
+	for (const adapter of adapters) {
+		const label = `${adapter.name} runtimeShell ${JSON.stringify(command)}`;
+		assert.equal(typeof refuse[adapter.name], "boolean", `${label}: the row must give this adapter's answer`);
+		const result = await adapter.shell(SECRET_CWD, command);
+		expectRefusal(result, refuse[adapter.name], undefined, label);
+		if (result.refused) {
+			assert.ok(result.reason?.includes(RUNTIME_SENTENCE), `${label}: the refusal must say "${RUNTIME_SENTENCE}", got ${JSON.stringify(result.reason)}`);
+			reasons[adapter.name] = result.reason;
+		}
+		counts.runtimeShell += 1;
+	}
+	if (reasons[openCodeAdapter.name] !== undefined && reasons[claudeCodeAdapter.name] !== undefined) {
+		assert.equal(reasons[claudeCodeAdapter.name], reasons[openCodeAdapter.name], `runtimeShell ${JSON.stringify(command)}: the two refusal sentences must be equal`);
 	}
 }
 
@@ -252,9 +386,11 @@ function fixtureRepository(unborn) {
 	return root;
 }
 
-// After an approve or accept, every adapter must have stored the same digest or fingerprint.
-function assertRecordedAgree(sessions, scope, kind, label) {
-	const values = sessions.map(({ adapter, gate }) => [adapter.name, gate.recorded(scope, kind)]);
+// After an approve or accept, every adapter must have stored the same digest or fingerprint. `recorded` is awaited
+// because a port's record reader is asynchronous (the Claude Code guard reads through its host).
+async function assertRecordedAgree(sessions, scope, kind, label) {
+	const values = [];
+	for (const { adapter, gate } of sessions) values.push([adapter.name, await gate.recorded(scope, kind)]);
 	for (const [name, value] of values) assert.ok(value !== undefined, `${label}: ${name} recorded no ${kind} for scope ${scope}`);
 	const [, first] = values[0];
 	for (const [name, value] of values) {
@@ -263,35 +399,43 @@ function assertRecordedAgree(sessions, scope, kind, label) {
 	if (sessions.length > 1) counts.agreed += 1;
 }
 
+// Every adapter gets its own copy of the scenario's repository. The OpenCode plugin and the Claude Code hooks module
+// both keep their record in `.flow/runtime/approvals.log` inside the fixture, so one shared checkout would let the
+// last writer's record answer for the other port and hide a real disagreement between them.
 for (const scenario of table.scenarios) {
-	let root = fixtureRepository(scenario.unborn);
+	const roots = adapters.map(() => fixtureRepository(scenario.unborn));
 	try {
-		const sessions = adapters.map((adapter) => ({ adapter, gate: adapter.open(root) }));
+		const sessions = adapters.map((adapter, index) => ({ adapter, root: roots[index], gate: adapter.open(roots[index]) }));
 		for (const { adapter, gate } of sessions) assertImplements(`${adapter.name} gate`, gate, GATE_METHODS);
 		for (const [index, step] of scenario.steps.entries()) {
 			const where = `${scenario.name} step ${index + 1}`;
 			if (step.write) {
-				for (const [path, content] of Object.entries(step.write)) {
-					mkdirSync(dirname(join(root, path)), { recursive: true });
-					writeFileSync(join(root, path), content);
+				for (const { root } of sessions) {
+					for (const [path, content] of Object.entries(step.write)) {
+						mkdirSync(dirname(join(root, path)), { recursive: true });
+						writeFileSync(join(root, path), content);
+					}
 				}
 			} else if (step.git) {
-				gitIn(root, step.git);
+				for (const { root } of sessions) gitIn(root, step.git);
 			} else if (step.move) {
-				const moved = `${root}-moved`;
-				renameSync(root, moved);
-				root = moved;
-				for (const { gate } of sessions) gate.setRoot(root);
+				for (const [position, session] of sessions.entries()) {
+					const moved = `${session.root}-moved`;
+					renameSync(session.root, moved);
+					roots[position] = moved;
+					session.root = moved;
+					session.gate.setRoot(moved);
+				}
 			} else if (step.approve) {
 				for (const { adapter, gate } of sessions) {
 					await gate.approve(step.scope, step.approve).catch((error) => assert.fail(`${adapter.name} ${where}: approve failed: ${error.message}`));
 				}
-				for (const { kind } of step.approve) assertRecordedAgree(sessions, step.scope, kind, where);
+				for (const { kind } of step.approve) await assertRecordedAgree(sessions, step.scope, kind, where);
 			} else if (step.accept) {
 				for (const { adapter, gate } of sessions) {
 					await gate.accept(step.accept).catch((error) => assert.fail(`${adapter.name} ${where}: accept failed: ${error.message}`));
 				}
-				for (const scope of step.accept) assertRecordedAgree(sessions, scope, "accept", where);
+				for (const scope of step.accept) await assertRecordedAgree(sessions, scope, "accept", where);
 			} else if (step.dispatch) {
 				const { role, brief } = step.dispatch;
 				for (const { adapter, gate } of sessions) {
@@ -315,12 +459,15 @@ for (const scenario of table.scenarios) {
 		}
 		counts.scenarios += 1;
 	} finally {
-		rmSync(root, { recursive: true, force: true });
+		for (const root of roots) rmSync(root, { recursive: true, force: true });
 	}
 }
 
-assert.ok(counts.secretRead > 0 && counts.secretGrep > 0 && counts.secretShell > 0 && counts.scenarios > 0, "every section must run");
+assert.ok(
+	counts.secretRead > 0 && counts.secretGrep > 0 && counts.secretShell > 0 && counts.runtimeShell > 0 && counts.scenarios > 0,
+	"every section must run",
+);
 console.log(
-	`guard cases: ${counts.secretRead} read, ${counts.secretGrep} grep, ${counts.secretShell} shell, ${counts.scenarios} scenarios, ${counts.agreed} recorded agreements`,
+	`guard cases: ${counts.secretRead} read, ${counts.secretGrep} grep, ${counts.secretShell} shell, ${counts.runtimeShell} runtime shell, ${counts.sameReason} same refusal sentences, ${counts.scenarios} scenarios, ${counts.agreed} recorded agreements`,
 );
 console.log(`ok: guard cases (${adapters.map(({ name }) => name).join(", ")})`);

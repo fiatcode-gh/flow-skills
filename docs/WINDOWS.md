@@ -8,7 +8,7 @@ Windows support is CI-tested on `windows-latest` and not yet field-tested on a r
 - the installer tests: install, verify, refusal of foreign links and real files, and the stop when Windows does not allow symlinks;
 - with OMP and OpenCode installed on the runner, the checks that need no login: OpenCode `debug agents` and the skill list (every Flow agent and skill found once), and OMP loading its config and Flow skills;
 - the Claude Code session-start hook run under Git Bash, printing the core text;
-- `flow_approve`, `flow_check` and the `.flow/` exclude guard run under Git Bash.
+- the `.flow/` exclude guard and the Claude Code hooks module's Node tests run under Git Bash / Node.
 
 CI does not cover the OMP extensions' Node and Bun tests, or interactive sessions with logins. The checks still open are listed at the end of this page.
 
@@ -64,9 +64,9 @@ function oc { flow-opencode run @args }
 
 ## The shell rule
 
-Flow's doctrine is POSIX `sh` and stays so: `mktemp -d`, `readlink -f`, `sha256sum`, the `.flow/` exclude guard and `flow_approve` / `flow_check` are all `sh`. On Windows the agent's shell must therefore be Git Bash, never PowerShell and never WSL's `bash.exe`. Each harness gets there differently:
+Flow's doctrine is POSIX `sh` and stays so: `mktemp -d`, `readlink -f`, `sha256sum` and the `.flow/` exclude guard are all `sh`. On Windows the agent's shell must therefore be Git Bash, never PowerShell and never WSL's `bash.exe`. The Claude Code hooks module runs in-process on every platform and needs no shell. Each harness gets there differently:
 
-- **Claude Code** runs its Bash tool and hooks in Git Bash when Git for Windows is installed. If it cannot find it, set `CLAUDE_CODE_GIT_BASH_PATH`. Do not enable its PowerShell tool.
+- **Claude Code** runs its Bash tool and `sh` hooks in Git Bash when Git for Windows is installed. If it cannot find it, set `CLAUDE_CODE_GIT_BASH_PATH`. Canonical paths use the engine's `stat` with `{ resolve: true }`, so no PATH tool is needed; a host whose `stat` gives no `realPath` falls back to `realpath`, and with neither every gated path is refused. The guard covers the `PowerShell` tool when it exists; Git Bash is still required for the shell doctrine.
 - **OMP**: the `bash` tool is an embedded bash on every OS, so nothing needs configuring. OMP also picks Git Bash on its own for services and `!` commands. The `shellPath` setting only overrides that choice.
 - **OpenCode** defaults to PowerShell on Windows. `flow-opencode.ps1 run` therefore sets `OPENCODE_CONFIG_CONTENT={"shell":"<Git Bash>"}` for that launch. Plain `opencode` (the background service, with the base config) uses PowerShell unless you set the same variable for your user:
 
@@ -84,12 +84,12 @@ The shared `opencode.json` does not carry a `shell` key, because that would chan
 - Paths print as `/c/Users/...` inside Git Bash and `C:\Users\...` outside it.
 - `ln -s` in Git Bash copies the file unless `MSYS=winsymlinks:nativestrict` is set. Use the installers for links.
 - `readlink -f`, `sha256sum`, `cmp`, `awk` and `tar` are present.
-- `flow_approve`, `flow_check` and the `.flow/` exclude guard run unchanged; CI proves it.
+- the `.flow/` exclude guard runs unchanged, and the hooks module's tests run under Node; CI proves both.
 - `.gitattributes` keeps line endings as LF, so the `sh` scripts work in a Windows checkout.
 
 ## Tests and CI
 
-Run the whole suite from PowerShell with `pwsh tests/run.ps1`. It checks the PowerShell syntax, runs the validator, runs both launcher tests, then runs the `sh` tests (`approval-record`, `flow-exclude`, `session-start`) under Git Bash.
+Run the whole suite from PowerShell with `pwsh tests/run.ps1`. It checks the PowerShell syntax, runs the validator, the Claude Code hooks module's Node tests, both launcher tests, then runs the `sh` tests (`flow-exclude`, `session-start`) under Git Bash.
 
 The `windows` CI job runs on `windows-latest`. It checks out the repository, installs uv, Node, OMP and OpenCode, runs `tests/run.ps1`, then runs `tests/windows-ci-tools.ps1` against the real OMP and OpenCode tools. Those need no login.
 
@@ -105,7 +105,7 @@ To do on a real Windows machine:
 2. Clone the repository and run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 3. Run `.\omp\bin\flow-omp.ps1 install`, `verify` and `doctor`. Log in with `omp --profile anthropic` and run one Flow turn that uses `mktemp -d` and `sha256sum` in the bash tool.
 4. Run `.\opencode\bin\flow-opencode.ps1 install`, `opencode reload`, `doctor` (it also reports the plugin: `ok: plugin flow-guard is active at …`), then `run claude-agent`. Connect with `/connect` and ask it to run `uname -s`; expect `MINGW64_NT...`.
-5. Run `claude plugin marketplace add fiatcode-gh/flow-skills` and `claude plugin install fiatcode@flow-skills`. Start a session and confirm the Flow core prints and `flow_approve` / `flow_check` work in its Bash tool.
+5. Run `claude plugin marketplace add fiatcode-gh/flow-skills` and `claude plugin install fiatcode@flow-skills`. Start a session and confirm the Flow core prints and a `flow_gate` approval dialog appears.
 6. Put the launchers on `PATH` with the recipe above, add the `oc` function to `$PROFILE`, and run `oc claude-agent`.
 
 Record the results on the Flow Skills page, and file upstream issues for anything on the OMP, OpenCode or Claude Code side.

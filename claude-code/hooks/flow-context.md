@@ -36,29 +36,14 @@ These are the user's standing instructions from the `fiatcode` plugin. Session s
 
 ## Approval record
 
-Flow has no gate tool here. Bind each approval to the artifact bytes, so a later edit is visible:
+The plugin's hooks module enforces Flow's gates inside the Claude Code process. It registers the `flow_gate` tool and refuses a gated dispatch without a current record in `.flow/runtime/approvals.log`:
 
-```sh
-flow_digest() { # flow_digest <kind> <path>   plan: hashed up to its last amendments heading
-  n=$(sed -n '/^## In-scope amendments$/=' "$2" | tail -n 1)
-  if [ "$1" = plan ] && [ "$n" ]; then head -n "$n" "$2"; else cat "$2"; fi | sha256sum | cut -d' ' -f1
-}
-flow_approve() { # flow_approve <scope> <kind> <path>   kind: contract | plan | implementation | accept
-  [ -f "$3" ] || { echo "flow_approve: no file $3" >&2; return 1; }
-  mkdir -p .flow/runtime && printf '%s %s %s %s\n' "$1" "$2" "$(flow_digest "$2" "$3")" "$3" >>.flow/runtime/approvals.log
-}
-flow_check() { # flow_check <scope> <kind> <path>   prints ok, stale or missing
-  [ -f "$3" ] || { echo missing; return 1; }
-  line=$(awk -v s="$1" -v k="$2" '$1==s && $2==k' .flow/runtime/approvals.log 2>/dev/null | tail -n 1)
-  [ -z "$line" ] && { echo missing; return 1; }
-  [ "$(echo "$line" | cut -d' ' -f3)" = "$(flow_digest "$2" "$3")" ] && echo ok || { echo stale; return 1; }
-}
-```
-
-- Shell state does not persist between Bash calls: paste these functions into each call that uses them.
-- Run `flow_approve` right after the user agrees in chat. For `accept`, pass the acceptance receipt file.
-- Run `flow_check` for the contract (and plan) before every planner, executor or implementer dispatch. `stale` or `missing` blocks the dispatch until the user approves the current artifact.
-- A hand-written log line is not an approval.
+- `present` (`scope`, `kind`: `contract`, `plan` or `implementation`, `path`, one-line `summary`) pins the artifact. A plan is hashed through its last `## In-scope amendments` line; `kind=implementation` takes the contract path.
+- `approve` (`scope` and `kind`, each a comma list) names every pair in one dialog. Only its Approve answer writes the record; a new contract drops the scope's older plan, implementation and acceptance.
+- `accept` (`scope`, `source`) raises one dialog naming each scope, the source and the current head. Only its Record answer binds the working tree's fingerprint: a commit of that tree keeps it current, and any other change makes it stale. `status` prints `current`, `stale` or `missing`; `clear` removes the scope.
+- Only the main conversation presents, approves, accepts and clears. Only `flow_gate` writes `.flow/runtime/`: the hooks refuse file tools and shell commands that name it. A hand-written line is not an approval.
+- The dispatch gate refuses a planner without a current contract, a writer without a current contract and plan, and the evidence verifier without a current acceptance and a complete capsule.
+- When the hooks module is off (`--safe-mode`, `--bare`, `disableAllHooks`, an organization policy, Claude Code older than 2.1.299), there is no gate. Say so and stop; do not approve by hand.
 
 ## Cloud sessions
 

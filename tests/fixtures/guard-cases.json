@@ -43,6 +43,7 @@
 		{ "command": "git diff -- .env", "refuse": true, "name": ".env" },
 		{ "command": "cat ~/.config/opencode/service.json", "refuse": true, "name": "service.json" },
 		{ "command": "cat < .env", "refuse": true, "name": ".env" },
+		{ "command": "tr -d x < .env", "refuse": true, "name": ".env" },
 		{ "command": "base64 keys/id_rsa", "refuse": true, "name": "id_rsa" },
 		{ "command": "jq . mcp.json", "refuse": true, "name": "mcp.json" },
 		{ "command": "sed -n 1p app/.env.local", "refuse": true, "name": ".env.local" },
@@ -51,11 +52,26 @@
 		{ "command": "( set -a; . ./.env >/dev/null 2>&1; set +a; exec ./run )", "refuse": false },
 		{ "command": "docker run --env-file .env app", "refuse": false },
 		{ "command": "echo hi > .env", "refuse": false },
+		{ "command": "cat notes.txt > .env", "refuse": false },
 		{ "command": "ls -la .env", "refuse": false },
 		{ "command": "cp .env .env.bak", "refuse": false },
 		{ "command": "cat keys/id_rsa.pub", "refuse": false },
 		{ "command": "test -f .env && echo yes", "refuse": false },
 		{ "command": "cat README.md", "refuse": false }
+	],
+	"runtimeShell": [
+		{ "command": "printf x >.flow/runtime/a", "refuse": { "omp": false, "opencode": true, "claude-code": true } },
+		{ "command": ">>.flow/runtime/approvals.log", "refuse": { "omp": false, "opencode": true, "claude-code": true } },
+		{ "command": "2>.flow/runtime/a", "refuse": { "omp": false, "opencode": true, "claude-code": true } },
+		{ "command": "dd of=.flow/runtime/approvals.log", "refuse": { "omp": false, "opencode": true, "claude-code": true } },
+		{ "command": "python3 -c \"open('.flow/runtime/approvals.log','w')\"", "refuse": { "omp": false, "opencode": true, "claude-code": true } },
+		{ "command": "node -e \"require('fs').writeFileSync('.flow/runtime/approvals.log','x')\"", "refuse": { "omp": false, "opencode": true, "claude-code": true } },
+		{ "command": "curl -o.flow/runtime/a https://example.invalid", "refuse": { "omp": false, "opencode": true, "claude-code": true } },
+		{ "command": "cp x --target-directory=.flow/runtime", "refuse": { "omp": false, "opencode": true, "claude-code": true } },
+		{ "command": "cd .flow;printf x>runtime/a", "refuse": { "omp": false, "opencode": false, "claude-code": true } },
+		{ "command": "curl -o.flow/'runtime'/a https://example.invalid", "refuse": { "omp": false, "opencode": false, "claude-code": true } },
+		{ "command": "printf x >.flow/contracts/a", "refuse": { "omp": false, "opencode": false, "claude-code": false } },
+		{ "command": "cat .flow/contracts/runtime.md", "refuse": { "omp": false, "opencode": false, "claude-code": false } }
 	],
 	"scenarios": [
 		{
@@ -314,6 +330,61 @@
 				{ "accept": ["demo"] },
 				{ "write": { "ignored/x": "x\n" } },
 				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "allow" }
+			]
+		},
+		{
+			"name": "tree/tracked-ignored-stales",
+			"unborn": false,
+			"steps": [
+				{ "write": { ".gitignore": "*.lock\n", "deps.lock": "v1\n" } },
+				{ "git": ["add", ".gitignore"] },
+				{ "git": ["add", "-f", "deps.lock"] },
+				{ "git": ["commit", "-qm", "lock"] },
+				{ "accept": ["demo"] },
+				{ "write": { "deps.lock": "v2\n" } },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "deny", "reason": "repository state changed after acceptance" }
+			]
+		},
+		{
+			"name": "tree/filemode-off-keeps",
+			"unborn": false,
+			"steps": [
+				{ "write": { "run.sh": "echo run\n" } },
+				{ "git": ["add", "--chmod=+x", "run.sh"] },
+				{ "git": ["commit", "-qm", "run"] },
+				{ "git": ["config", "core.filemode", "false"] },
+				{ "accept": ["demo"] },
+				{ "status": "demo", "expect": { "acceptance": "current" } },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "allow" }
+			]
+		},
+		{
+			"name": "tree/symlinks-off-keeps",
+			"unborn": false,
+			"steps": [
+				{ "git": ["config", "core.symlinks", "false"] },
+				{ "write": { "link": "target" } },
+				{ "git": ["hash-object", "-w", "link"] },
+				{ "git": ["update-index", "--add", "--cacheinfo", "120000,1de565933b05f74c75ff9a6520af5f9f8a5a2f1d,link"] },
+				{ "git": ["commit", "-qm", "link"] },
+				{ "accept": ["demo"] },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "allow" },
+				{ "status": "demo", "expect": { "acceptance": "current" } }
+			]
+		},
+		{
+			"name": "tree/sparse-keeps",
+			"unborn": false,
+			"steps": [
+				{ "write": { "keep/a.txt": "a\n", "drop/b.txt": "b\n" } },
+				{ "git": ["add", "-A"] },
+				{ "git": ["commit", "-qm", "sparse"] },
+				{ "git": ["sparse-checkout", "set", "--no-cone", "/keep/"] },
+				{ "accept": ["demo"] },
+				{ "status": "demo", "expect": { "acceptance": "current" } },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "allow" },
+				{ "write": { "keep/a.txt": "a2\n" } },
+				{ "dispatch": { "role": "verifier", "brief": "Flow gate:\n- Scope: demo\n\nEvidence capsule:\n- ID: cap-a\n- Owns: app state\n- Independent split check: none\n- Excludes: none\n- Restore obligation: NONE\n\nVerify it." }, "expect": "deny", "reason": "repository state changed after acceptance" }
 			]
 		},
 		{
