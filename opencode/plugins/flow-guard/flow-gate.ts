@@ -115,6 +115,10 @@ function summaryError(summary: string): string | undefined {
 
 const targetList = (targets: GateTarget[]) => targets.map(({ scope, kind }) => `${kind} ${scope}`).join(", ");
 
+// Each pair's artifact path, so a different file under the same scope and kind reads differently.
+const pairList = (root: string, presented: Presentation[]) =>
+	presented.map(({ scope, kind, path }) => `${kind} ${scope} (${rootRelativePath(root, path)})`).join(", ");
+
 // Each target's presentation, still unchanged, or the reason the whole approve must be refused.
 function presentedTargets(state: GateState, root: string, targets: GateTarget[]): { presented: Presentation[] } | { error: string } {
 	const presented: Presentation[] = [];
@@ -233,8 +237,7 @@ export function flowGateTool(host: FlowHost, state: GateState) {
 		await host.permission.assert({
 			sessionID: context.sessionID,
 			agent: context.agent,
-			// Each pair's artifact path, so a different file under the same scope and kind reads differently.
-			action: `${GATE_ACTION_PREFIX}approve ${before.presented.map(({ scope, kind, path }) => `${kind} ${scope} (${rootRelativePath(root, path)})`).join(", ")}`,
+			action: `${GATE_ACTION_PREFIX}approve ${pairList(root, before.presented)}`,
 			resources: targets.map(({ scope, kind }) => `${kind} ${scope}`),
 			metadata: { reason, summaries: Object.fromEntries(before.presented.map(({ scope, kind, summary }) => [`${kind} ${scope}`, summary])) },
 			source: toolSource(context),
