@@ -2,7 +2,14 @@
 
 Versions follow SemVer as described in the Versioning section of the README.
 
-## Unreleased
+## 2.0.0 — 2026-11-28
+
+Claude Code and OpenCode now enforce the Flow gates themselves, as OMP does: approvals go through a `flow_gate` tool with its own prompt, dispatches are checked against current approvals, and acceptance binds the working tree.
+
+### Breaking: action needed
+- Claude Code: run `claude plugin marketplace update flow-skills`, then `claude plugin update fiatcode@flow-skills`, and restart, so the plugin loads the new hooks module (needs Claude Code 2.1.299 or later); 1.4.0 has no guard.
+- OpenCode: rerun `opencode/bin/flow-opencode install` to link the `flow-guard` plugin, then `flow-opencode doctor` to check it is active. The `flow_approve` and `flow_check` shell functions are gone; record approvals with `flow_gate`.
+- Every port: an acceptance recorded before this release reads stale once; record it again.
 
 ### Added
 - Claude Code: the `fiatcode` plugin ships a hooks module (`claude-code/hooks/guard.ts`) that enforces the Flow gates inside Claude Code's own process. It adds the `flow_gate` tool, with the plugin's own dialog for `approve` and `accept`; a gate on every `Agent` dispatch and resume that starts a planner, writer or verifier, against current approvals; acceptance bound to the working tree; refusal of file-tool writes, shell commands and other tools' input strings that reach `.flow/runtime/` (shell commands are checked as text, paths glued to redirects, options and assignments included; the known misses say what that cannot see); the secret-file refusal on `Read`, `Grep`, `Bash`, `PowerShell` and `Monitor`, and on other tools' input strings, keys included, that name a credentials file existing under the session directory or the repository root; refusal of `Workflow` and of tools that run code the guard cannot inspect; and publication prompts, which ask and never refuse, on `Bash`, `PowerShell` and `Monitor`. It needs Claude Code 2.1.299 or later and refuses gated dispatch and `SendMessage` below it; `docs/EXTERNAL-INTEROP.md` lists what it misses.
