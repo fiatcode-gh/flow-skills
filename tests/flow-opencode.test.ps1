@@ -522,13 +522,14 @@ case $1 in
           plugin.list) : > "$FIXTURE_DIR/listed-$s"; cat "$FIXTURE_DIR/plugins.json" ;;
           # Like OpenCode 2.4.1, a server knows the config's model only once its plugins are listed.
           model.default)
+            if [ -e "$FIXTURE_DIR/served-model-$s.err" ]; then cat "$FIXTURE_DIR/served-model-$s.err" >&2; exit 3; fi
             if [ -e "$FIXTURE_DIR/listed-$s" ]; then cat "$FIXTURE_DIR/served-model-$s.json"; else echo '{"data": null}'; fi ;;
           *) cat "$FIXTURE_DIR/skills.json" ;;
         esac ;;
     esac ;;
   serve)
     rm -f "$FIXTURE_DIR/listed-$b"
-    [ -e "$FIXTURE_DIR/noserve" ] || echo "server listening on http://127.0.0.1:1/$b"
+    [ -e "$FIXTURE_DIR/noserve" ] || [ -e "$FIXTURE_DIR/noserve-$b" ] || echo "server listening on http://127.0.0.1:1/$b"
     exec sleep 60 ;;
 esac
 '@
@@ -583,6 +584,32 @@ esac
         if ($r.Code -ne 0) { fail "doctor O failed with an unreadable main model: $($r.Out)" }
         if (-not $r.Out.Contains('SKIP: profile claude-agent: main model (not readable on OpenCode v2.4.1)')) { fail "doctor O: no not-readable SKIP: $($r.Out)" }
         if ($r.Out.Contains('FAIL')) { fail "doctor O: unexpected FAIL: $($r.Out)" }
+
+        # P-R: the profile's server gives no answer at all; doctor names why instead of the version SKIP.
+        # Doctor exits non-zero and prints exactly the expected line.
+        function Assert-MainModelFail([string]$case, [string]$line) {
+            $r = Run-Doctor
+            if ($r.Code -eq 0) { fail "doctor $case exited 0: $($r.Out)" }
+            if ((Lines $r.Out) -cnotcontains $line) { fail "doctor ${case}: no line '$line': $($r.Out)" }
+            if ($r.Out.Contains('SKIP: profile claude-agent: main model')) { fail "doctor ${case}: still the version SKIP: $($r.Out)" }
+        }
+        # P: the profile's server never reports its URL.
+        $noServe = Join-Path $fx 'noserve-claude-agent'
+        New-Item -ItemType File -Path $noServe | Out-Null
+        Assert-MainModelFail 'P' "FAIL: profile claude-agent: main model unavailable: the profile's server reported no listening URL within 2s"
+        Remove-Item -LiteralPath $noServe
+        # Q: model.default on the server exits non-zero, with and without stderr.
+        $servedErr = Join-Path $fx 'served-model-claude-agent.err'
+        [IO.File]::WriteAllText($servedErr, "  config broke `n")
+        Assert-MainModelFail 'Q' "FAIL: profile claude-agent: main model unavailable: model.default on the profile's server exited 3: config broke"
+        [IO.File]::WriteAllText($servedErr, '')
+        Assert-MainModelFail 'Q' "FAIL: profile claude-agent: main model unavailable: model.default on the profile's server exited 3"
+        Remove-Item -LiteralPath $servedErr
+        # R: model.default on the server answers neither a model nor null data.
+        foreach ($answer in '{"data": "bad"}', 'not json') {
+            [IO.File]::WriteAllText((Join-Path $fx 'served-model-claude-agent.json'), "$answer`n")
+            Assert-MainModelFail 'R' "FAIL: profile claude-agent: main model unavailable: model.default on the profile's server gave no model"
+        }
         Make-Fixtures $fx $skillsPrefix
 
         # B: a missing agent.

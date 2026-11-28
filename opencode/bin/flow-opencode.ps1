@@ -400,12 +400,13 @@ function Check-Agents([string]$file, [string]$mode, [string[]]$agents, [string]$
 }
 
 # Reads the `model.default` JSON in $file. Null data means this OpenCode gave no way to read the profile's model: a
-# SKIP naming the version in $version.
-function Check-MainModel([string]$file, [string]$pfile, [string]$stem, [int]$rc, [string]$version) {
+# SKIP naming the version in $version. A $reason says the profile's own server gave no answer: a FAIL naming it.
+function Check-MainModel([string]$file, [string]$pfile, [string]$stem, [int]$rc, [string]$version, [string]$reason) {
     $label = "profile $stem`: main model"
     $want = (Read-JsonFile $pfile)['model']
     try {
         if ($rc -ne 0) { throw "opencode api exited $rc" }
+        if ($reason) { throw $reason }
         $data = (Read-JsonFile $file)['data']
         if ($null -eq $data) {
             $v = @($version -split '\s+' | Where-Object { $_ }) | Select-Object -Last 1
@@ -570,11 +571,12 @@ function Stop-Server {
 }
 
 # OpenCode 2.4 answers a one-shot `model.default` before the config's plugins set the profile's model. A server for
-# the profile answers once it lists its plugins; its answer replaces $model only when it holds a model.
+# the profile answers once it lists its plugins; its answer replaces $model only when it holds a model. Returns why
+# the server gave no answer, or nothing when it answered a model or null.
 function Get-ServedModel([string]$pfile, [string]$model, [string]$tmp) {
     try {
         $url = Start-Server (Join-Path $tmp 'pserve.log') @{ OPENCODE_CONFIG = $pfile }
-        if (-not $url) { return }
+        if (-not $url) { return "the profile's server reported no listening URL within $($script:serveCap)s" }
         $env:OPENCODE_PASSWORD = $script:servePassword
         $pluginsFile = Join-Path $tmp 'pplugins.json'
         for ($tries = 0; $tries -lt $script:pluginCap; $tries++) {
@@ -584,8 +586,15 @@ function Get-ServedModel([string]$pfile, [string]$model, [string]$tmp) {
             Start-Sleep -Seconds 1
         }
         $served = Join-Path $tmp 'smodel.json'
-        if ((Invoke-Opencode @('api', '--server', $url, 'model.default') $served (Join-Path $tmp 'smodel.err')) -eq 0 -and (Get-ModelData $served) -eq 'model') {
-            Move-Item -Force -LiteralPath $served -Destination $model
+        $servedErr = Join-Path $tmp 'smodel.err'
+        $src = Invoke-Opencode @('api', '--server', $url, 'model.default') $served $servedErr
+        if ($src -ne 0) {
+            $err = (Get-Content -LiteralPath $servedErr -Raw -ErrorAction SilentlyContinue)?.Trim()
+            return "model.default on the profile's server exited $src" + ($err ? ": $err" : '')
+        }
+        switch (Get-ModelData $served) {
+            'model' { Move-Item -Force -LiteralPath $served -Destination $model }
+            'bad' { return "model.default on the profile's server gave no model" }
         }
     } finally {
         Remove-Item Env:OPENCODE_PASSWORD -ErrorAction SilentlyContinue
@@ -650,15 +659,16 @@ function Doctor {
             } else {
                 Report "FAIL: profile $stem`: opencode debug agents failed: $((Get-Content -LiteralPath $perr -Raw -ErrorAction SilentlyContinue)?.Trim())"
             }
+            $servedReason = ''
             if ($mrc -eq 0 -and (Get-ModelData $model) -eq 'null') {
-                Get-ServedModel $pf.FullName $model $tmp
+                $servedReason = Get-ServedModel $pf.FullName $model $tmp
                 if (-not $ocVersion) {
                     $versionFile = Join-Path $tmp 'version.txt'
                     [void](Invoke-Opencode @('--version') $versionFile (Join-Path $tmp 'version.err'))
                     $ocVersion = (Get-Content -LiteralPath $versionFile -Raw -ErrorAction SilentlyContinue)?.Trim()
                 }
             }
-            Invoke-Check 'Check-MainModel' ${function:Check-MainModel} @($model, $pf.FullName, $stem, $mrc, $ocVersion)
+            Invoke-Check 'Check-MainModel' ${function:Check-MainModel} @($model, $pf.FullName, $stem, $mrc, $ocVersion, $servedReason)
         }
 
         $url = Start-Server (Join-Path $tmp 'serve.log') @{}

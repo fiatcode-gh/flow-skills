@@ -2,6 +2,14 @@
 
 Versions follow SemVer as described in the Versioning section of the README.
 
+## Unreleased
+
+### Added
+- The repository is licensed under MIT (`LICENSE`), so anyone may use, change and port it; the Claude Code plugin declares `"license": "MIT"`. The README is rewritten for visitors: what Flow is and why, what a session looks like, install per harness, and which parts are personal to the author and how to adapt them.
+
+### Fixed
+- OpenCode: `flow-opencode doctor` reports the main-model SKIP that names the OpenCode version only when the profile's own server answered `model.default` with null data. A profile server that reports no listening URL, a `model.default` call on it that fails, and an answer that is neither a model nor null are now each a FAIL naming that cause.
+
 ## 2.0.0 — 2026-11-28
 
 Claude Code and OpenCode now enforce the Flow gates themselves, as OMP does: approvals go through a `flow_gate` tool with its own prompt, dispatches are checked against current approvals, and acceptance binds the working tree.

@@ -220,13 +220,14 @@ case $1 in
           plugin.list) : > "$FIXTURE_DIR/listed-$s"; cat "$FIXTURE_DIR/plugins.json" ;;
           # Like OpenCode 2.4.1, a server knows the config's model only once its plugins are listed.
           model.default)
+            if [ -e "$FIXTURE_DIR/served-model-$s.err" ]; then cat "$FIXTURE_DIR/served-model-$s.err" >&2; exit 3; fi
             if [ -e "$FIXTURE_DIR/listed-$s" ]; then cat "$FIXTURE_DIR/served-model-$s.json"; else echo '{"data": null}'; fi ;;
           *) cat "$FIXTURE_DIR/skills.json" ;;
         esac ;;
     esac ;;
   serve)
     rm -f "$FIXTURE_DIR/listed-$b"
-    [ -e "$FIXTURE_DIR/noserve" ] || echo "server listening on http://127.0.0.1:1/$b"
+    [ -e "$FIXTURE_DIR/noserve" ] || [ -e "$FIXTURE_DIR/noserve-$b" ] || echo "server listening on http://127.0.0.1:1/$b"
     exec sleep 60 ;;
 esac
 SH
@@ -310,6 +311,29 @@ printf '%s\n' '{"data": null}' > "$FX/served-model-claude-agent.json"
 out=$(doctor) || fail "doctor O failed with an unreadable main model: $out"
 case $out in *"SKIP: profile claude-agent: main model (not readable on OpenCode v2.4.1)"*) ;; *) fail "doctor O: no not-readable SKIP: $out" ;; esac
 case $out in *"FAIL"*) fail "doctor O: unexpected FAIL: $out" ;; esac
+
+# P-R: the profile's server gives no answer at all; doctor names why instead of the version SKIP.
+# doctor_main_fail case expected-line: doctor exits non-zero and prints exactly that line.
+doctor_main_fail() {
+  if out=$(doctor); then fail "doctor $1 exited 0: $out"; fi
+  printf '%s\n' "$out" | grep -qxF "$2" || fail "doctor $1: no line '$2': $out"
+  case $out in *"SKIP: profile claude-agent: main model"*) fail "doctor $1: still the version SKIP: $out" ;; esac
+}
+# P: the profile's server never reports its URL.
+: > "$FX/noserve-claude-agent"
+doctor_main_fail P "FAIL: profile claude-agent: main model unavailable: the profile's server reported no listening URL within 2s"
+rm "$FX/noserve-claude-agent"
+# Q: model.default on the server exits non-zero, with and without stderr.
+printf '%s\n' '  config broke ' > "$FX/served-model-claude-agent.err"
+doctor_main_fail Q "FAIL: profile claude-agent: main model unavailable: model.default on the profile's server exited 3: config broke"
+: > "$FX/served-model-claude-agent.err"
+doctor_main_fail Q "FAIL: profile claude-agent: main model unavailable: model.default on the profile's server exited 3"
+rm "$FX/served-model-claude-agent.err"
+# R: model.default on the server answers neither a model nor null data.
+for answer in '{"data": "bad"}' 'not json'; do
+  printf '%s\n' "$answer" > "$FX/served-model-claude-agent.json"
+  doctor_main_fail R "FAIL: profile claude-agent: main model unavailable: model.default on the profile's server gave no model"
+done
 make_fixtures "$FX" "$H/$CFG_REL/skills"
 
 # B: a missing agent.

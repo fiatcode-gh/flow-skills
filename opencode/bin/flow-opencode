@@ -226,16 +226,19 @@ PY
 }
 
 # Reads the `model.default` JSON in $1. Null data means this OpenCode gave no
-# way to read the profile's model: a SKIP naming the version in $5.
-check_main_model() { # file profile-file stem rc version
+# way to read the profile's model: a SKIP naming the version in $5. A reason
+# in $6 says the profile's own server gave no answer: a FAIL naming it.
+check_main_model() { # file profile-file stem rc version reason
   python3 - "$@" <<'PY'
 import json, sys
-path, pfile, stem, rc, version = sys.argv[1:6]
+path, pfile, stem, rc, version, reason = sys.argv[1:7]
 label = f'profile {stem}: main model'
 want = json.load(open(pfile))['model']
 try:
     if rc != '0':
         raise ValueError(f'opencode api exited {rc}')
+    if reason:
+        raise ValueError(reason)
     data = json.load(open(path))['data']
     if data is None:
         print(f'SKIP: {label} (not readable on OpenCode {version.split()[-1] if version.split() else "unknown"})')
@@ -290,10 +293,14 @@ stop_server() {
 
 # OpenCode 2.4 answers a one-shot `model.default` before the config's plugins
 # set the profile's model. A server for the profile answers once it lists its
-# plugins; its answer replaces $2 only when it holds a model.
+# plugins; its answer replaces $2 only when it holds a model. Sets $sreason to
+# why the server gave no answer, or to nothing when it answered a model or null.
 served_model() { # profile-file model-file
+  sreason=
   start_server "$tmp/pserve.log" OPENCODE_CONFIG="$1"
-  if [ -n "$url" ]; then
+  if [ -z "$url" ]; then
+    sreason="the profile's server reported no listening URL within ${cap}s"
+  else
     tries=0 cap=${FLOW_OPENCODE_PLUGIN_WAIT:-20}
     while [ "$tries" -lt "$cap" ]; do
       OPENCODE_PASSWORD=$pw opencode api --server "$url" plugin.list >"$tmp/pplugins.json" 2>/dev/null || true
@@ -301,9 +308,16 @@ served_model() { # profile-file model-file
       tries=$((tries + 1))
       sleep 1
     done
-    if OPENCODE_PASSWORD=$pw opencode api --server "$url" model.default >"$tmp/smodel.json" 2>/dev/null &&
-      [ "$(model_data "$tmp/smodel.json")" = model ]; then
-      mv "$tmp/smodel.json" "$2"
+    src=0
+    OPENCODE_PASSWORD=$pw opencode api --server "$url" model.default >"$tmp/smodel.json" 2>"$tmp/smodel.err" || src=$?
+    if [ "$src" -ne 0 ]; then
+      err=$(python3 -c 'import sys; print(open(sys.argv[1], errors="replace").read().strip())' "$tmp/smodel.err")
+      sreason="model.default on the profile's server exited $src${err:+: $err}"
+    else
+      case $(model_data "$tmp/smodel.json") in
+        model) mv "$tmp/smodel.json" "$2" ;;
+        bad) sreason="model.default on the profile's server gave no model" ;;
+      esac
     fi
   fi
   stop_server
@@ -400,13 +414,13 @@ doctor() {
     else
       report "FAIL: profile $stem: opencode debug agents failed: $(cat "$tmp/pagents.err")"
     fi
-    mrc=0
+    mrc=0 sreason=
     OPENCODE_CONFIG="$pfile" opencode api --standalone model.default >"$tmp/model.json" 2>/dev/null || mrc=$?
     if [ "$mrc" -eq 0 ] && [ "$(model_data "$tmp/model.json")" = null ]; then
       served_model "$pfile" "$tmp/model.json"
       [ -n "$ocversion" ] || ocversion=$(opencode --version 2>/dev/null || true)
     fi
-    run_check check_main_model "$tmp/model.json" "$pfile" "$stem" "$mrc" "$ocversion"
+    run_check check_main_model "$tmp/model.json" "$pfile" "$stem" "$mrc" "$ocversion" "$sreason"
   done
 
   start_server "$tmp/serve.log"
